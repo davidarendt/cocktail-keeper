@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react"
 import { supabase } from "./supabaseClient"
 import type { Session } from "@supabase/supabase-js"
+import {
+  appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors
+} from "./theme"
+import { SettingsBlock } from "./components/SettingsBlock"
 
 // ---------- Types ----------
 type Unit = "oz"|"barspoon"|"dash"|"drop"|"ml"
@@ -356,7 +360,7 @@ export default function App() {
   // ---------- SETTINGS (editor) ----------
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [catLoading, setCatLoading] = useState(false)
-  const [newName, setNewName] = useState<{[k in CatalogItem["kind"]]?: string}>({})
+  const [newName, setNewName] = useState<Partial<Record<CatalogItem["kind"], string>>>({})
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
   useEffect(() => { if (route==="settings") reloadSettings() }, [route])
@@ -394,6 +398,9 @@ export default function App() {
   }
 
   // Drag reorder helpers
+  const handleNewNameChange = (k: "method"|"glass"|"ice"|"garnish", v: string) =>
+    setNewName(prev => ({ ...prev, [k]: v }))
+
   function onDragStart(e: React.DragEvent<HTMLTableRowElement>, id: string) {
     setDraggingId(id)
     e.dataTransfer.effectAllowed = "move"
@@ -481,15 +488,14 @@ export default function App() {
     if (error) { setMergeMsg(error.message); return }
     setMergeMsg(`Merged. ${data?.moved ?? 0} specs updated.`)
     setMergeFrom(""); setMergeTo("")
-    // refresh lists + open suggestions will pick up unified name
     await loadIngredients()
     await load()
   }
 
   // ---------- RENDER ----------
   return (
-    <div style={{ minHeight:"100vh", background:"#0a0a0a", color:"#e5e7eb", fontFamily:"system-ui,-apple-system,Segoe UI,Roboto,Arial" }}>
-      <div style={{ maxWidth: 1120, margin:"0 auto", padding:24 }}>
+    <div style={appWrap}>
+      <div style={container}>
         {/* HEADER */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
@@ -505,7 +511,7 @@ export default function App() {
             )}
             {session ? (
               <>
-                <span style={{ fontSize:12, color:"#9ca3af" }}>
+                <span style={{ fontSize:12, color: colors.muted }}>
                   {session.user.email} • <b>{role}</b>
                 </span>
                 <button onClick={signOut} style={btnSecondary}>Sign out</button>
@@ -521,7 +527,7 @@ export default function App() {
 
         {/* ERROR BOX */}
         {err && (
-          <div style={{ background:"#1f2937", border:"1px solid #374151", padding:12, borderRadius:12, color:"#fecaca", marginBottom:12 }}>
+          <div style={card({ border: `1px solid #374151`, color:"#fecaca" })}>
             {err}
           </div>
         )}
@@ -529,11 +535,11 @@ export default function App() {
         {/* INGREDIENTS ADMIN */}
         {route === "ingredients" ? (
           role !== "editor" ? (
-            <div style={{ color:"#9ca3af" }}>Ingredients admin is editor-only.</div>
+            <div style={{ color: colors.muted }}>Ingredients admin is editor-only.</div>
           ) : (
             <div style={{ display:"grid", gap:12 }}>
               {/* Manage list */}
-              <div style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12 }}>
+              <div style={card()}>
                 <div style={{ display:"flex", gap:8, marginBottom:12 }}>
                   <input value={ingAdminQ} onChange={e=>setIngAdminQ(e.target.value)} placeholder="Search ingredients…" style={{ ...inp, flex:1 }} />
                   <input value={ingAdminNew} onChange={e=>setIngAdminNew(e.target.value)} placeholder="New ingredient" style={inp} />
@@ -545,7 +551,7 @@ export default function App() {
                     <thead><tr><th style={th}>Ingredient</th><th style={th}></th></tr></thead>
                     <tbody>
                       {ingAdmin.map(it => (
-                        <tr key={it.id} style={{ borderTop:"1px solid #1f2937" }}>
+                        <tr key={it.id} style={{ borderTop:`1px solid ${colors.border}` }}>
                           <td style={td}>{it.name}</td>
                           <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
                             <button onClick={()=>renameIngredient(it)} style={btnSecondary}>Rename</button>
@@ -554,7 +560,7 @@ export default function App() {
                         </tr>
                       ))}
                       {ingAdmin.length === 0 && (
-                        <tr><td style={{ ...td, color:"#9ca3af" }} colSpan={2}>No ingredients</td></tr>
+                        <tr><td style={{ ...td, color: colors.muted }} colSpan={2}>No ingredients</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -562,16 +568,16 @@ export default function App() {
               </div>
 
               {/* Merge panel */}
-              <div style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12 }}>
+              <div style={card()}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                   <strong>Merge ingredients</strong>
-                  <span style={{ fontSize:12, color:"#9ca3af" }}>Convert all uses of “From” → “Into”</span>
+                  <span style={{ fontSize:12, color: colors.muted }}>Convert all uses of “From” → “Into”</span>
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 1fr auto", gap:8, alignItems:"center" }}>
                   <div>
                     <input list="all-ingredients" value={mergeFrom} onChange={e=>setMergeFrom(e.target.value)} placeholder="From (e.g., Lemon Juice)" style={inp} />
                   </div>
-                  <div style={{ textAlign:"center", color:"#9ca3af" }}>→</div>
+                  <div style={{ textAlign:"center", color: colors.muted }}>→</div>
                   <div>
                     <input list="all-ingredients" value={mergeTo} onChange={e=>setMergeTo(e.target.value)} placeholder="Into (e.g., Fresh Lemon Juice)" style={inp} />
                   </div>
@@ -594,12 +600,13 @@ export default function App() {
         {/* SETTINGS */}
         {route === "settings" ? (
           role !== "editor" ? (
-            <div style={{ color:"#9ca3af" }}>Settings are editor-only.</div>
+            <div style={{ color: colors.muted }}>Settings are editor-only.</div>
           ) : (
             <SettingsBlock
               catalog={catalog}
               catLoading={catLoading}
               newName={newName}
+              onNewNameChange={handleNewNameChange}
               addCatalog={addCatalog}
               renameCatalog={renameCatalog}
               toggleCatalog={toggleCatalog}
@@ -645,7 +652,7 @@ export default function App() {
 
             {/* FORM */}
             {role === "editor" && formOpen && (
-              <form onSubmit={save} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
+              <form onSubmit={save} style={card({ marginBottom:16 })}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
                   <strong>{editingId ? "Edit cocktail" : "Create cocktail"}</strong>
                   <div style={{ display:"flex", gap:8 }}>
@@ -702,7 +709,11 @@ export default function App() {
                           placeholder="Ingredient (e.g., Fresh Lemon Juice)" style={inp}
                         />
                         {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
-                          <div style={{ position:"absolute", zIndex:10, top:"100%", left:0, right:0, background:"#0b1020", border:"1px solid #1f2937", borderRadius:10, padding:6, maxHeight:220, overflowY:"auto" }}>
+                          <div style={{
+                            position:"absolute", zIndex:10, top:"100%", left:0, right:0,
+                            background: colors.bg, border:`1px solid ${colors.border}`, borderRadius:10,
+                            padding:6, maxHeight:220, overflowY:"auto"
+                          }}>
                             {ingSuggest.map((s, idx) => (
                               <div key={s}
                                    onMouseDown={()=>{ applySuggestion(idx) }}
@@ -743,24 +754,24 @@ export default function App() {
             {loading ? (
               <div>Loading…</div>
             ) : rows.length === 0 ? (
-              <div style={{ color:"#9ca3af" }}>No results.</div>
+              <div style={{ color: colors.muted }}>No results.</div>
             ) : view==="cards" ? (
               <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:12 }}>
                 {rows.map(c => (
                   <div
                     key={c.id}
                     onClick={()=>startEdit(c)}
-                    style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, cursor:"pointer" }}
+                    style={card({ cursor:"pointer" })}
                     title="Click to edit"
                   >
                     <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
                       <div>
                         <div style={{ fontWeight:800, fontSize:16 }}>{c.name}</div>
-                        <div style={{ fontSize:12, color:"#9ca3af" }}>{c.method || ""}{c.glass ? ` • ${c.glass}` : ""}</div>
+                        <div style={{ fontSize:12, color: colors.muted }}>{c.method || ""}{c.glass ? ` • ${c.glass}` : ""}</div>
                       </div>
                       <div style={{ textAlign:"right", fontSize:12, color:"#cbd5e1" }}>
                         {c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}
-                        {c.last_special_on ? <div style={{ color:"#a7f3d0" }}>Special: {c.last_special_on}</div> : null}
+                        {c.last_special_on ? <div style={{ color: colors.special }}>Special: {c.last_special_on}</div> : null}
                       </div>
                     </div>
                     <ul style={{ marginTop:8, paddingLeft:18, color:"#cbd5e1", fontSize:13 }}>
@@ -779,7 +790,7 @@ export default function App() {
                 ))}
               </div>
             ) : (
-              <table style={{ width:"100%", borderCollapse:"collapse", background:"#111827", border:"1px solid #1f2937", borderRadius:12, overflow:"hidden" }}>
+              <table style={{ width:"100%", borderCollapse:"collapse", ...card({ padding:0 }) }}>
                 <thead style={{ background:"#0f172a", color:"#cbd5e1" }}>
                   <tr>
                     <th style={th}>Name</th>
@@ -792,7 +803,7 @@ export default function App() {
                 </thead>
                 <tbody>
                   {rows.map(c => (
-                    <tr key={c.id} style={{ borderTop:"1px solid #1f2937" }} onClick={()=>startEdit(c)} title="Click to edit">
+                    <tr key={c.id} style={{ borderTop:`1px solid ${colors.border}` }} onClick={()=>startEdit(c)} title="Click to edit">
                       <td style={td}>{c.name}</td>
                       <td style={td}>{c.method || "—"}</td>
                       <td style={td}>{c.glass || "—"}</td>
@@ -822,97 +833,6 @@ export default function App() {
     </div>
   )
 }
-
-// ---------- Settings subcomponent ----------
-function SettingsBlock(props: {
-  catalog: CatalogItem[]
-  catLoading: boolean
-  newName: {[k in CatalogItem["kind"]]?: string}
-  addCatalog: (k: CatalogItem["kind"]) => void
-  renameCatalog: (i: CatalogItem) => void
-  toggleCatalog: (i: CatalogItem) => void
-  deleteCatalog: (i: CatalogItem) => void
-  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string) => void
-  onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void
-  onDrop: (k: CatalogItem["kind"], id: string) => void
-  draggingId: string | null
-}) {
-  const { catalog, catLoading, newName, addCatalog, renameCatalog, toggleCatalog, deleteCatalog, onDragStart, onDragOver, onDrop, draggingId } = props
-  return (
-    <div>
-      <p style={{ color:"#9ca3af", marginBottom:12 }}>Drag to reorder. Add/Rename/Activate items below. Disabled items won’t appear in forms/filters.</p>
-      {(["method","glass","ice","garnish"] as const).map(kind => {
-        const list = catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position)
-        return (
-          <div key={kind} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-              <strong style={{ textTransform:"capitalize" }}>{kind}</strong>
-              <div style={{ display:"flex", gap:8 }}>
-                <input
-                  value={newName[kind] || ""}
-                  onChange={e=> (newName as any)[kind] = e.target.value}
-                  placeholder={`Add ${kind}…`} style={inp}
-                />
-                <button onClick={()=>addCatalog(kind)} style={btnPrimary}>Add</button>
-              </div>
-            </div>
-
-            {catLoading ? (
-              <div>Loading…</div>
-            ) : (
-              <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead><tr>
-                  <th style={th}>Name</th><th style={th}>Active</th><th style={th}></th>
-                </tr></thead>
-                <tbody>
-                  {list.map(item => (
-                    <tr key={item.id}
-                        draggable
-                        onDragStart={(e)=>onDragStart(e, item.id)}
-                        onDragOver={onDragOver}
-                        onDrop={()=>onDrop(kind, item.id)}
-                        style={{ borderTop:"1px solid #1f2937", cursor:"grab", opacity: draggingId===item.id ? 0.6 : 1 }}>
-                      <td style={td}>{item.name}</td>
-                      <td style={td}>
-                        <label style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
-                          <input type="checkbox" checked={item.active} onChange={()=>toggleCatalog(item)} /> {item.active ? "Active" : "Inactive"}
-                        </label>
-                      </td>
-                      <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                        <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
-                        <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// ---------- Styles ----------
-const inp: React.CSSProperties = {
-  background:"#0b1020", border:"1px solid #1f2937", color:"#e5e7eb",
-  padding:"8px 10px", borderRadius:10, fontSize:14
-}
-const btnPrimary: React.CSSProperties = {
-  background:"#6366f1", border:"1px solid #4f46e5", color:"white",
-  padding:"8px 12px", borderRadius:10, fontSize:14, cursor:"pointer"
-}
-const btnSecondary: React.CSSProperties = {
-  background:"#374151", border:"1px solid #4b5563", color:"white",
-  padding:"6px 10px", borderRadius:10, fontSize:13, cursor:"pointer"
-}
-const dangerBtn: React.CSSProperties = {
-  background:"#ef4444", border:"1px solid #dc2626", color:"white",
-  padding:"6px 10px", borderRadius:10, fontSize:13, cursor:"pointer", marginLeft:8
-}
-const th: React.CSSProperties = { textAlign:"left", padding:"10px 12px", fontWeight:600, fontSize:13, verticalAlign:"top" }
-const td: React.CSSProperties = { padding:"10px 12px", fontSize:14, color:"#e5e7eb", verticalAlign:"top" }
 
 // ---------- Utils ----------
 function escapeHtml(s: string) {
