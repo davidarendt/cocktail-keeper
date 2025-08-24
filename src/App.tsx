@@ -209,7 +209,6 @@ export default function App() {
 
   function handleIngKeyDown(e: React.KeyboardEvent<HTMLInputElement>, row: number) {
     if (!ingOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-      // open if closed
       setSuggestFor(row)
       setIngOpen(true)
       setIngIndex(ingSuggest.length ? 0 : -1)
@@ -428,6 +427,12 @@ export default function App() {
   const [ingAdminQ, setIngAdminQ] = useState("")
   const [ingAdminNew, setIngAdminNew] = useState("")
 
+  // merge UI state
+  const [mergeFrom, setMergeFrom] = useState("")
+  const [mergeTo, setMergeTo] = useState("")
+  const [mergeBusy, setMergeBusy] = useState(false)
+  const [mergeMsg, setMergeMsg] = useState("")
+
   useEffect(() => { if (route==="ingredients") loadIngredients() }, [route, ingAdminQ])
   async function loadIngredients() {
     setIngAdminLoading(true)
@@ -461,6 +466,24 @@ export default function App() {
     const { error } = await supabase.from("ingredients").delete().eq("id", it.id)
     if (error) { alert(error.message); return }
     await loadIngredients()
+  }
+
+  async function doMerge() {
+    const s = mergeFrom.trim()
+    const t = mergeTo.trim()
+    setMergeMsg("")
+    if (!s || !t) { setMergeMsg("Pick both ingredients."); return }
+    if (s.toLowerCase() === t.toLowerCase()) { setMergeMsg("Source and target are the same."); return }
+    if (!confirm(`Merge "${s}" INTO "${t}"?\nAll uses of "${s}" will be changed to "${t}".`)) return
+    setMergeBusy(true)
+    const { data, error } = await supabase.rpc("merge_ingredients", { source_name: s, target_name: t })
+    setMergeBusy(false)
+    if (error) { setMergeMsg(error.message); return }
+    setMergeMsg(`Merged. ${data?.moved ?? 0} specs updated.`)
+    setMergeFrom(""); setMergeTo("")
+    // refresh lists + open suggestions will pick up unified name
+    await loadIngredients()
+    await load()
   }
 
   // ---------- RENDER ----------
@@ -508,32 +531,62 @@ export default function App() {
           role !== "editor" ? (
             <div style={{ color:"#9ca3af" }}>Ingredients admin is editor-only.</div>
           ) : (
-            <div style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12 }}>
-              <div style={{ display:"flex", gap:8, marginBottom:12 }}>
-                <input value={ingAdminQ} onChange={e=>setIngAdminQ(e.target.value)} placeholder="Search ingredients…" style={{ ...inp, flex:1 }} />
-                <input value={ingAdminNew} onChange={e=>setIngAdminNew(e.target.value)} placeholder="New ingredient" style={inp} />
-                <button onClick={addIngredient} style={btnPrimary}>Add</button>
+            <div style={{ display:"grid", gap:12 }}>
+              {/* Manage list */}
+              <div style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12 }}>
+                <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                  <input value={ingAdminQ} onChange={e=>setIngAdminQ(e.target.value)} placeholder="Search ingredients…" style={{ ...inp, flex:1 }} />
+                  <input value={ingAdminNew} onChange={e=>setIngAdminNew(e.target.value)} placeholder="New ingredient" style={inp} />
+                  <button onClick={addIngredient} style={btnPrimary}>Add</button>
+                </div>
+
+                {ingAdminLoading ? <div>Loading…</div> : (
+                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead><tr><th style={th}>Ingredient</th><th style={th}></th></tr></thead>
+                    <tbody>
+                      {ingAdmin.map(it => (
+                        <tr key={it.id} style={{ borderTop:"1px solid #1f2937" }}>
+                          <td style={td}>{it.name}</td>
+                          <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
+                            <button onClick={()=>renameIngredient(it)} style={btnSecondary}>Rename</button>
+                            <button onClick={()=>deleteIngredient(it)} style={dangerBtn}>Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                      {ingAdmin.length === 0 && (
+                        <tr><td style={{ ...td, color:"#9ca3af" }} colSpan={2}>No ingredients</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
 
-              {ingAdminLoading ? <div>Loading…</div> : (
-                <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                  <thead><tr><th style={th}>Ingredient</th><th style={th}></th></tr></thead>
-                  <tbody>
-                    {ingAdmin.map(it => (
-                      <tr key={it.id} style={{ borderTop:"1px solid #1f2937" }}>
-                        <td style={td}>{it.name}</td>
-                        <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                          <button onClick={()=>renameIngredient(it)} style={btnSecondary}>Rename</button>
-                          <button onClick={()=>deleteIngredient(it)} style={dangerBtn}>Delete</button>
-                        </td>
-                      </tr>
-                    ))}
-                    {ingAdmin.length === 0 && (
-                      <tr><td style={{ ...td, color:"#9ca3af" }} colSpan={2}>No ingredients</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              )}
+              {/* Merge panel */}
+              <div style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                  <strong>Merge ingredients</strong>
+                  <span style={{ fontSize:12, color:"#9ca3af" }}>Convert all uses of “From” → “Into”</span>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 1fr auto", gap:8, alignItems:"center" }}>
+                  <div>
+                    <input list="all-ingredients" value={mergeFrom} onChange={e=>setMergeFrom(e.target.value)} placeholder="From (e.g., Lemon Juice)" style={inp} />
+                  </div>
+                  <div style={{ textAlign:"center", color:"#9ca3af" }}>→</div>
+                  <div>
+                    <input list="all-ingredients" value={mergeTo} onChange={e=>setMergeTo(e.target.value)} placeholder="Into (e.g., Fresh Lemon Juice)" style={inp} />
+                  </div>
+                  <div>
+                    <button onClick={()=>{ const a=mergeFrom; setMergeFrom(mergeTo); setMergeTo(a) }} style={btnSecondary} title="Swap">Swap</button>
+                  </div>
+                </div>
+                <datalist id="all-ingredients">
+                  {ingAdmin.map(i => <option key={i.id} value={i.name} />)}
+                </datalist>
+                <div style={{ marginTop:10, display:"flex", gap:8, alignItems:"center" }}>
+                  <button onClick={doMerge} disabled={mergeBusy} style={btnPrimary}>{mergeBusy ? "Merging…" : "Merge"}</button>
+                  {mergeMsg && <span style={{ fontSize:13, color:"#cbd5e1" }}>{mergeMsg}</span>}
+                </div>
+              </div>
             </div>
           )
         ) : null}
@@ -543,59 +596,19 @@ export default function App() {
           role !== "editor" ? (
             <div style={{ color:"#9ca3af" }}>Settings are editor-only.</div>
           ) : (
-            <div>
-              <p style={{ color:"#9ca3af", marginBottom:12 }}>Drag to reorder. Add/Rename/Activate items below. Disabled items won’t appear in forms/filters.</p>
-
-              {(["method","glass","ice","garnish"] as const).map(kind => {
-                const list = catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position)
-                return (
-                  <div key={kind} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                      <strong style={{ textTransform:"capitalize" }}>{kind}</strong>
-                      <div style={{ display:"flex", gap:8 }}>
-                        <input
-                          value={newName[kind] || ""}
-                          onChange={e=> setNewName(prev => ({ ...prev, [kind]: e.target.value }))}
-                          placeholder={`Add ${kind}…`} style={inp}
-                        />
-                        <button onClick={()=>addCatalog(kind)} style={btnPrimary}>Add</button>
-                      </div>
-                    </div>
-
-                    {catLoading ? (
-                      <div>Loading…</div>
-                    ) : (
-                      <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                        <thead><tr>
-                          <th style={th}>Name</th><th style={th}>Active</th><th style={th}></th>
-                        </tr></thead>
-                        <tbody>
-                          {list.map(item => (
-                            <tr key={item.id}
-                                draggable
-                                onDragStart={(e)=>onDragStart(e, item.id)}
-                                onDragOver={onDragOver}
-                                onDrop={()=>onDrop(kind, item.id)}
-                                style={{ borderTop:"1px solid #1f2937", cursor:"grab", opacity: draggingId===item.id ? 0.6 : 1 }}>
-                              <td style={td}>{item.name}</td>
-                              <td style={td}>
-                                <label style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
-                                  <input type="checkbox" checked={item.active} onChange={()=>toggleCatalog(item)} /> {item.active ? "Active" : "Inactive"}
-                                </label>
-                              </td>
-                              <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                                <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
-                                <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <SettingsBlock
+              catalog={catalog}
+              catLoading={catLoading}
+              newName={newName}
+              addCatalog={addCatalog}
+              renameCatalog={renameCatalog}
+              toggleCatalog={toggleCatalog}
+              deleteCatalog={deleteCatalog}
+              onDragStart={onDragStart}
+              onDragOver={onDragOver}
+              onDrop={onDrop}
+              draggingId={draggingId}
+            />
           )
         ) : null}
 
@@ -692,9 +705,7 @@ export default function App() {
                           <div style={{ position:"absolute", zIndex:10, top:"100%", left:0, right:0, background:"#0b1020", border:"1px solid #1f2937", borderRadius:10, padding:6, maxHeight:220, overflowY:"auto" }}>
                             {ingSuggest.map((s, idx) => (
                               <div key={s}
-                                   onMouseDown={()=>{
-                                     applySuggestion(idx)
-                                   }}
+                                   onMouseDown={()=>{ applySuggestion(idx) }}
                                    onMouseEnter={()=> setIngIndex(idx)}
                                    style={{
                                      padding:"6px 8px",
@@ -808,6 +819,77 @@ export default function App() {
           </>
         )}
       </div>
+    </div>
+  )
+}
+
+// ---------- Settings subcomponent ----------
+function SettingsBlock(props: {
+  catalog: CatalogItem[]
+  catLoading: boolean
+  newName: {[k in CatalogItem["kind"]]?: string}
+  addCatalog: (k: CatalogItem["kind"]) => void
+  renameCatalog: (i: CatalogItem) => void
+  toggleCatalog: (i: CatalogItem) => void
+  deleteCatalog: (i: CatalogItem) => void
+  onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string) => void
+  onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void
+  onDrop: (k: CatalogItem["kind"], id: string) => void
+  draggingId: string | null
+}) {
+  const { catalog, catLoading, newName, addCatalog, renameCatalog, toggleCatalog, deleteCatalog, onDragStart, onDragOver, onDrop, draggingId } = props
+  return (
+    <div>
+      <p style={{ color:"#9ca3af", marginBottom:12 }}>Drag to reorder. Add/Rename/Activate items below. Disabled items won’t appear in forms/filters.</p>
+      {(["method","glass","ice","garnish"] as const).map(kind => {
+        const list = catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position)
+        return (
+          <div key={kind} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+              <strong style={{ textTransform:"capitalize" }}>{kind}</strong>
+              <div style={{ display:"flex", gap:8 }}>
+                <input
+                  value={newName[kind] || ""}
+                  onChange={e=> (newName as any)[kind] = e.target.value}
+                  placeholder={`Add ${kind}…`} style={inp}
+                />
+                <button onClick={()=>addCatalog(kind)} style={btnPrimary}>Add</button>
+              </div>
+            </div>
+
+            {catLoading ? (
+              <div>Loading…</div>
+            ) : (
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead><tr>
+                  <th style={th}>Name</th><th style={th}>Active</th><th style={th}></th>
+                </tr></thead>
+                <tbody>
+                  {list.map(item => (
+                    <tr key={item.id}
+                        draggable
+                        onDragStart={(e)=>onDragStart(e, item.id)}
+                        onDragOver={onDragOver}
+                        onDrop={()=>onDrop(kind, item.id)}
+                        style={{ borderTop:"1px solid #1f2937", cursor:"grab", opacity: draggingId===item.id ? 0.6 : 1 }}>
+                      <td style={td}>{item.name}</td>
+                      <td style={td}>
+                        <label style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
+                          <input type="checkbox" checked={item.active} onChange={()=>toggleCatalog(item)} /> {item.active ? "Active" : "Inactive"}
+                        </label>
+                      </td>
+                      <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
+                        <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
+                        <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
