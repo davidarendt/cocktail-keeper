@@ -14,7 +14,7 @@ type Cocktail = {
   garnish: string | null
   notes: string | null
   price: number | null
-  last_special_on: string | null // YYYY-MM-DD (date)
+  last_special_on: string | null // YYYY-MM-DD
 }
 
 type IngredientLine = {
@@ -32,6 +32,8 @@ type CatalogItem = {
   active: boolean
 }
 
+type Ingredient = { id: string; name: string }
+
 // ---------- App ----------
 export default function App() {
   // auth
@@ -40,7 +42,7 @@ export default function App() {
   const [email, setEmail] = useState("")
 
   // route
-  const [route, setRoute] = useState<"main"|"settings">("main")
+  const [route, setRoute] = useState<"main"|"settings"|"ingredients">("main")
 
   // catalog dropdowns
   const [methods, setMethods] = useState<string[]>([])
@@ -74,9 +76,11 @@ export default function App() {
   const [specialDate, setSpecialDate] = useState<string>("") // YYYY-MM-DD
   const [lines, setLines] = useState<IngredientLine[]>([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
 
-  // ingredient typeahead
+  // ingredient typeahead (with keyboard nav)
   const [ingSuggest, setIngSuggest] = useState<string[]>([])
   const [suggestFor, setSuggestFor] = useState<number | null>(null)
+  const [ingOpen, setIngOpen] = useState<boolean>(false)
+  const [ingIndex, setIngIndex] = useState<number>(-1)
 
   // ---------- AUTH ----------
   useEffect(() => {
@@ -109,10 +113,10 @@ export default function App() {
       .select("*")
       .eq("active", true)
       .order("kind").order("position")
-    const methodList = (data||[]).filter(d => d.kind === "method").map(d => d.name)
-    const glassList  = (data||[]).filter(d => d.kind === "glass").map(d => d.name)
-    const iceList    = (data||[]).filter(d => d.kind === "ice").map(d => d.name)
-    const garList    = (data||[]).filter(d => d.kind === "garnish").map(d => d.name)
+    const methodList = (data||[]).filter((d: any) => d.kind === "method").map((d: any) => d.name)
+    const glassList  = (data||[]).filter((d: any) => d.kind === "glass").map((d: any) => d.name)
+    const iceList    = (data||[]).filter((d: any) => d.kind === "ice").map((d: any) => d.name)
+    const garList    = (data||[]).filter((d: any) => d.kind === "garnish").map((d: any) => d.name)
     setMethods(methodList); setGlasses(glassList); setIces(iceList); setGarnishes(garList)
   }
 
@@ -126,7 +130,7 @@ export default function App() {
     if (specialOnly) query = query.not("last_special_on","is",null)
     const { data: base, error } = await query
     if (error) { setErr(error.message); setLoading(false); return }
-    let finalRows = base || []
+    let finalRows: Cocktail[] = (base || []) as Cocktail[]
 
     // Ingredient search (word-start preferred)
     if (q.trim() && finalRows.length) {
@@ -170,10 +174,10 @@ export default function App() {
     setSpecs(map)
   }
 
-  // ---------- ING TYPEAHEAD ----------
+  // ---------- ING TYPEAHEAD (word-start + keyboard nav) ----------
   async function fetchIngSuggest(s: string, rowIndex: number) {
     setSuggestFor(rowIndex)
-    if (!s.trim()) { setIngSuggest([]); return }
+    if (!s.trim()) { setIngSuggest([]); setIngOpen(false); setIngIndex(-1); return }
     const { data } = await supabase.from("ingredients").select("name").ilike("name", `%${s.trim()}%`).limit(50)
     const term = s.trim().toLowerCase()
     const termC = term.replace(/\s+/g,"")
@@ -192,6 +196,38 @@ export default function App() {
       .slice(0, 10)
       .map((x: { name: string; score: number }) => x.name)
     setIngSuggest(ranked)
+    setIngOpen(true)
+    setIngIndex(ranked.length ? 0 : -1)
+  }
+
+  function applySuggestion(i: number) {
+    if (i < 0 || i >= ingSuggest.length || suggestFor == null) return
+    const pick = ingSuggest[i]
+    setLines(prev => prev.map((ln, idx) => idx === suggestFor ? { ...ln, ingredientName: pick } : ln))
+    setIngOpen(false); setIngIndex(-1); setSuggestFor(null)
+  }
+
+  function handleIngKeyDown(e: React.KeyboardEvent<HTMLInputElement>, row: number) {
+    if (!ingOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      // open if closed
+      setSuggestFor(row)
+      setIngOpen(true)
+      setIngIndex(ingSuggest.length ? 0 : -1)
+      e.preventDefault()
+      return
+    }
+    if (!ingOpen) return
+    if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setIngIndex(prev => Math.min(prev + 1, ingSuggest.length - 1))
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setIngIndex(prev => Math.max(prev - 1, 0))
+    } else if (e.key === "Enter") {
+      if (ingIndex >= 0) { e.preventDefault(); applySuggestion(ingIndex) }
+    } else if (e.key === "Escape") {
+      setIngOpen(false); setIngIndex(-1); setSuggestFor(null)
+    }
   }
 
   // ---------- FORM HELPERS ----------
@@ -257,7 +293,7 @@ export default function App() {
 
     const { data: up, error } = await supabase.from("cocktails").upsert(cocktail, { onConflict: "name" }).select().single()
     if (error || !up) { setErr(error?.message || "Save failed"); return }
-    const cocktailId = up.id as string
+    const cocktailId = (up as any).id as string
 
     // replace lines
     await supabase.from("recipe_ingredients").delete().eq("cocktail_id", cocktailId)
@@ -266,13 +302,13 @@ export default function App() {
     for (const ln of lines) {
       const ingName = ln.ingredientName.trim()
       const amt = ln.amount === "" ? NaN : Number(ln.amount)
-      if (!ingName || !isFinite(amt)) continue
+      if (!ng(ingName) || !isFinite(amt)) continue
       await supabase.from("ingredients").upsert({ name: ingName }, { onConflict: "name" })
       const { data: ingRow } = await supabase.from("ingredients").select("id").eq("name", ingName).single()
       if (!ingRow) continue
       await supabase.from("recipe_ingredients").insert({
         cocktail_id: cocktailId,
-        ingredient_id: ingRow.id,
+        ingredient_id: (ingRow as any).id,
         amount: amt,
         unit: ln.unit,
         position: pos++
@@ -328,22 +364,22 @@ export default function App() {
   async function reloadSettings() {
     setCatLoading(true)
     const { data } = await supabase.from("catalog_items").select("*").order("kind").order("position")
-    setCatalog(data || [])
+    setCatalog((data || []) as CatalogItem[])
     setCatLoading(false)
   }
 
   async function addCatalog(kind: CatalogItem["kind"]) {
-    const name = (newName[kind] || "").trim()
-    if (!name) return
+    const n = (newName[kind] || "").trim()
+    if (!n) return
     const maxPos = Math.max(0, ...catalog.filter(c=>c.kind===kind).map(c=>c.position))
-    const { error } = await supabase.from("catalog_items").insert({ kind, name, position: maxPos + 1, active: true })
+    const { error } = await supabase.from("catalog_items").insert({ kind, name: n, position: maxPos + 1, active: true })
     if (!error) { setNewName(p => ({ ...p, [kind]: "" })); await reloadSettings(); await loadCatalog() }
   }
 
   async function renameCatalog(item: CatalogItem) {
-    const name = prompt(`Rename ${item.kind}`, item.name)?.trim()
-    if (!name || name === item.name) return
-    await supabase.from("catalog_items").update({ name }).eq("id", item.id)
+    const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
+    if (!n || n === item.name) return
+    await supabase.from("catalog_items").update({ name: n }).eq("id", item.id)
     await reloadSettings(); await loadCatalog()
   }
 
@@ -376,7 +412,6 @@ export default function App() {
     const newList = list.slice()
     const [moved] = newList.splice(from,1)
     newList.splice(to,0,moved)
-    // re-number positions
     for (let i=0;i<newList.length;i++) {
       const item = newList[i]
       if (item.position !== i+1) {
@@ -387,6 +422,47 @@ export default function App() {
     await reloadSettings(); await loadCatalog()
   }
 
+  // ---------- INGREDIENTS ADMIN (editor) ----------
+  const [ingAdmin, setIngAdmin] = useState<Ingredient[]>([])
+  const [ingAdminLoading, setIngAdminLoading] = useState(false)
+  const [ingAdminQ, setIngAdminQ] = useState("")
+  const [ingAdminNew, setIngAdminNew] = useState("")
+
+  useEffect(() => { if (route==="ingredients") loadIngredients() }, [route, ingAdminQ])
+  async function loadIngredients() {
+    setIngAdminLoading(true)
+    const base = supabase.from("ingredients").select("id,name").order("name")
+    const { data } = ingAdminQ.trim()
+      ? await base.ilike("name", `%${ingAdminQ.trim()}%`)
+      : await base
+    setIngAdmin((data || []) as Ingredient[])
+    setIngAdminLoading(false)
+  }
+
+  async function addIngredient() {
+    const n = ingAdminNew.trim()
+    if (!n) return
+    const { error } = await supabase.from("ingredients").insert({ name: n })
+    if (error) { alert(error.message); return }
+    setIngAdminNew("")
+    await loadIngredients()
+  }
+
+  async function renameIngredient(it: Ingredient) {
+    const n = prompt("Rename ingredient", it.name)?.trim()
+    if (!n || n === it.name) return
+    const { error } = await supabase.from("ingredients").update({ name: n }).eq("id", it.id)
+    if (error) { alert(error.message); return }
+    await loadIngredients()
+  }
+
+  async function deleteIngredient(it: Ingredient) {
+    if (!confirm(`Delete "${it.name}"?`)) return
+    const { error } = await supabase.from("ingredients").delete().eq("id", it.id)
+    if (error) { alert(error.message); return }
+    await loadIngredients()
+  }
+
   // ---------- RENDER ----------
   return (
     <div style={{ minHeight:"100vh", background:"#0a0a0a", color:"#e5e7eb", fontFamily:"system-ui,-apple-system,Segoe UI,Roboto,Arial" }}>
@@ -394,15 +470,19 @@ export default function App() {
         {/* HEADER */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
-          <div style={{ display:"flex", gap:8 }}>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
             {role==="editor" && (
-              <button onClick={()=> setRoute(route==="main"?"settings":"main")} style={btnSecondary}>
-                {route==="main" ? "Settings" : "← Back"}
-              </button>
+              <>
+                <button onClick={()=> setRoute("settings")} style={btnSecondary}>Settings</button>
+                <button onClick={()=> setRoute("ingredients")} style={btnSecondary}>Ingredients</button>
+                {route!=="main" && (
+                  <button onClick={()=> setRoute("main")} style={btnSecondary}>← Back</button>
+                )}
+              </>
             )}
             {session ? (
               <>
-                <span style={{ fontSize:12, color:"#9ca3af", alignSelf:"center" }}>
+                <span style={{ fontSize:12, color:"#9ca3af" }}>
                   {session.user.email} • <b>{role}</b>
                 </span>
                 <button onClick={signOut} style={btnSecondary}>Sign out</button>
@@ -422,6 +502,41 @@ export default function App() {
             {err}
           </div>
         )}
+
+        {/* INGREDIENTS ADMIN */}
+        {route === "ingredients" ? (
+          role !== "editor" ? (
+            <div style={{ color:"#9ca3af" }}>Ingredients admin is editor-only.</div>
+          ) : (
+            <div style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12 }}>
+              <div style={{ display:"flex", gap:8, marginBottom:12 }}>
+                <input value={ingAdminQ} onChange={e=>setIngAdminQ(e.target.value)} placeholder="Search ingredients…" style={{ ...inp, flex:1 }} />
+                <input value={ingAdminNew} onChange={e=>setIngAdminNew(e.target.value)} placeholder="New ingredient" style={inp} />
+                <button onClick={addIngredient} style={btnPrimary}>Add</button>
+              </div>
+
+              {ingAdminLoading ? <div>Loading…</div> : (
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead><tr><th style={th}>Ingredient</th><th style={th}></th></tr></thead>
+                  <tbody>
+                    {ingAdmin.map(it => (
+                      <tr key={it.id} style={{ borderTop:"1px solid #1f2937" }}>
+                        <td style={td}>{it.name}</td>
+                        <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
+                          <button onClick={()=>renameIngredient(it)} style={btnSecondary}>Rename</button>
+                          <button onClick={()=>deleteIngredient(it)} style={dangerBtn}>Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {ingAdmin.length === 0 && (
+                      <tr><td style={{ ...td, color:"#9ca3af" }} colSpan={2}>No ingredients</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )
+        ) : null}
 
         {/* SETTINGS */}
         {route === "settings" ? (
@@ -482,7 +597,10 @@ export default function App() {
               })}
             </div>
           )
-        ) : (
+        ) : null}
+
+        {/* MAIN */}
+        {route === "main" && (
           <>
             {/* CONTROLS */}
             <div style={{ display:"grid", gridTemplateColumns:"1.6fr 1fr 1fr 1fr auto", gap:8, marginBottom:12 }}>
@@ -512,7 +630,7 @@ export default function App() {
               </div>
             )}
 
-            {/* FORM (editor) */}
+            {/* FORM */}
             {role === "editor" && formOpen && (
               <form onSubmit={save} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -561,27 +679,37 @@ export default function App() {
                       <div style={{ position:"relative" }}>
                         <input
                           value={ln.ingredientName}
-                          onChange={e=>{
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>)=>{
                             const v = e.target.value
                             setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
                             fetchIngSuggest(v, i)
                           }}
                           onFocus={()=> fetchIngSuggest(ln.ingredientName, i)}
+                          onKeyDown={(e)=>handleIngKeyDown(e, i)}
                           placeholder="Ingredient (e.g., Fresh Lemon Juice)" style={inp}
                         />
-                        {suggestFor===i && ingSuggest.length>0 && (
-                          <div style={{ position:"absolute", zIndex:10, top:"100%", left:0, right:0, background:"#0b1020", border:"1px solid #1f2937", borderRadius:10, padding:6 }}>
-                            {ingSuggest.map(s => (
-                              <div key={s} onMouseDown={()=>{
-                                  setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:s } : x))
-                                  setSuggestFor(null); setIngSuggest([])
-                                }} style={{ padding:"6px 8px", cursor:"pointer" }}>{s}</div>
+                        {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
+                          <div style={{ position:"absolute", zIndex:10, top:"100%", left:0, right:0, background:"#0b1020", border:"1px solid #1f2937", borderRadius:10, padding:6, maxHeight:220, overflowY:"auto" }}>
+                            {ingSuggest.map((s, idx) => (
+                              <div key={s}
+                                   onMouseDown={()=>{
+                                     applySuggestion(idx)
+                                   }}
+                                   onMouseEnter={()=> setIngIndex(idx)}
+                                   style={{
+                                     padding:"6px 8px",
+                                     cursor:"pointer",
+                                     background: idx===ingIndex ? "#1f2937" : "transparent",
+                                     borderRadius:8
+                                   }}>
+                                {s}
+                              </div>
                             ))}
                           </div>
                         )}
                       </div>
-                      <input value={ln.amount} onChange={e=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))} placeholder="Amount" type="number" step="0.01" style={inp} />
-                      <select value={ln.unit} onChange={e=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))} style={inp}>
+                      <input value={ln.amount} onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))} placeholder="Amount" type="number" step="0.01" style={inp} />
+                      <select value={ln.unit} onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))} style={inp}>
                         <option value="oz">oz</option><option value="barspoon">barspoon</option><option value="dash">dash</option><option value="drop">drop</option><option value="ml">ml</option>
                       </select>
                       <div style={{ display:"flex", gap:8 }}>
@@ -708,3 +836,4 @@ const td: React.CSSProperties = { padding:"10px 12px", fontSize:14, color:"#e5e7
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c] as string))
 }
+function ng(s: string) { return s.length > 0 }
