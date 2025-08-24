@@ -8,14 +8,13 @@ type Unit = "oz"|"barspoon"|"dash"|"drop"|"ml"
 type Cocktail = {
   id: string
   name: string
-  method: string // flexible method
+  method: string | null
   glass: string | null
   ice: string | null
   garnish: string | null
   notes: string | null
   price: number | null
-  on_menu: boolean
-  last_special_at: string | null
+  last_special_on: string | null // YYYY-MM-DD (date)
 }
 
 type IngredientLine = {
@@ -40,7 +39,7 @@ export default function App() {
   const [role, setRole] = useState<"viewer"|"editor">("viewer")
   const [email, setEmail] = useState("")
 
-  // routing
+  // route
   const [route, setRoute] = useState<"main"|"settings">("main")
 
   // catalog dropdowns
@@ -51,29 +50,28 @@ export default function App() {
 
   // data + specs
   const [rows, setRows] = useState<Cocktail[]>([])
-  const [specs, setSpecs] = useState<Record<string, string[]>>({}) // cocktail_id -> ["2 oz Gin", ...]
+  const [specs, setSpecs] = useState<Record<string, string[]>>({})
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState<string>("")
 
   // filters / search / view
-  const [q, setQ] = useState("") // ingredient search
+  const [q, setQ] = useState("")
   const [fMethod, setFMethod] = useState<string>("Any")
   const [fGlass, setFGlass] = useState("")
-  const [specialOnly, setSpecialOnly] = useState(false)
   const [view, setView] = useState<"cards"|"list">("cards")
+  const [specialOnly, setSpecialOnly] = useState(false)
 
   // form open/close + fields
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState("")
-  const [method, setMethod] = useState<string>("") // required, no default; shows placeholder
+  const [method, setMethod] = useState<string>("") // required
   const [glass, setGlass] = useState("")
   const [ice, setIce] = useState("")
   const [garnish, setGarnish] = useState("")
   const [notes, setNotes] = useState("")
   const [price, setPrice] = useState<string>("")
-  const [onMenu, setOnMenu] = useState(false)
-  const [markSpecialNow, setMarkSpecialNow] = useState(false)
+  const [specialDate, setSpecialDate] = useState<string>("") // YYYY-MM-DD
   const [lines, setLines] = useState<IngredientLine[]>([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
 
   // ingredient typeahead
@@ -103,46 +101,40 @@ export default function App() {
   }
   async function signOut() { await supabase.auth.signOut() }
 
-  // ---------- CATALOG (dropdown sources) ----------
+  // ---------- CATALOG ----------
   useEffect(() => { loadCatalog() }, [])
   async function loadCatalog() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("catalog_items")
       .select("*")
       .eq("active", true)
-      .order("kind", { ascending: true })
-      .order("position", { ascending: true })
-    if (error) return
+      .order("kind").order("position")
     const methodList = (data||[]).filter(d => d.kind === "method").map(d => d.name)
     const glassList  = (data||[]).filter(d => d.kind === "glass").map(d => d.name)
     const iceList    = (data||[]).filter(d => d.kind === "ice").map(d => d.name)
     const garList    = (data||[]).filter(d => d.kind === "garnish").map(d => d.name)
-    setMethods(methodList)
-    setGlasses(glassList)
-    setIces(iceList)
-    setGarnishes(garList)
+    setMethods(methodList); setGlasses(glassList); setIces(iceList); setGarnishes(garList)
   }
 
-  // ---------- LOAD LIST ----------
+  // ---------- LOAD ----------
   useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly])
   async function load() {
     setLoading(true); setErr("")
-    let query = supabase.from("cocktails").select("*").order("last_special_at",{ascending:false}).limit(500)
+    let query = supabase.from("cocktails").select("*").order("last_special_on",{ascending:false}).limit(500)
     if (fMethod !== "Any" && fMethod.trim()) query = query.eq("method", fMethod)
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
-    if (specialOnly) query = query.not("last_special_at","is",null)
+    if (specialOnly) query = query.not("last_special_on","is",null)
     const { data: base, error } = await query
     if (error) { setErr(error.message); setLoading(false); return }
     let finalRows = base || []
 
-    // Ingredient search (prioritize word-start matches)
+    // Ingredient search (word-start preferred)
     if (q.trim() && finalRows.length) {
       const ids = finalRows.map(c=>c.id)
       const { data: rec } = await supabase
         .from("recipe_ingredients")
         .select("cocktail_id, ingredient:ingredients(name)")
         .in("cocktail_id", ids)
-
       const typed = q.trim().toLowerCase()
       const typedC = typed.replace(/\s+/g,"")
       const matchIds = new Set(
@@ -178,7 +170,7 @@ export default function App() {
     setSpecs(map)
   }
 
-  // ---------- ING TYPEAHEAD (word-start prioritized) ----------
+  // ---------- ING TYPEAHEAD ----------
   async function fetchIngSuggest(s: string, rowIndex: number) {
     setSuggestFor(rowIndex)
     if (!s.trim()) { setIngSuggest([]); return }
@@ -186,28 +178,28 @@ export default function App() {
     const term = s.trim().toLowerCase()
     const termC = term.replace(/\s+/g,"")
     const ranked = (data || [])
-  .map((d: { name: string }) => d.name)
-  .map((name: string) => {
-    const lower = name.toLowerCase()
-    const words: string[] = lower.split(/\s+/)
-    const score =
-      (lower.startsWith(term) ? 0 : 100) +
-      (words.some((w: string) => w.startsWith(term)) ? 0 : 50) +
-      ((lower.includes(term) || lower.replace(/\s+/g, "").includes(termC)) ? 1 : 200)
-    return { name, score }
-  })
-  .sort((a, b) => a.score - b.score)
-  .slice(0, 10)
-  .map((x: { name: string; score: number }) => x.name)
+      .map((d: { name: string }) => d.name)
+      .map((name: string) => {
+        const lower = name.toLowerCase()
+        const words: string[] = lower.split(/\s+/)
+        const score =
+          (lower.startsWith(term) ? 0 : 100) +
+          (words.some((w: string) => w.startsWith(term)) ? 0 : 50) +
+          ((lower.includes(term) || lower.replace(/\s+/g, "").includes(termC)) ? 1 : 200)
+        return { name, score }
+      })
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 10)
+      .map((x: { name: string; score: number }) => x.name)
     setIngSuggest(ranked)
   }
 
   // ---------- FORM HELPERS ----------
   function resetForm() {
     setEditingId(null)
-    setName(""); setMethod(""); // placeholder until chosen
+    setName(""); setMethod("")
     setGlass(""); setIce(""); setGarnish(""); setNotes("")
-    setPrice(""); setOnMenu(false); setMarkSpecialNow(false)
+    setPrice(""); setSpecialDate("")
     setLines([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
   }
   function openAddForm() { resetForm(); setFormOpen(true) }
@@ -218,9 +210,9 @@ export default function App() {
     setFormOpen(true)
     setName(c.name)
     setMethod(c.method || "")
-    setGlass(c.glass||""); setIce(c.ice||""); setGarnish(c.garnish||""); setNotes(c.notes||"")
-    setPrice(c.price==null ? "" : String(c.price))
-    setOnMenu(!!c.on_menu)
+    setGlass(c.glass || ""); setIce(c.ice || ""); setGarnish(c.garnish || ""); setNotes(c.notes || "")
+    setPrice(c.price == null ? "" : String(c.price))
+    setSpecialDate(c.last_special_on || "")
 
     const { data } = await supabase
       .from("recipe_ingredients")
@@ -260,14 +252,14 @@ export default function App() {
       garnish: garnish.trim() || null,
       notes: notes.trim() || null,
       price: price === "" ? null : Number(price),
-      on_menu: onMenu,
-      last_special_at: markSpecialNow ? new Date().toISOString() : undefined
+      last_special_on: specialDate || null
     }
 
     const { data: up, error } = await supabase.from("cocktails").upsert(cocktail, { onConflict: "name" }).select().single()
     if (error || !up) { setErr(error?.message || "Save failed"); return }
     const cocktailId = up.id as string
 
+    // replace lines
     await supabase.from("recipe_ingredients").delete().eq("cocktail_id", cocktailId)
 
     let pos = 1
@@ -312,24 +304,25 @@ export default function App() {
         .row{ margin:6px 0; } .box{ border:1px solid #ddd; border-radius:8px; padding:10px; }
       </style></head><body>
         <h1>${escapeHtml(c.name)}</h1>
-        <div class="muted">${escapeHtml(c.method)}${c.glass ? " • "+escapeHtml(c.glass) : ""}</div>
+        <div class="muted">${escapeHtml(c.method || "")}${c.glass ? " • "+escapeHtml(c.glass) : ""}</div>
         <div class="row box">
           <strong>Specs</strong>
           <ul>${lines.map(l=> `<li>${escapeHtml(l)}</li>`).join("")}</ul>
           ${c.garnish ? `<div><strong>Garnish:</strong> ${escapeHtml(c.garnish)}</div>` : ""}
           ${c.notes ? `<div class="row"><strong>Notes:</strong> ${escapeHtml(c.notes)}</div>` : ""}
         </div>
-        <div class="muted">Price: ${c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}${c.last_special_at ? " • Special" : ""}</div>
+        <div class="muted">Price: ${c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}${c.last_special_on ? " • Special: " + escapeHtml(c.last_special_on) : ""}</div>
         <script>window.print();</script>
       </body></html>
     `)
     w.document.close()
   }
 
-  // ---------- SETTINGS (editor only) ----------
+  // ---------- SETTINGS (editor) ----------
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [catLoading, setCatLoading] = useState(false)
   const [newName, setNewName] = useState<{[k in CatalogItem["kind"]]?: string}>({})
+  const [draggingId, setDraggingId] = useState<string | null>(null)
 
   useEffect(() => { if (route==="settings") reloadSettings() }, [route])
   async function reloadSettings() {
@@ -362,6 +355,35 @@ export default function App() {
   async function deleteCatalog(item: CatalogItem) {
     if (!confirm(`Delete "${item.name}" from ${item.kind}?`)) return
     await supabase.from("catalog_items").delete().eq("id", item.id)
+    await reloadSettings(); await loadCatalog()
+  }
+
+  // Drag reorder helpers
+  function onDragStart(e: React.DragEvent<HTMLTableRowElement>, id: string) {
+    setDraggingId(id)
+    e.dataTransfer.effectAllowed = "move"
+  }
+  function onDragOver(e: React.DragEvent<HTMLTableRowElement>) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }
+  async function onDrop(kind: CatalogItem["kind"], targetId: string) {
+    if (!draggingId || draggingId === targetId) return
+    const list = catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position)
+    const from = list.findIndex(x=>x.id===draggingId)
+    const to = list.findIndex(x=>x.id===targetId)
+    if (from < 0 || to < 0) return
+    const newList = list.slice()
+    const [moved] = newList.splice(from,1)
+    newList.splice(to,0,moved)
+    // re-number positions
+    for (let i=0;i<newList.length;i++) {
+      const item = newList[i]
+      if (item.position !== i+1) {
+        await supabase.from("catalog_items").update({ position: i+1 }).eq("id", item.id)
+      }
+    }
+    setDraggingId(null)
     await reloadSettings(); await loadCatalog()
   }
 
@@ -401,55 +423,63 @@ export default function App() {
           </div>
         )}
 
-        {/* SETTINGS PAGE */}
+        {/* SETTINGS */}
         {route === "settings" ? (
           role !== "editor" ? (
             <div style={{ color:"#9ca3af" }}>Settings are editor-only.</div>
           ) : (
             <div>
-              <p style={{ color:"#9ca3af", marginBottom:12 }}>Edit dropdown lists for Method, Glass, Ice, Garnish. Items marked inactive won’t appear in forms/filters.</p>
+              <p style={{ color:"#9ca3af", marginBottom:12 }}>Drag to reorder. Add/Rename/Activate items below. Disabled items won’t appear in forms/filters.</p>
 
-              {(["method","glass","ice","garnish"] as const).map(kind => (
-                <div key={kind} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                    <strong style={{ textTransform:"capitalize" }}>{kind}</strong>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <input
-                        value={newName[kind] || ""}
-                        onChange={e=> setNewName(prev => ({ ...prev, [kind]: e.target.value }))}
-                        placeholder={`Add ${kind}…`} style={inp}
-                      />
-                      <button onClick={()=>addCatalog(kind)} style={btnPrimary}>Add</button>
+              {(["method","glass","ice","garnish"] as const).map(kind => {
+                const list = catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position)
+                return (
+                  <div key={kind} style={{ background:"#111827", border:"1px solid #1f2937", borderRadius:12, padding:12, marginBottom:16 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <strong style={{ textTransform:"capitalize" }}>{kind}</strong>
+                      <div style={{ display:"flex", gap:8 }}>
+                        <input
+                          value={newName[kind] || ""}
+                          onChange={e=> setNewName(prev => ({ ...prev, [kind]: e.target.value }))}
+                          placeholder={`Add ${kind}…`} style={inp}
+                        />
+                        <button onClick={()=>addCatalog(kind)} style={btnPrimary}>Add</button>
+                      </div>
                     </div>
-                  </div>
 
-                  {catLoading ? (
-                    <div>Loading…</div>
-                  ) : (
-                    <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                      <thead><tr>
-                        <th style={th}>Name</th><th style={th}>Active</th><th style={th}></th>
-                      </tr></thead>
-                      <tbody>
-                        {catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position || a.name.localeCompare(b.name)).map(item => (
-                          <tr key={item.id} style={{ borderTop:"1px solid #1f2937" }}>
-                            <td style={td}>{item.name}</td>
-                            <td style={td}>
-                              <label style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
-                                <input type="checkbox" checked={item.active} onChange={()=>toggleCatalog(item)} /> {item.active ? "Active" : "Inactive"}
-                              </label>
-                            </td>
-                            <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                              <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
-                              <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              ))}
+                    {catLoading ? (
+                      <div>Loading…</div>
+                    ) : (
+                      <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                        <thead><tr>
+                          <th style={th}>Name</th><th style={th}>Active</th><th style={th}></th>
+                        </tr></thead>
+                        <tbody>
+                          {list.map(item => (
+                            <tr key={item.id}
+                                draggable
+                                onDragStart={(e)=>onDragStart(e, item.id)}
+                                onDragOver={onDragOver}
+                                onDrop={()=>onDrop(kind, item.id)}
+                                style={{ borderTop:"1px solid #1f2937", cursor:"grab", opacity: draggingId===item.id ? 0.6 : 1 }}>
+                              <td style={td}>{item.name}</td>
+                              <td style={td}>
+                                <label style={{ display:"inline-flex", alignItems:"center", gap:8 }}>
+                                  <input type="checkbox" checked={item.active} onChange={()=>toggleCatalog(item)} /> {item.active ? "Active" : "Inactive"}
+                                </label>
+                              </td>
+                              <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
+                                <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
+                                <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )
         ) : (
@@ -501,30 +531,25 @@ export default function App() {
                     {methods.map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                   <select value={glass} onChange={e=>setGlass(e.target.value)} style={inp}>
-                    <option value="">Glass…</option>
+                    <option value="" disabled>Glass…</option>
                     {glasses.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                   <select value={ice} onChange={e=>setIce(e.target.value)} style={inp}>
-                    <option value="">Ice…</option>
+                    <option value="" disabled>Ice…</option>
                     {ices.map(i => <option key={i} value={i}>{i}</option>)}
                   </select>
                   <select value={garnish} onChange={e=>setGarnish(e.target.value)} style={inp}>
-                    <option value="">Garnish…</option>
+                    <option value="" disabled>Garnish…</option>
                     {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                 </div>
 
-                {/* Notes / price / flags */}
+                {/* Notes / price / special date */}
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                   <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Notes" style={{ ...inp, minHeight:60, resize:"vertical" }} />
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
                     <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="Price" type="number" step="0.01" style={inp} />
-                    <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
-                      <input type="checkbox" checked={onMenu} onChange={e=>setOnMenu(e.target.checked)} /> On menu
-                    </label>
-                    <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
-                      <input type="checkbox" checked={markSpecialNow} onChange={e=>setMarkSpecialNow(e.target.checked)} /> Mark as Special now
-                    </label>
+                    <input value={specialDate} onChange={e=>setSpecialDate(e.target.value)} type="date" style={inp} />
                   </div>
                 </div>
 
@@ -592,14 +617,13 @@ export default function App() {
                     <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
                       <div>
                         <div style={{ fontWeight:800, fontSize:16 }}>{c.name}</div>
-                        <div style={{ fontSize:12, color:"#9ca3af" }}>{c.method}{c.glass ? ` • ${c.glass}` : ""}</div>
+                        <div style={{ fontSize:12, color:"#9ca3af" }}>{c.method || ""}{c.glass ? ` • ${c.glass}` : ""}</div>
                       </div>
                       <div style={{ textAlign:"right", fontSize:12, color:"#cbd5e1" }}>
                         {c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}
-                        {c.last_special_at ? <div style={{ color:"#a7f3d0" }}>Special</div> : null}
+                        {c.last_special_on ? <div style={{ color:"#a7f3d0" }}>Special: {c.last_special_on}</div> : null}
                       </div>
                     </div>
-                    {/* Ingredient list */}
                     <ul style={{ marginTop:8, paddingLeft:18, color:"#cbd5e1", fontSize:13 }}>
                       {(specs[c.id] || []).map((l, i) => <li key={i}>{l}</li>)}
                     </ul>
@@ -631,7 +655,7 @@ export default function App() {
                   {rows.map(c => (
                     <tr key={c.id} style={{ borderTop:"1px solid #1f2937" }} onClick={()=>startEdit(c)} title="Click to edit">
                       <td style={td}>{c.name}</td>
-                      <td style={td}>{c.method}</td>
+                      <td style={td}>{c.method || "—"}</td>
                       <td style={td}>{c.glass || "—"}</td>
                       <td style={td}>{c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}</td>
                       <td style={td}>
@@ -674,13 +698,8 @@ const btnSecondary: React.CSSProperties = {
   padding:"6px 10px", borderRadius:10, fontSize:13, cursor:"pointer"
 }
 const dangerBtn: React.CSSProperties = {
-  background:"#ef4444", border:"1px solid #dc2626",
-  color:"white", 
-  padding:"6px 10px", 
-  borderRadius:10, 
-  fontSize:13, 
-  cursor:"pointer", 
-  marginLeft:8
+  background:"#ef4444", border:"1px solid #dc2626", color:"white",
+  padding:"6px 10px", borderRadius:10, fontSize:13, cursor:"pointer", marginLeft:8
 }
 const th: React.CSSProperties = { textAlign:"left", padding:"10px 12px", fontWeight:600, fontSize:13, verticalAlign:"top" }
 const td: React.CSSProperties = { padding:"10px 12px", fontSize:14, color:"#e5e7eb", verticalAlign:"top" }
