@@ -411,7 +411,7 @@ export default function App() {
       <div style={container}>
         {/* HEADER */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
+          <h1 style={{ fontSize:28, fontWeight:800 }}>Power Mill Cocktail Keeper</h1>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
             {role==="editor" && (
               <>
