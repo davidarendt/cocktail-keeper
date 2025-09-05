@@ -1,33 +1,29 @@
 // src/utils/print.ts
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { PrintCocktail } from "../types"
+import type { PrintCocktail } from "@/types"
 
 type PrintOptions = {
-  /** Default: "A5" (half-sheet). You can also use "HalfLetter" (5.5in x 8.5in) or "Letter". */
+  /** "A5" | "HalfLetter" | "Letter" — default "A5" */
   page?: "A5" | "HalfLetter" | "Letter"
-  /** Default: 14mm margin. Accepts any CSS size unit (e.g. "12mm", "0.5in"). */
+  /** "portrait" | "landscape" — default "portrait" */
+  orientation?: "portrait" | "landscape"
+  /** CSS margin (e.g., "14mm") — default "14mm" */
   margin?: string
   /** Document title override. Defaults to cocktail name. */
   title?: string
 }
 
-/**
- * Open a new window with a one-page printable spec sheet and trigger print().
- * - Fetches spec lines from Supabase (recipe_ingredients + ingredients)
- * - Renders a simple, clean layout sized for half-sheet printing by default.
- */
 export async function printOnePager(
   supabase: SupabaseClient,
   c: PrintCocktail,
   opts: PrintOptions = {}
 ): Promise<void> {
   const page = opts.page ?? "A5"
+  const orientation = opts.orientation ?? "portrait"
   const margin = opts.margin ?? "14mm"
   const title = opts.title ?? c.name
 
-  const pageSize =
-    page === "HalfLetter" ? "5.5in 8.5in" :
-    page === "Letter" ? "Letter" : "A5"
+  const pageSize = computePageSize(page, orientation)
 
   const { data, error } = await supabase
     .from("recipe_ingredients")
@@ -44,7 +40,7 @@ export async function printOnePager(
     `${normalizeAmount(r.amount)} ${r.unit ?? ""} ${r.ingredient?.name ?? ""}`.trim()
   )
 
-  const w = window.open("", "_blank", "width=820,height=1100,noopener")
+  const w = window.open("", "_blank", "width=980,height=720,noopener")
   if (!w) { alert("Popup blocked. Please allow popups for this site to print."); return }
 
   w.document.write(`
@@ -98,6 +94,18 @@ export async function printOnePager(
 </html>
   `)
   w.document.close()
+}
+
+function computePageSize(page: "A5" | "HalfLetter" | "Letter", orientation: "portrait" | "landscape"): string {
+  if (page === "HalfLetter") {
+    // portrait 5.5" x 8.5", landscape 8.5" x 5.5"
+    return orientation === "landscape" ? "8.5in 5.5in" : "5.5in 8.5in"
+  }
+  if (page === "Letter") {
+    return orientation === "landscape" ? "Letter landscape" : "Letter"
+  }
+  // A5 supports "A5 landscape"
+  return orientation === "landscape" ? "A5 landscape" : "A5"
 }
 
 /** helpers */

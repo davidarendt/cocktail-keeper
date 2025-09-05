@@ -47,6 +47,9 @@ export default function App() {
   const [specialOnly, setSpecialOnly] = useState(false)
   const [view, setView] = useState<"cards"|"list">("cards")
 
+  // NEW: sort control
+  const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc">("special_desc")
+
   // form state
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -102,18 +105,25 @@ export default function App() {
   }
 
   // ---------- LOAD COCKTAILS ----------
-  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly])
+  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, sortBy])
   async function load() {
     setLoading(true); setErr("")
-    let query = supabase
-      .from("cocktails")
-      .select("*")
-      .order("last_special_on", { ascending: false })
-      .limit(500)
+    let query = supabase.from("cocktails").select("*")
 
     if (fMethod !== "Any" && fMethod.trim()) query = query.eq("method", fMethod)
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
     if (specialOnly) query = query.not("last_special_on","is",null)
+
+    // apply ordering
+    if (sortBy === "name_asc") {
+      query = query.order("name", { ascending: true })
+    } else {
+      const asc = sortBy === "special_asc"
+      query = query
+        .order("last_special_on", { ascending: asc, nullsFirst: asc }) // nulls last for desc; first for asc
+        .order("name", { ascending: true })
+    }
+    query = query.limit(500)
 
     const { data: base, error } = await query
     if (error) { setErr(error.message); setLoading(false); return }
@@ -156,8 +166,9 @@ export default function App() {
       .order("position", { ascending: true })
     const map: Record<string, string[]> = {}
     for (const r of (data || []) as any[]) {
-      const k = r.cocktail_id
-      const line = `${Number(r.amount)} ${r.unit} ${r.ingredient?.name || ""}`.trim()
+      const k = r.cocktail_id as string
+      const amt = Number(r.amount)
+      const line = `${Number.isFinite(amt) ? amt : r.amount} ${r.unit} ${r.ingredient?.name || ""}`.trim()
       ;(map[k] ||= []).push(line)
     }
     setSpecs(map)
@@ -193,7 +204,7 @@ export default function App() {
       ingredientName: r.ingredient?.name || "",
       amount: String(r.amount ?? ""),
       unit: (r.unit || "oz"),
-      position: r.position ?? i+1
+      position: typeof r.position === "number" ? r.position : (i + 1)
     }))
     setLines(mapped.length ? mapped : [{ ingredientName:"", amount:"", unit:"oz", position:1 }])
     window.scrollTo({ top: 0, behavior: "smooth" })
@@ -236,21 +247,22 @@ export default function App() {
     // replace lines
     await supabase.from("recipe_ingredients").delete().eq("cocktail_id", cocktailId)
 
-    let pos = 1
+    let pos: number = 1
     for (const ln of lines) {
       const ingName = ln.ingredientName.trim()
-      const amt = ln.amount === "" ? NaN : Number(ln.amount)
-      if (!ng(ingName) || !isFinite(amt)) continue
+      const amtNum = ln.amount === "" ? NaN : Number(ln.amount)
+      if (!ng(ingName) || !Number.isFinite(amtNum)) continue
       await supabase.from("ingredients").upsert({ name: ingName }, { onConflict: "name" })
       const { data: ingRow } = await supabase.from("ingredients").select("id").eq("name", ingName).single()
       if (!ingRow) continue
       await supabase.from("recipe_ingredients").insert({
         cocktail_id: cocktailId,
-        ingredient_id: (ingRow as any).id,
-        amount: amt,
+        ingredient_id: (ingRow as any).id as string,
+        amount: amtNum,
         unit: ln.unit,
-        position: pos++
+        position: pos
       })
+      pos = pos + 1
     }
 
     await load()
@@ -267,19 +279,23 @@ export default function App() {
       .select("name")
       .ilike("name", `%${t}%`)
       .limit(50)
+
     const tl = t.toLowerCase()
     const tC = normalizeSearchTerm(t)
-    return (data || [])
+
+    const scored: { name: string; score: number }[] = (data || [])
       .map((d:any)=> d.name as string)
       .map((name: string) => {
         const lower = name.toLowerCase()
         const words = lower.split(/\s+/)
-        const score =
+        const score: number =
           (lower.startsWith(tl) ? 0 : 100) +
           (words.some((w:string)=> w.startsWith(tl)) ? 0 : 50) +
           ((lower.includes(tl) || lower.replace(/\s+/g,"").includes(tC)) ? 1 : 200)
         return { name, score }
       })
+
+    return scored
       .sort((a,b)=> a.score - b.score)
       .slice(0, 10)
       .map(x => x.name)
@@ -411,7 +427,7 @@ export default function App() {
       <div style={container}>
         {/* HEADER */}
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <h1 style={{ fontSize:28, fontWeight:800 }}>Power Mill Cocktail Keeper</h1>
+          <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
             {role==="editor" && (
               <>
@@ -487,7 +503,7 @@ export default function App() {
         {route === "main" && (
           <>
             {/* CONTROLS */}
-            <div style={{ display:"grid", gridTemplateColumns:"1.6fr 1fr 1fr 1fr auto", gap:8, marginBottom:12 }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1.6fr 1fr 1fr 1fr 1.2fr auto", gap:8, marginBottom:12 }}>
               <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by ingredient (e.g., lemon)" style={inp} />
               <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={inp}>
                 <option>Any</option>
@@ -500,6 +516,14 @@ export default function App() {
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
                 <input type="checkbox" checked={specialOnly} onChange={e=>setSpecialOnly(e.target.checked)} /> Special only
               </label>
+
+              {/* Sort */}
+              <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={inp}>
+                <option value="special_desc">Sort: Last Special (new → old)</option>
+                <option value="special_asc">Sort: Last Special (old → new)</option>
+                <option value="name_asc">Sort: Name (A–Z)</option>
+              </select>
+
               <div style={{ textAlign:"right" }}>
                 <button onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} style={btnSecondary}>
                   {view==="cards" ? "List" : "Cards"}
@@ -568,7 +592,7 @@ export default function App() {
                     </ul>
                     <div style={{ display:"flex", gap:8, marginTop:10 }}>
                       <button
-                        onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c) }}
+                        onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
                         style={btnSecondary}
                       >
                         Print
@@ -608,7 +632,12 @@ export default function App() {
                         </ul>
                       </td>
                       <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                        <button onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c) }} style={btnSecondary}>Print</button>
+                        <button
+                          onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
+                          style={btnSecondary}
+                        >
+                          Print
+                        </button>
                         {role==="editor" && (
                           <>
                             <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
