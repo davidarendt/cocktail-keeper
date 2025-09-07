@@ -25,34 +25,48 @@ export default function App() {
   const [role, setRole] = useState<Role>("viewer")
   const [email, setEmail] = useState("")
 
+  // keep session in state
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => subscription.unsubscribe()
   }, [])
 
-    useEffect(() => {
-      (async () => {
-        if (!session) { setRole("viewer"); return }
+  // self-healing role loader (creates viewer row if missing; normalizes casing)
+  useEffect(() => {
+    (async () => {
+      if (!session) { setRole("viewer"); return }
 
-        const { data: profile, error } = await supabase
+      const { data: rows, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .limit(1)
+
+      if (error) {
+        console.warn("profiles select failed:", error.message)
+        setRole("viewer")
+        return
+      }
+
+      let currentRole: string | undefined = rows && rows[0]?.role as string | undefined
+
+      if (!currentRole) {
+        const { error: insErr } = await supabase
           .from("profiles")
-          .select("role")
-          .eq("user_id", session.user.id)
-          .single()
-
-        if (error) {
-          console.warn("load role error:", error.message)
+          .insert({ user_id: session.user.id, role: "viewer" })
+        if (insErr) {
+          console.warn("profiles insert failed:", insErr.message)
           setRole("viewer")
           return
         }
+        currentRole = "viewer"
+      }
 
-        const raw = (profile?.role ?? "viewer") as string
-        const normalized = raw.toString().trim().toLowerCase() as Role
-        setRole(normalized)
-      })()
-    }, [session])
-
+      const normalized = String(currentRole).trim().toLowerCase() as Role
+      setRole(normalized)
+    })()
+  }, [session])
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault()
@@ -124,7 +138,7 @@ export default function App() {
 
     let finalRows = (base || []) as TCocktail[]
 
-    // Ingredient search (fuzzy: word-start or contains)
+    // Ingredient search (fuzzy word-start + contains)
     if (q.trim() && finalRows.length) {
       const ids = finalRows.map(c=>c.id)
       const { data: rec, error: rerr } = await supabase
@@ -281,7 +295,7 @@ export default function App() {
     setFormOpen(false)
   }
 
-  // ingredient suggestions
+  // ingredient suggestions for typeahead
   async function queryIngredients(term: string): Promise<string[]> {
     const t = term.trim()
     if (!t) return []
@@ -476,14 +490,13 @@ export default function App() {
                 onClick={()=> setRoute("settings")}
                 style={btnSecondary}
                 title="Manage dropdown lists and user access"
-                data-test="btn-settings"
               >
                 Settings
               </button>
             )}
 
             {(role==="editor" || role==="admin") && (
-              <button onClick={()=> setRoute("ingredients")} style={btnSecondary} data-test="btn-ingredients">
+              <button onClick={()=> setRoute("ingredients")} style={btnSecondary}>
                 Ingredients
               </button>
             )}
@@ -502,6 +515,11 @@ export default function App() {
               </form>
             )}
           </div>
+        </div>
+
+        {/* TEMP DEBUG STRIP (you can delete later) */}
+        <div style={{ fontSize:11, color:"#94a3b8", marginBottom:6 }}>
+          env:{String(import.meta.env.VITE_SUPABASE_URL || "∅")} • user:{session?.user?.email || "∅"} • role:{role}
         </div>
 
         {/* ERROR BOX */}
