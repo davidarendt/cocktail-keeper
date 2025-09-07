@@ -10,7 +10,7 @@ import {
 import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
 import { IngredientsAdmin } from "./components/IngredientsAdmin"
-import { UsersAdmin } from "./components/UsersAdmin"
+import { UsersAdmin, type UserRow } from "./components/UsersAdmin"
 
 import { printOnePager } from "./utils/print"
 import { ng, normalizeSearchTerm } from "./utils/text"
@@ -18,15 +18,6 @@ import { ng, normalizeSearchTerm } from "./utils/text"
 import type {
   Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient
 } from "./types"
-
-// Local mirror of UsersAdmin row shape
-type UserRow = {
-  user_id: string
-  email: string | null
-  role: Role
-  display_name: string | null
-  created_at: string
-}
 
 export default function App() {
   // ---------- AUTH ----------
@@ -43,12 +34,22 @@ export default function App() {
   useEffect(() => {
     (async () => {
       if (!session) { setRole("viewer"); return }
-      const { data } = await supabase
+
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("role")
         .eq("user_id", session.user.id)
         .single()
-      setRole(((data?.role as any) || "viewer") as Role)
+
+      if (error) {
+        console.warn("load role error:", error.message)
+        setRole("viewer")
+        return
+      }
+
+      const raw = (profile?.role ?? "viewer") as string
+      const normalized = raw.toString().trim().toLowerCase() as Role
+      setRole(normalized)
     })()
   }, [session])
 
@@ -68,6 +69,7 @@ export default function App() {
   const [glasses, setGlasses] = useState<string[]>([])
   const [ices, setIces] = useState<string[]>([])
   const [garnishes, setGarnishes] = useState<string[]>([])
+
   useEffect(() => { loadCatalog() }, [])
   async function loadCatalog() {
     const { data } = await supabase
@@ -121,7 +123,7 @@ export default function App() {
 
     let finalRows = (base || []) as TCocktail[]
 
-    // Ingredient search (fuzzy word-start + contains)
+    // Ingredient search (fuzzy: word-start or contains)
     if (q.trim() && finalRows.length) {
       const ids = finalRows.map(c=>c.id)
       const { data: rec, error: rerr } = await supabase
@@ -262,7 +264,7 @@ export default function App() {
       if (!ng(ingName) || !Number.isFinite(amtNum)) continue
       await supabase.from("ingredients").upsert({ name: ingName }, { onConflict: "name" })
       const { data: ingRow } = await supabase.from("ingredients").select("id").eq("name", ingName).single()
-      if (!ingRow) continue
+      if (!(ingRow && (ingRow as any).id)) continue
       await supabase.from("recipe_ingredients").insert({
         cocktail_id: cocktailId,
         ingredient_id: (ingRow as any).id as string,
@@ -463,45 +465,43 @@ export default function App() {
     <div style={appWrap}>
       <div style={container}>
         {/* HEADER */}
-        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-          <button onClick={()=> setRoute("main")} style={btnSecondary}>Home</button>
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+          <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
+          <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+            <button onClick={()=> setRoute("main")} style={btnSecondary}>Home</button>
 
-          {role === "admin" && (
-            <button
-              onClick={()=> setRoute("settings")}
-              style={btnSecondary}
-              title="Manage dropdown lists and user access"
-              data-test="btn-settings"
-            >
-              Settings
-            </button>
-          )}
+            {role==="admin" && (
+              <button
+                onClick={()=> setRoute("settings")}
+                style={btnSecondary}
+                title="Manage dropdown lists and user access"
+                data-test="btn-settings"
+              >
+                Settings
+              </button>
+            )}
 
-          {(role === "editor" || role === "admin") && (
-            <button
-              onClick={()=> setRoute("ingredients")}
-              style={btnSecondary}
-              data-test="btn-ingredients"
-            >
-              Ingredients
-            </button>
-          )}
+            {(role==="editor" || role==="admin") && (
+              <button onClick={()=> setRoute("ingredients")} style={btnSecondary} data-test="btn-ingredients">
+                Ingredients
+              </button>
+            )}
 
-          {session ? (
-            <>
-              <span style={{ fontSize:12, color: colors.muted }}>
-                {session.user.email} • <b>{role}</b>
-              </span>
-              <button onClick={signOut} style={btnSecondary}>Sign out</button>
-            </>
-          ) : (
-            <form onSubmit={signIn} style={{ display:"flex", gap:8 }}>
-              <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email" style={inp} />
-              <button type="submit" style={btnPrimary}>Magic link</button>
-            </form>
-          )}
+            {session ? (
+              <>
+                <span style={{ fontSize:12, color: colors.muted }}>
+                  {session.user.email} • <b>{role}</b>
+                </span>
+                <button onClick={signOut} style={btnSecondary}>Sign out</button>
+              </>
+            ) : (
+              <form onSubmit={signIn} style={{ display:"flex", gap:8 }}>
+                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email" style={inp} />
+                <button type="submit" style={btnPrimary}>Magic link</button>
+              </form>
+            )}
+          </div>
         </div>
-
 
         {/* ERROR BOX */}
         {err && <div style={card({ border: `1px solid #374151`, color:"#fecaca" })}>{err}</div>}
