@@ -31,27 +31,28 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  useEffect(() => {
-    (async () => {
-      if (!session) { setRole("viewer"); return }
+    useEffect(() => {
+      (async () => {
+        if (!session) { setRole("viewer"); return }
 
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .single()
+        const { data: profile, error } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .single()
 
-      if (error) {
-        console.warn("load role error:", error.message)
-        setRole("viewer")
-        return
-      }
+        if (error) {
+          console.warn("load role error:", error.message)
+          setRole("viewer")
+          return
+        }
 
-      const raw = (profile?.role ?? "viewer") as string
-      const normalized = raw.toString().trim().toLowerCase() as Role
-      setRole(normalized)
-    })()
-  }, [session])
+        const raw = (profile?.role ?? "viewer") as string
+        const normalized = raw.toString().trim().toLowerCase() as Role
+        setRole(normalized)
+      })()
+    }, [session])
+
 
   async function signIn(e: React.FormEvent) {
     e.preventDefault()
