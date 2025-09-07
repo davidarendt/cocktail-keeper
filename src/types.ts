@@ -6,7 +6,7 @@ export type IsoDate = string        // "YYYY-MM-DD"
 export type TimestampISO = string   // full ISO timestamp
 
 /** Roles & enums */
-export type Role = "viewer" | "editor"
+export type Role = "viewer" | "editor" | "admin"
 export type Kind = "method" | "glass" | "ice" | "garnish"
 export type Unit = "oz" | "barspoon" | "dash" | "drop" | "ml"
 

@@ -10,6 +10,7 @@ import {
 import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
 import { IngredientsAdmin } from "./components/IngredientsAdmin"
+import { UsersAdmin } from "./components/UsersAdmin"
 
 import { printOnePager } from "./utils/print"
 import { ng, normalizeSearchTerm } from "./utils/text"
@@ -18,54 +19,21 @@ import type {
   Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient
 } from "./types"
 
-// ---------- App ----------
+// Local mirror of UsersAdmin row shape
+type UserRow = {
+  user_id: string
+  email: string | null
+  role: Role
+  display_name: string | null
+  created_at: string
+}
+
 export default function App() {
-  // auth
+  // ---------- AUTH ----------
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<Role>("viewer")
   const [email, setEmail] = useState("")
 
-  // route
-  const [route, setRoute] = useState<"main"|"settings"|"ingredients">("main")
-
-  // dropdown catalogs
-  const [methods, setMethods] = useState<string[]>([])
-  const [glasses, setGlasses] = useState<string[]>([])
-  const [ices, setIces] = useState<string[]>([])
-  const [garnishes, setGarnishes] = useState<string[]>([])
-
-  // cocktails + specs
-  const [rows, setRows] = useState<TCocktail[]>([])
-  const [specs, setSpecs] = useState<Record<string, string[]>>({})
-  const [loading, setLoading] = useState(true)
-  const [err, setErr] = useState("")
-
-  // search / filters / view
-  const [q, setQ] = useState("")
-  const [fMethod, setFMethod] = useState("Any")
-  const [fGlass, setFGlass] = useState("")
-  const [specialOnly, setSpecialOnly] = useState(false)
-  const [view, setView] = useState<"cards"|"list">("cards")
-
-  // NEW: sort control
-  const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc">("special_desc")
-
-  // form state
-  const [formOpen, setFormOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [name, setName] = useState("")
-  const [method, setMethod] = useState("")
-  const [glass, setGlass] = useState("")
-  const [ice, setIce] = useState("")
-  const [garnish, setGarnish] = useState("")
-  const [notes, setNotes] = useState("")
-  const [price, setPrice] = useState("")
-  const [specialDate, setSpecialDate] = useState("") // YYYY-MM-DD
-  const [lines, setLines] = useState<IngredientLine[]>([
-    { ingredientName:"", amount:"", unit:"oz", position:1 }
-  ])
-
-  // ---------- AUTH ----------
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
@@ -75,7 +43,11 @@ export default function App() {
   useEffect(() => {
     (async () => {
       if (!session) { setRole("viewer"); return }
-      const { data } = await supabase.from("profiles").select("role").eq("user_id", session.user.id).single()
+      const { data } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single()
       setRole(((data?.role as any) || "viewer") as Role)
     })()
   }, [session])
@@ -88,7 +60,14 @@ export default function App() {
   }
   async function signOut() { await supabase.auth.signOut() }
 
+  // ---------- ROUTING ----------
+  const [route, setRoute] = useState<"main"|"settings"|"ingredients">("main")
+
   // ---------- CATALOGS ----------
+  const [methods, setMethods] = useState<string[]>([])
+  const [glasses, setGlasses] = useState<string[]>([])
+  const [ices, setIces] = useState<string[]>([])
+  const [garnishes, setGarnishes] = useState<string[]>([])
   useEffect(() => { loadCatalog() }, [])
   async function loadCatalog() {
     const { data } = await supabase
@@ -104,7 +83,20 @@ export default function App() {
     setGarnishes(rows.filter(r=>r.kind==="garnish").map(r=>r.name))
   }
 
-  // ---------- LOAD COCKTAILS ----------
+  // ---------- COCKTAILS ----------
+  const [rows, setRows] = useState<TCocktail[]>([])
+  const [specs, setSpecs] = useState<Record<string, string[]>>({})
+  const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState("")
+
+  // search / filters / view / sort
+  const [q, setQ] = useState("")
+  const [fMethod, setFMethod] = useState("Any")
+  const [fGlass, setFGlass] = useState("")
+  const [specialOnly, setSpecialOnly] = useState(false)
+  const [view, setView] = useState<"cards"|"list">("cards")
+  const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc">("special_desc")
+
   useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, sortBy])
   async function load() {
     setLoading(true); setErr("")
@@ -114,13 +106,12 @@ export default function App() {
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
     if (specialOnly) query = query.not("last_special_on","is",null)
 
-    // apply ordering
     if (sortBy === "name_asc") {
       query = query.order("name", { ascending: true })
     } else {
       const asc = sortBy === "special_asc"
       query = query
-        .order("last_special_on", { ascending: asc, nullsFirst: asc }) // nulls last for desc; first for asc
+        .order("last_special_on", { ascending: asc, nullsFirst: asc })
         .order("name", { ascending: true })
     }
     query = query.limit(500)
@@ -130,7 +121,7 @@ export default function App() {
 
     let finalRows = (base || []) as TCocktail[]
 
-    // Ingredient search
+    // Ingredient search (fuzzy word-start + contains)
     if (q.trim() && finalRows.length) {
       const ids = finalRows.map(c=>c.id)
       const { data: rec, error: rerr } = await supabase
@@ -167,14 +158,31 @@ export default function App() {
     const map: Record<string, string[]> = {}
     for (const r of (data || []) as any[]) {
       const k = r.cocktail_id as string
-      const amt = Number(r.amount)
-      const line = `${Number.isFinite(amt) ? amt : r.amount} ${r.unit} ${r.ingredient?.name || ""}`.trim()
+      const amtNum = Number(r.amount)
+      const amtStr = Number.isFinite(amtNum) ? String(amtNum) : String(r.amount ?? "")
+      const unit = r.unit ? ` ${r.unit}` : ""
+      const ing = r.ingredient?.name ? ` ${r.ingredient.name}` : ""
+      const line = `${amtStr}${unit}${ing}`.trim()
       ;(map[k] ||= []).push(line)
     }
     setSpecs(map)
   }
 
-  // ---------- FORM HELPERS ----------
+  // ---------- FORM ----------
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [name, setName] = useState("")
+  const [method, setMethod] = useState("")
+  const [glass, setGlass] = useState("")
+  const [ice, setIce] = useState("")
+  const [garnish, setGarnish] = useState("")
+  const [notes, setNotes] = useState("")
+  const [price, setPrice] = useState("")
+  const [specialDate, setSpecialDate] = useState("") // YYYY-MM-DD
+  const [lines, setLines] = useState<IngredientLine[]>([
+    { ingredientName:"", amount:"", unit:"oz", position:1 }
+  ])
+
   function resetForm() {
     setEditingId(null)
     setName(""); setMethod("")
@@ -270,7 +278,7 @@ export default function App() {
     setFormOpen(false)
   }
 
-  // ingredient suggestions for CocktailForm
+  // ingredient suggestions
   async function queryIngredients(term: string): Promise<string[]> {
     const t = term.trim()
     if (!t) return []
@@ -301,13 +309,13 @@ export default function App() {
       .map(x => x.name)
   }
 
-  // ---------- SETTINGS (editor) ----------
+  // ---------- SETTINGS (catalogs) ----------
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [catLoading, setCatLoading] = useState(false)
   const [newName, setNewName] = useState<Partial<Record<"method"|"glass"|"ice"|"garnish", string>>>({})
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
-  useEffect(() => { if (route==="settings") reloadSettings() }, [route])
+  useEffect(() => { if (route==="settings" && role==="admin") reloadSettings() }, [route, role])
   async function reloadSettings() {
     setCatLoading(true)
     const { data } = await supabase.from("catalog_items").select("*").order("kind").order("position")
@@ -421,6 +429,35 @@ export default function App() {
     await load()
   }
 
+  // ---------- USERS (ADMIN) ----------
+  const [users, setUsers] = useState<UserRow[]>([])
+  const [usersLoading, setUsersLoading] = useState(false)
+
+  useEffect(() => {
+    if (route === "settings" && role === "admin") { loadUsers() }
+  }, [route, role])
+
+  async function loadUsers() {
+    setUsersLoading(true)
+    const { data, error } = await supabase.rpc("admin_list_profiles")
+    setUsersLoading(false)
+    if (error) { alert(error.message); return }
+    setUsers((data || []) as UserRow[])
+  }
+  async function changeUserRole(user_id: string, newRole: Role) {
+    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("user_id", user_id)
+    if (error) { alert(error.message); return }
+    await loadUsers()
+  }
+  async function renameUser(user_id: string) {
+    const current = users.find(u => u.user_id === user_id)
+    const n = prompt("Display name", current?.display_name || "")?.trim()
+    if (!n) return
+    const { error } = await supabase.from("profiles").update({ display_name: n }).eq("user_id", user_id)
+    if (error) { alert(error.message); return }
+    await loadUsers()
+  }
+
   // ---------- RENDER ----------
   return (
     <div style={appWrap}>
@@ -429,14 +466,12 @@ export default function App() {
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
           <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
           <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            {role==="editor" && (
-              <>
-                <button onClick={()=> setRoute("settings")} style={btnSecondary}>Settings</button>
-                <button onClick={()=> setRoute("ingredients")} style={btnSecondary}>Ingredients</button>
-                {route!=="main" && (
-                  <button onClick={()=> setRoute("main")} style={btnSecondary}>← Back</button>
-                )}
-              </>
+            {role==="admin" && <button onClick={()=> setRoute("settings")} style={btnSecondary}>Settings</button>}
+            {(role==="editor" || role==="admin") && (
+              <button onClick={()=> setRoute("ingredients")} style={btnSecondary}>Ingredients</button>
+            )}
+            {route!=="main" && (
+              <button onClick={()=> setRoute("main")} style={btnSecondary}>← Back</button>
             )}
             {session ? (
               <>
@@ -459,30 +494,41 @@ export default function App() {
 
         {/* ROUTES */}
         {route === "settings" && (
-          role !== "editor" ? (
-            <div style={{ color: colors.muted }}>Settings are editor-only.</div>
+          role !== "admin" ? (
+            <div style={{ color: colors.muted }}>Settings are admin-only.</div>
           ) : (
-            <SettingsBlock
-              catalog={catalog}
-              catLoading={catLoading}
-              newName={newName}
-              onNewNameChange={handleNewNameChange}
-              addCatalog={addCatalog}
-              renameCatalog={renameCatalog}
-              toggleCatalog={toggleCatalog}
-              deleteCatalog={deleteCatalog}
-              onDragStart={onDragStart}
-              onDragOver={onDragOver}
-              onDrop={onDrop}
-              draggingId={draggingId}
-            />
+            <>
+              <SettingsBlock
+                catalog={catalog}
+                catLoading={catLoading}
+                newName={newName}
+                onNewNameChange={handleNewNameChange}
+                addCatalog={addCatalog}
+                renameCatalog={renameCatalog}
+                toggleCatalog={toggleCatalog}
+                deleteCatalog={deleteCatalog}
+                onDragStart={onDragStart}
+                onDragOver={onDragOver}
+                onDrop={onDrop}
+                draggingId={draggingId}
+              />
+
+              <div style={{ height:12 }} />
+
+              <UsersAdmin
+                meEmail={session?.user?.email ?? null}
+                users={users}
+                loading={usersLoading}
+                reload={loadUsers}
+                onChangeRole={changeUserRole}
+                onRename={renameUser}
+              />
+            </>
           )
         )}
 
         {route === "ingredients" && (
-          role !== "editor" ? (
-            <div style={{ color: colors.muted }}>Ingredients admin is editor-only.</div>
-          ) : (
+          (role==="editor" || role==="admin") ? (
             <IngredientsAdmin
               items={ingAdmin}
               loading={ingAdminLoading}
@@ -497,6 +543,8 @@ export default function App() {
               mergeBusy={mergeBusy}
               mergeMsg={mergeMsg}
             />
+          ) : (
+            <div style={{ color: colors.muted }}>Ingredients admin is editor-only.</div>
           )
         )}
 
@@ -532,14 +580,14 @@ export default function App() {
             </div>
 
             {/* ADD BUTTON */}
-            {role === "editor" && !formOpen && (
+            {(role === "editor" || role === "admin") && !formOpen && (
               <div style={{ marginBottom:12 }}>
                 <button onClick={openAddForm} style={btnPrimary}>+ New cocktail</button>
               </div>
             )}
 
             {/* FORM */}
-            {role === "editor" && formOpen && (
+            {(role === "editor" || role === "admin") && formOpen && (
               <CocktailForm
                 editingId={editingId}
                 methods={methods}
@@ -597,7 +645,7 @@ export default function App() {
                       >
                         Print
                       </button>
-                      {role==="editor" && (
+                      {(role==="editor" || role==="admin") && (
                         <>
                           <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
                           <button onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} style={dangerBtn}>Delete</button>
@@ -638,7 +686,7 @@ export default function App() {
                         >
                           Print
                         </button>
-                        {role==="editor" && (
+                        {(role==="editor" || role==="admin") && (
                           <>
                             <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
                             <button onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} style={dangerBtn}>Delete</button>
