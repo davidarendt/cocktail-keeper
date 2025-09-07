@@ -463,31 +463,45 @@ export default function App() {
     <div style={appWrap}>
       <div style={container}>
         {/* HEADER */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
-          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-            {role==="admin" && <button onClick={()=> setRoute("settings")} style={btnSecondary}>Settings</button>}
-            {(role==="editor" || role==="admin") && (
-              <button onClick={()=> setRoute("ingredients")} style={btnSecondary}>Ingredients</button>
-            )}
-            {route!=="main" && (
-              <button onClick={()=> setRoute("main")} style={btnSecondary}>← Back</button>
-            )}
-            {session ? (
-              <>
-                <span style={{ fontSize:12, color: colors.muted }}>
-                  {session.user.email} • <b>{role}</b>
-                </span>
-                <button onClick={signOut} style={btnSecondary}>Sign out</button>
-              </>
-            ) : (
-              <form onSubmit={signIn} style={{ display:"flex", gap:8 }}>
-                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email" style={inp} />
-                <button type="submit" style={btnPrimary}>Magic link</button>
-              </form>
-            )}
-          </div>
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+          <button onClick={()=> setRoute("main")} style={btnSecondary}>Home</button>
+
+          {role === "admin" && (
+            <button
+              onClick={()=> setRoute("settings")}
+              style={btnSecondary}
+              title="Manage dropdown lists and user access"
+              data-test="btn-settings"
+            >
+              Settings
+            </button>
+          )}
+
+          {(role === "editor" || role === "admin") && (
+            <button
+              onClick={()=> setRoute("ingredients")}
+              style={btnSecondary}
+              data-test="btn-ingredients"
+            >
+              Ingredients
+            </button>
+          )}
+
+          {session ? (
+            <>
+              <span style={{ fontSize:12, color: colors.muted }}>
+                {session.user.email} • <b>{role}</b>
+              </span>
+              <button onClick={signOut} style={btnSecondary}>Sign out</button>
+            </>
+          ) : (
+            <form onSubmit={signIn} style={{ display:"flex", gap:8 }}>
+              <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email" style={inp} />
+              <button type="submit" style={btnPrimary}>Magic link</button>
+            </form>
+          )}
         </div>
+
 
         {/* ERROR BOX */}
         {err && <div style={card({ border: `1px solid #374151`, color:"#fecaca" })}>{err}</div>}
