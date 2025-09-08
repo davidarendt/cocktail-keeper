@@ -583,7 +583,7 @@ export default function App() {
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 8,
+                gap: 16,
                 alignItems: "center",
                 marginBottom: 12,
               }}

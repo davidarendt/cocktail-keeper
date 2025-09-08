@@ -9,7 +9,7 @@ import {
 // Make the page wider + comfy padding on all devices
 export const container: CSSProperties = {
   ...containerBase,
-  maxWidth: 1280,     // was ~900; fills more of large screens
+  maxWidth: 3200,     // was ~900; fills more of large screens
   width: "100%",
   margin: "0 auto",
   padding: 16,        // better on mobile but fine on desktop
