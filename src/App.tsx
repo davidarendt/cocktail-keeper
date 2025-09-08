@@ -517,11 +517,6 @@ export default function App() {
           </div>
         </div>
 
-        {/* TEMP DEBUG STRIP (you can delete later) */}
-        <div style={{ fontSize:11, color:"#94a3b8", marginBottom:6 }}>
-          env:{String(import.meta.env.VITE_SUPABASE_URL || "∅")} • user:{session?.user?.email || "∅"} • role:{role}
-        </div>
-
         {/* ERROR BOX */}
         {err && <div style={card({ border: `1px solid #374151`, color:"#fecaca" })}>{err}</div>}
 
@@ -583,8 +578,16 @@ export default function App() {
 
         {route === "main" && (
           <>
-            {/* CONTROLS */}
-            <div style={{ display:"grid", gridTemplateColumns:"1.6fr 1fr 1fr 1fr 1.2fr auto", gap:8, marginBottom:12 }}>
+            {/* CONTROLS — responsive grid */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 8,
+                alignItems: "center",
+                marginBottom: 12,
+              }}
+            >
               <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by ingredient (e.g., lemon)" style={inp} />
               <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={inp}>
                 <option>Any</option>
@@ -597,14 +600,11 @@ export default function App() {
               <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
                 <input type="checkbox" checked={specialOnly} onChange={e=>setSpecialOnly(e.target.checked)} /> Special only
               </label>
-
-              {/* Sort */}
               <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={inp}>
                 <option value="special_desc">Sort: Last Special (new → old)</option>
                 <option value="special_asc">Sort: Last Special (old → new)</option>
                 <option value="name_asc">Sort: Name (A–Z)</option>
               </select>
-
               <div style={{ textAlign:"right" }}>
                 <button onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} style={btnSecondary}>
                   {view==="cards" ? "List" : "Cards"}
@@ -648,7 +648,13 @@ export default function App() {
             ) : rows.length === 0 ? (
               <div style={{ color: colors.muted }}>No results.</div>
             ) : view==="cards" ? (
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(3,minmax(0,1fr))", gap:12 }}>
+              <div
+                style={{
+                  display:"grid",
+                  gridTemplateColumns:"repeat(auto-fit, minmax(260px, 1fr))",
+                  gap:12
+                }}
+              >
                 {rows.map(c => (
                   <div
                     key={c.id}
@@ -689,47 +695,49 @@ export default function App() {
                 ))}
               </div>
             ) : (
-              <table style={{ width:"100%", borderCollapse:"collapse", ...card({ padding:0 }) }}>
-                <thead style={{ background:"#0f172a", color:"#cbd5e1" }}>
-                  <tr>
-                    <th style={th}>Name</th>
-                    <th style={th}>Method</th>
-                    <th style={th}>Glass</th>
-                    <th style={th}>Price</th>
-                    <th style={th}>Specs</th>
-                    <th style={th}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(c => (
-                    <tr key={c.id} style={{ borderTop:`1px solid ${colors.border}` }} onClick={()=>startEdit(c)} title="Click to edit">
-                      <td style={td}>{c.name}</td>
-                      <td style={td}>{c.method || "—"}</td>
-                      <td style={td}>{c.glass || "—"}</td>
-                      <td style={td}>{c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}</td>
-                      <td style={td}>
-                        <ul style={{ margin:0, paddingLeft:18 }}>
-                          {(specs[c.id] || []).map((l, i) => <li key={i}>{l}</li>)}
-                        </ul>
-                      </td>
-                      <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                        <button
-                          onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
-                          style={btnSecondary}
-                        >
-                          Print
-                        </button>
-                        {(role==="editor" || role==="admin") && (
-                          <>
-                            <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
-                            <button onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} style={dangerBtn}>Delete</button>
-                          </>
-                        )}
-                      </td>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ minWidth: 720, width:"100%", borderCollapse:"collapse", ...card({ padding:0 }) }}>
+                  <thead style={{ background:"#0f172a", color:"#cbd5e1" }}>
+                    <tr>
+                      <th style={th}>Name</th>
+                      <th style={th}>Method</th>
+                      <th style={th}>Glass</th>
+                      <th style={th}>Price</th>
+                      <th style={th}>Specs</th>
+                      <th style={th}></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rows.map(c => (
+                      <tr key={c.id} style={{ borderTop:`1px solid ${colors.border}` }} onClick={()=>startEdit(c)} title="Click to edit">
+                        <td style={td}>{c.name}</td>
+                        <td style={td}>{c.method || "—"}</td>
+                        <td style={td}>{c.glass || "—"}</td>
+                        <td style={td}>{c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}</td>
+                        <td style={td}>
+                          <ul style={{ margin:0, paddingLeft:18 }}>
+                            {(specs[c.id] || []).map((l, i) => <li key={i}>{l}</li>)}
+                          </ul>
+                        </td>
+                        <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
+                          <button
+                            onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
+                            style={btnSecondary}
+                          >
+                            Print
+                          </button>
+                          {(role==="editor" || role==="admin") && (
+                            <>
+                              <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
+                              <button onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} style={dangerBtn}>Delete</button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </>
         )}
