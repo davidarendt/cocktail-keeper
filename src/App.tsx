@@ -920,7 +920,7 @@ export default function App() {
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ 
+                <table className="table-responsive" style={{ 
                   minWidth: 800, 
                   width: "100%", 
                   borderCollapse: "collapse", 

@@ -355,4 +355,19 @@ button:active {
     justify-content: center !important;
     flex-wrap: wrap !important;
   }
+  
+  /* Mobile cocktail cards */
+  .cocktail-grid .card-hover {
+    min-height: auto !important;
+  }
+  
+  /* Mobile table view */
+  .table-responsive {
+    font-size: 0.8rem !important;
+  }
+  
+  .table-responsive th,
+  .table-responsive td {
+    padding: 8px 4px !important;
+  }
 }
