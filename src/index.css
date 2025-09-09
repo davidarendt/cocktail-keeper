@@ -287,6 +287,32 @@ button:active {
   }
 }
 
+/* Responsive cocktail grid */
+.cocktail-grid {
+  grid-template-columns: 1fr; /* Mobile portrait: 1 column */
+}
+
+/* Tablet landscape and small desktop */
+@media (min-width: 768px) {
+  .cocktail-grid {
+    grid-template-columns: repeat(2, 1fr); /* Tablet: 2 columns */
+  }
+}
+
+/* Desktop and larger */
+@media (min-width: 1024px) {
+  .cocktail-grid {
+    grid-template-columns: repeat(3, 1fr); /* Desktop: 3 columns */
+  }
+}
+
+/* Large desktop */
+@media (min-width: 1400px) {
+  .cocktail-grid {
+    grid-template-columns: repeat(4, 1fr); /* Large desktop: 4 columns */
+  }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   h1 {
@@ -305,5 +331,28 @@ button:active {
   
   .card-hover:hover {
     transform: translateY(-2px);
+  }
+  
+  /* Mobile form controls */
+  .cocktail-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Stack form controls vertically on mobile */
+  .form-controls {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  
+  /* Make header more mobile-friendly */
+  header {
+    flex-direction: column !important;
+    gap: 16px !important;
+    text-align: center !important;
+  }
+  
+  header nav {
+    justify-content: center !important;
+    flex-wrap: wrap !important;
   }
 }

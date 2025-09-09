@@ -461,23 +461,8 @@ export default function App() {
     await loadUsers()
   }
 
-  // ---------- CARDS GRID COLUMN COUNTER ----------
+  // ---------- CARDS GRID REF ----------
   const cardsRef = useRef<HTMLDivElement | null>(null)
-  const [cols, setCols] = useState<number>(3)
-
-  useEffect(() => {
-    const el = cardsRef.current
-    if (!el) return
-    const min = 220 // min card width
-    const gap = 16 // same as grid gap
-    const ro = new ResizeObserver((entries: ResizeObserverEntry[]) => {
-      const w = entries[0].contentRect.width
-      const c = Math.max(1, Math.floor((w + gap) / (min + gap)))
-      setCols(c)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
 
   // ---------- RENDER ----------
   return (
@@ -665,7 +650,7 @@ export default function App() {
               background: colors.glass,
               backdropFilter: "blur(10px)"
             }}>
-              <div style={{ 
+              <div className="form-controls" style={{ 
                 display: "grid", 
                 gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
                 gap: 16, 
@@ -781,9 +766,9 @@ export default function App() {
             ) : view==="cards" ? (
               <div
                 ref={cardsRef}
+                className="cocktail-grid"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
                   gap: 16,
                 }}
               >
