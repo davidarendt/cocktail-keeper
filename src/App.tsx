@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient"
 
 import {
   appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors,
-  cocktailCard, specialBadge, priceDisplay, ingredientList, textGradient, shadowLg, shadows
+  cocktailCard, specialBadge, priceDisplay, ingredientList, textGradient, shadows
 } from "./styles"
 
 import { SettingsBlock } from "./components/SettingsBlock"
@@ -742,11 +742,7 @@ export default function App() {
                     fontSize: 16,
                     padding: "16px 32px",
                     borderRadius: 12,
-                    boxShadow: shadows.lg,
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "0 10px 25px rgba(240, 147, 251, 0.3)"
-                    }
+                    boxShadow: shadows.lg
                   }}
                 >
                   ✨ Create New Cocktail

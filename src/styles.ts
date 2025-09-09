@@ -33,7 +33,7 @@ export const container: CSSProperties = {
 // Re-export the enhanced theme
 export {
   colors, space, radii, fonts, layout, shadows, transitions,
-  border, card, cardHover, inp, btnPrimary, btnSecondary, dangerBtn,
+  card, cardHover, inp, btnPrimary, btnSecondary, dangerBtn,
   th, td, mutedText, textGradient, glow
 }
 

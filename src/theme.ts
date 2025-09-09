@@ -120,12 +120,6 @@ export const card = (overrides?: CSSProperties): CSSProperties => ({
 export const cardHover = (overrides?: CSSProperties): CSSProperties => ({
   ...card(overrides),
   cursor: "pointer",
-  "&:hover": {
-    background: colors.panelHover,
-    border: `1px solid ${colors.borderHover}`,
-    transform: "translateY(-2px)",
-    boxShadow: shadows.lg,
-  },
 })
 
 // Modern input with focus states
@@ -138,13 +132,6 @@ export const inp: CSSProperties = {
   fontSize: fonts.base,
   transition: `all ${transitions.fast}`,
   outline: "none",
-  "&:focus": {
-    border: `1px solid ${colors.primarySolid}`,
-    boxShadow: `0 0 0 3px ${colors.inputFocus}`,
-  },
-  "&::placeholder": {
-    color: colors.muted,
-  },
 }
 
 // Gradient primary button
@@ -159,14 +146,6 @@ export const btnPrimary: CSSProperties = {
   cursor: "pointer",
   transition: `all ${transitions.fast}`,
   boxShadow: shadows.sm,
-  "&:hover": {
-    background: colors.primaryHover,
-    transform: "translateY(-1px)",
-    boxShadow: shadows.md,
-  },
-  "&:active": {
-    transform: "translateY(0)",
-  },
 }
 
 // Glass morphism secondary button
@@ -181,11 +160,6 @@ export const btnSecondary: CSSProperties = {
   cursor: "pointer",
   transition: `all ${transitions.fast}`,
   backdropFilter: "blur(10px)",
-  "&:hover": {
-    background: colors.panelHover,
-    border: `1px solid ${colors.borderHover}`,
-    transform: "translateY(-1px)",
-  },
 }
 
 // Gradient danger button
@@ -200,10 +174,6 @@ export const dangerBtn: CSSProperties = {
   cursor: "pointer",
   transition: `all ${transitions.fast}`,
   boxShadow: shadows.sm,
-  "&:hover": {
-    transform: "translateY(-1px)",
-    boxShadow: shadows.md,
-  },
 }
 
 // Modern table headers
