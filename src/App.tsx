@@ -1,10 +1,11 @@
 // src/App.tsx
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import type { Session } from "@supabase/supabase-js"
 import { supabase } from "./supabaseClient"
 
 import {
-  appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors
+  appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors,
+  cocktailCard, specialBadge, priceDisplay, ingredientList, textGradient, shadowLg, shadows
 } from "./styles"
 
 import { SettingsBlock } from "./components/SettingsBlock"
@@ -25,14 +26,13 @@ export default function App() {
   const [role, setRole] = useState<Role>("viewer")
   const [email, setEmail] = useState("")
 
-  // keep session in state
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => subscription.unsubscribe()
   }, [])
 
-  // self-healing role loader (creates viewer row if missing; normalizes casing)
+  // self-healing role loader
   useEffect(() => {
     (async () => {
       if (!session) { setRole("viewer"); return }
@@ -43,28 +43,15 @@ export default function App() {
         .eq("user_id", session.user.id)
         .limit(1)
 
-      if (error) {
-        console.warn("profiles select failed:", error.message)
-        setRole("viewer")
-        return
-      }
+      if (error) { console.warn("profiles select failed:", error.message); setRole("viewer"); return }
 
-      let currentRole: string | undefined = rows && rows[0]?.role as string | undefined
-
+      let currentRole: string | undefined = rows && (rows[0] as any)?.role
       if (!currentRole) {
-        const { error: insErr } = await supabase
-          .from("profiles")
-          .insert({ user_id: session.user.id, role: "viewer" })
-        if (insErr) {
-          console.warn("profiles insert failed:", insErr.message)
-          setRole("viewer")
-          return
-        }
+        const { error: insErr } = await supabase.from("profiles").insert({ user_id: session.user.id, role: "viewer" })
+        if (insErr) { console.warn("profiles insert failed:", insErr.message); setRole("viewer"); return }
         currentRole = "viewer"
       }
-
-      const normalized = String(currentRole).trim().toLowerCase() as Role
-      setRole(normalized)
+      setRole(String(currentRole).trim().toLowerCase() as Role)
     })()
   }, [session])
 
@@ -138,7 +125,7 @@ export default function App() {
 
     let finalRows = (base || []) as TCocktail[]
 
-    // Ingredient search (fuzzy word-start + contains)
+    // Ingredient search (fuzzy)
     if (q.trim() && finalRows.length) {
       const ids = finalRows.map(c=>c.id)
       const { data: rec, error: rerr } = await supabase
@@ -269,7 +256,6 @@ export default function App() {
     if (error || !up) { setErr(error?.message || "Save failed"); return }
     const cocktailId = (up as any).id as string
 
-    // replace lines
     await supabase.from("recipe_ingredients").delete().eq("cocktail_id", cocktailId)
 
     let pos: number = 1
@@ -295,7 +281,7 @@ export default function App() {
     setFormOpen(false)
   }
 
-  // ingredient suggestions for typeahead
+  // ingredient suggestions
   async function queryIngredients(term: string): Promise<string[]> {
     const t = term.trim()
     if (!t) return []
@@ -475,50 +461,143 @@ export default function App() {
     await loadUsers()
   }
 
+  // ---------- CARDS GRID COLUMN COUNTER ----------
+  const cardsRef = useRef<HTMLDivElement | null>(null)
+  const [cols, setCols] = useState<number>(3)
+
+  useEffect(() => {
+    const el = cardsRef.current
+    if (!el) return
+    const min = 220 // min card width
+    const gap = 16 // same as grid gap
+    const ro = new ResizeObserver((entries: ResizeObserverEntry[]) => {
+      const w = entries[0].contentRect.width
+      const c = Math.max(1, Math.floor((w + gap) / (min + gap)))
+      setCols(c)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   // ---------- RENDER ----------
   return (
     <div style={appWrap}>
       <div style={container}>
-        {/* HEADER */}
-        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-          <h1 style={{ fontSize:28, fontWeight:800 }}>Cocktail Keeper</h1>
-          <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-            <button onClick={()=> setRoute("main")} style={btnSecondary}>Home</button>
+        {/* ENHANCED HEADER */}
+        <header className="animate-fade-in-up" style={{ 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center", 
+          marginBottom: 32,
+          padding: "24px 0",
+          borderBottom: `1px solid ${colors.border}`,
+          position: "relative"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <h1 className="gradient-text" style={{ 
+              fontSize: 36, 
+              fontWeight: 800, 
+              margin: 0,
+              textShadow: "0 0 20px rgba(102, 126, 234, 0.3)"
+            }}>
+              🍸 Cocktail Keeper
+            </h1>
+            {session && (
+              <div style={{
+                background: colors.glass,
+                backdropFilter: "blur(10px)",
+                border: `1px solid ${colors.glassBorder}`,
+                borderRadius: 20,
+                padding: "8px 16px",
+                fontSize: 12,
+                color: colors.muted,
+                fontWeight: 500
+              }}>
+                {session.user.email} • <span style={{ color: colors.primarySolid, fontWeight: 600 }}>{role}</span>
+              </div>
+            )}
+          </div>
+          
+          <nav style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <button 
+              onClick={()=> setRoute("main")} 
+              style={{
+                ...btnSecondary,
+                background: route === "main" ? colors.primarySolid : colors.glass,
+                color: route === "main" ? "white" : colors.text,
+                boxShadow: route === "main" ? shadows.lg : "none"
+              }}
+            >
+              🏠 Home
+            </button>
 
             {role==="admin" && (
-              <button
-                onClick={()=> setRoute("settings")}
-                style={btnSecondary}
+              <button 
+                onClick={()=> setRoute("settings")} 
+                style={{
+                  ...btnSecondary,
+                  background: route === "settings" ? colors.primarySolid : colors.glass,
+                  color: route === "settings" ? "white" : colors.text,
+                  boxShadow: route === "settings" ? shadows.lg : "none"
+                }}
                 title="Manage dropdown lists and user access"
               >
-                Settings
+                ⚙️ Settings
               </button>
             )}
 
             {(role==="editor" || role==="admin") && (
-              <button onClick={()=> setRoute("ingredients")} style={btnSecondary}>
-                Ingredients
+              <button 
+                onClick={()=> setRoute("ingredients")} 
+                style={{
+                  ...btnSecondary,
+                  background: route === "ingredients" ? colors.primarySolid : colors.glass,
+                  color: route === "ingredients" ? "white" : colors.text,
+                  boxShadow: route === "ingredients" ? shadows.lg : "none"
+                }}
+              >
+                🧪 Ingredients
               </button>
             )}
 
             {session ? (
-              <>
-                <span style={{ fontSize:12, color: colors.muted }}>
-                  {session.user.email} • <b>{role}</b>
-                </span>
-                <button onClick={signOut} style={btnSecondary}>Sign out</button>
-              </>
+              <button onClick={signOut} style={btnSecondary}>
+                🚪 Sign out
+              </button>
             ) : (
-              <form onSubmit={signIn} style={{ display:"flex", gap:8 }}>
-                <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="your@email" style={inp} />
-                <button type="submit" style={btnPrimary}>Magic link</button>
+              <form onSubmit={signIn} style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <input 
+                  value={email} 
+                  onChange={e=>setEmail(e.target.value)} 
+                  placeholder="your@email.com" 
+                  style={{ ...inp, minWidth: 200 }}
+                  type="email"
+                />
+                <button type="submit" style={btnPrimary}>
+                  ✨ Magic link
+                </button>
               </form>
             )}
-          </div>
-        </div>
+          </nav>
+        </header>
 
-        {/* ERROR BOX */}
-        {err && <div style={card({ border: `1px solid #374151`, color:"#fecaca" })}>{err}</div>}
+        {/* ENHANCED ERROR BOX */}
+        {err && (
+          <div style={{
+            ...card({ 
+              border: `1px solid ${colors.dangerSolid}`, 
+              background: "rgba(239, 68, 68, 0.1)",
+              color: "#fecaca",
+              marginBottom: 24
+            }),
+            boxShadow: `0 0 20px rgba(239, 68, 68, 0.2)`
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 20 }}>⚠️</span>
+              <span style={{ fontWeight: 500 }}>{err}</span>
+            </div>
+          </div>
+        )}
 
         {/* ROUTES */}
         {route === "settings" && (
@@ -540,9 +619,7 @@ export default function App() {
                 onDrop={onDrop}
                 draggingId={draggingId}
               />
-
               <div style={{ height:12 }} />
-
               <UsersAdmin
                 meEmail={session?.user?.email ?? null}
                 users={users}
@@ -560,13 +637,17 @@ export default function App() {
             <IngredientsAdmin
               items={ingAdmin}
               loading={ingAdminLoading}
-              q={ingAdminQ} setQ={setIngAdminQ}
-              newName={ingAdminNew} setNewName={setIngAdminNew}
+              q={ingAdminQ}
+              setQ={setIngAdminQ}
+              newName={ingAdminNew}
+              setNewName={setIngAdminNew}
               onAdd={addIngredient}
               onRename={renameIngredient}
               onDelete={deleteIngredient}
-              mergeFrom={mergeFrom} setMergeFrom={setMergeFrom}
-              mergeTo={mergeTo} setMergeTo={setMergeTo}
+              mergeFrom={mergeFrom}
+              setMergeFrom={setMergeFrom}
+              mergeTo={mergeTo}
+              setMergeTo={setMergeTo}
               onMerge={doMergeWith}
               mergeBusy={mergeBusy}
               mergeMsg={mergeMsg}
@@ -578,44 +659,98 @@ export default function App() {
 
         {route === "main" && (
           <>
-            {/* CONTROLS — responsive grid */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 16,
-                alignItems: "center",
-                marginBottom: 12,
-              }}
-            >
-              <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by ingredient (e.g., lemon)" style={inp} />
-              <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={inp}>
-                <option>Any</option>
-                {methods.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={inp}>
-                <option value="">Any glass</option>
-                {glasses.map(g => <option key={g} value={g}>{g}</option>)}
-              </select>
-              <label style={{ display:"flex", alignItems:"center", gap:8, fontSize:14 }}>
-                <input type="checkbox" checked={specialOnly} onChange={e=>setSpecialOnly(e.target.checked)} /> Special only
-              </label>
-              <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={inp}>
-                <option value="special_desc">Sort: Last Special (new → old)</option>
-                <option value="special_asc">Sort: Last Special (old → new)</option>
-                <option value="name_asc">Sort: Name (A–Z)</option>
-              </select>
-              <div style={{ textAlign:"right" }}>
-                <button onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} style={btnSecondary}>
-                  {view==="cards" ? "List" : "Cards"}
+            {/* ENHANCED CONTROLS */}
+            <div className="animate-slide-in-right" style={{
+              ...card({ marginBottom: 24 }),
+              background: colors.glass,
+              backdropFilter: "blur(10px)"
+            }}>
+              <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                gap: 16, 
+                alignItems: "center" 
+              }}>
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: colors.muted }}>🔍</span>
+                  <input 
+                    value={q} 
+                    onChange={e=>setQ(e.target.value)} 
+                    placeholder="Search by ingredient..." 
+                    style={{ ...inp, paddingLeft: 40 }}
+                  />
+                </div>
+                
+                <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={inp}>
+                  <option>Any Method</option>
+                  {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                
+                <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={inp}>
+                  <option value="">Any Glass</option>
+                  {glasses.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                
+                <label style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 8, 
+                  fontSize: 14,
+                  cursor: "pointer",
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background: specialOnly ? colors.primarySolid : "transparent",
+                  color: specialOnly ? "white" : colors.text,
+                  transition: "all 0.2s ease"
+                }}>
+                  <input 
+                    type="checkbox" 
+                    checked={specialOnly} 
+                    onChange={e=>setSpecialOnly(e.target.checked)}
+                    style={{ margin: 0 }}
+                  /> 
+                  ⭐ Special only
+                </label>
+                
+                <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={inp}>
+                  <option value="special_desc">📅 Last Special (new → old)</option>
+                  <option value="special_asc">📅 Last Special (old → new)</option>
+                  <option value="name_asc">🔤 Name (A–Z)</option>
+                </select>
+                
+                <button 
+                  onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
+                  style={{
+                    ...btnSecondary,
+                    background: colors.glass,
+                    border: `1px solid ${colors.glassBorder}`
+                  }}
+                >
+                  {view==="cards" ? "📋 List View" : "🎴 Card View"}
                 </button>
               </div>
             </div>
 
-            {/* ADD BUTTON */}
+            {/* ENHANCED ADD BUTTON */}
             {(role === "editor" || role === "admin") && !formOpen && (
-              <div style={{ marginBottom:12 }}>
-                <button onClick={openAddForm} style={btnPrimary}>+ New cocktail</button>
+              <div style={{ marginBottom: 24, textAlign: "center" }}>
+                <button 
+                  onClick={openAddForm} 
+                  style={{
+                    ...btnPrimary,
+                    background: colors.accent,
+                    fontSize: 16,
+                    padding: "16px 32px",
+                    borderRadius: 12,
+                    boxShadow: shadows.lg,
+                    "&:hover": {
+                      transform: "translateY(-2px)",
+                      boxShadow: "0 10px 25px rgba(240, 147, 251, 0.3)"
+                    }
+                  }}
+                >
+                  ✨ Create New Cocktail
+                </button>
               </div>
             )}
 
@@ -649,45 +784,153 @@ export default function App() {
               <div style={{ color: colors.muted }}>No results.</div>
             ) : view==="cards" ? (
               <div
+                ref={cardsRef}
                 style={{
-                  display:"grid",
-                  gridTemplateColumns:"repeat(auto-fit, minmax(260px, 1fr))",
-                  gap:12
+                  display: "grid",
+                  gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+                  gap: 16,
                 }}
               >
-                {rows.map(c => (
+                {rows.map((c, index) => (
                   <div
                     key={c.id}
+                    className="card-hover animate-fade-in-up"
                     onClick={()=>startEdit(c)}
-                    style={card({ cursor:"pointer" })}
+                    style={{
+                      ...cocktailCard,
+                      position: "relative",
+                      overflow: "hidden",
+                      cursor: "pointer",
+                      background: c.last_special_on ? 
+                        `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.1) 100%)` : 
+                        colors.panel,
+                      border: c.last_special_on ? 
+                        `1px solid ${colors.specialSolid}` : 
+                        `1px solid ${colors.border}`,
+                      boxShadow: c.last_special_on ? 
+                        `0 0 20px rgba(167, 243, 208, 0.2)` : 
+                        shadows.md,
+                      animationDelay: `${index * 0.1}s`
+                    }}
                     title="Click to edit"
                   >
-                    <div style={{ display:"flex", justifyContent:"space-between", gap:8 }}>
-                      <div>
-                        <div style={{ fontWeight:800, fontSize:16 }}>{c.name}</div>
-                        <div style={{ fontSize:12, color: colors.muted }}>
-                          {c.method || ""}{c.glass ? ` • ${c.glass}` : ""}
+                    {/* Special Badge */}
+                    {c.last_special_on && (
+                      <div style={{
+                        position: "absolute",
+                        top: 12,
+                        right: 12,
+                        ...specialBadge
+                      }}>
+                        ⭐ Special
+                      </div>
+                    )}
+
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
+                      <div style={{ flex: 1, marginRight: 16 }}>
+                        <h3 style={{ 
+                          fontWeight: 700, 
+                          fontSize: 18, 
+                          margin: "0 0 8px 0",
+                          ...textGradient(colors.textGradient)
+                        }}>
+                          {c.name}
+                        </h3>
+                        <div style={{ 
+                          fontSize: 13, 
+                          color: colors.muted,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8
+                        }}>
+                          {c.method && <span>🔄 {c.method}</span>}
+                          {c.glass && <span>🥃 {c.glass}</span>}
                         </div>
                       </div>
-                      <div style={{ textAlign:"right", fontSize:12, color:"#cbd5e1" }}>
-                        {c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}
-                        {c.last_special_on ? <div style={{ color: colors.special }}>Special: {c.last_special_on}</div> : null}
+                      <div style={{ textAlign: "right" }}>
+                        {c.price != null && (
+                          <div style={priceDisplay}>
+                            ${Number(c.price).toFixed(2)}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <ul style={{ marginTop:8, paddingLeft:18, color:"#cbd5e1", fontSize:13 }}>
-                      {(specs[c.id] || []).map((l, i) => <li key={i}>{l}</li>)}
-                    </ul>
-                    <div style={{ display:"flex", gap:8, marginTop:10 }}>
+
+                    {/* Ingredients */}
+                    <div style={{ marginBottom: 16 }}>
+                      <h4 style={{ 
+                        fontSize: 12, 
+                        color: colors.muted, 
+                        margin: "0 0 8px 0",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        fontWeight: 600
+                      }}>
+                        🧪 Ingredients
+                      </h4>
+                      <ul style={{
+                        ...ingredientList,
+                        fontSize: 13,
+                        color: colors.text
+                      }}>
+                        {(specs[c.id] || []).map((l, i) => (
+                          <li key={i} style={{ 
+                            display: "flex", 
+                            alignItems: "center", 
+                            gap: 8,
+                            padding: "4px 0"
+                          }}>
+                            <span style={{ color: colors.primarySolid }}>•</span>
+                            {l}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Actions */}
+                    <div style={{ 
+                      display: "flex", 
+                      gap: 8, 
+                      marginTop: "auto",
+                      paddingTop: 16,
+                      borderTop: `1px solid ${colors.border}`
+                    }}>
                       <button
                         onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
-                        style={btnSecondary}
+                        style={{
+                          ...btnSecondary,
+                          flex: 1,
+                          fontSize: 12,
+                          padding: "8px 12px"
+                        }}
                       >
-                        Print
+                        🖨️ Print
                       </button>
                       {(role==="editor" || role==="admin") && (
                         <>
-                          <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
-                          <button onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} style={dangerBtn}>Delete</button>
+                          <button 
+                            onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} 
+                            style={{
+                              ...btnSecondary,
+                              flex: 1,
+                              fontSize: 12,
+                              padding: "8px 12px"
+                            }}
+                          >
+                            ✏️ Edit
+                          </button>
+                          <button 
+                            onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} 
+                            style={{
+                              ...dangerBtn,
+                              flex: 1,
+                              fontSize: 12,
+                              padding: "8px 12px"
+                            }}
+                          >
+                            🗑️ Delete
+                          </button>
                         </>
                       )}
                     </div>
@@ -696,42 +939,135 @@ export default function App() {
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>
-                <table style={{ minWidth: 720, width:"100%", borderCollapse:"collapse", ...card({ padding:0 }) }}>
-                  <thead style={{ background:"#0f172a", color:"#cbd5e1" }}>
+                <table style={{ 
+                  minWidth: 800, 
+                  width: "100%", 
+                  borderCollapse: "collapse", 
+                  ...card({ padding: 0 }),
+                  background: colors.glass,
+                  backdropFilter: "blur(10px)"
+                }}>
+                  <thead style={{ 
+                    background: `linear-gradient(135deg, ${colors.panel} 0%, ${colors.glass} 100%)`,
+                    color: colors.text
+                  }}>
                     <tr>
-                      <th style={th}>Name</th>
-                      <th style={th}>Method</th>
-                      <th style={th}>Glass</th>
-                      <th style={th}>Price</th>
-                      <th style={th}>Specs</th>
-                      <th style={th}></th>
+                      <th style={th}>🍸 Name</th>
+                      <th style={th}>🔄 Method</th>
+                      <th style={th}>🥃 Glass</th>
+                      <th style={th}>💰 Price</th>
+                      <th style={th}>🧪 Specs</th>
+                      <th style={th}>⚡ Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map(c => (
-                      <tr key={c.id} style={{ borderTop:`1px solid ${colors.border}` }} onClick={()=>startEdit(c)} title="Click to edit">
-                        <td style={td}>{c.name}</td>
+                      <tr 
+                        key={c.id} 
+                        style={{ 
+                          borderTop: `1px solid ${colors.border}`,
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          background: c.last_special_on ? 
+                            `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.05) 100%)` : 
+                            "transparent"
+                        }} 
+                        onClick={()=>startEdit(c)} 
+                        title="Click to edit"
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = c.last_special_on ? 
+                            `linear-gradient(135deg, ${colors.panelHover} 0%, rgba(167, 243, 208, 0.1) 100%)` : 
+                            colors.panelHover
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = c.last_special_on ? 
+                            `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.05) 100%)` : 
+                            "transparent"
+                        }}
+                      >
+                        <td style={td}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            {c.last_special_on && <span style={{ color: colors.specialSolid }}>⭐</span>}
+                            <span style={{ 
+                              fontWeight: 600,
+                              ...textGradient(colors.textGradient)
+                            }}>
+                              {c.name}
+                            </span>
+                          </div>
+                        </td>
                         <td style={td}>{c.method || "—"}</td>
                         <td style={td}>{c.glass || "—"}</td>
-                        <td style={td}>{c.price != null ? `$${Number(c.price).toFixed(2)}` : "—"}</td>
                         <td style={td}>
-                          <ul style={{ margin:0, paddingLeft:18 }}>
-                            {(specs[c.id] || []).map((l, i) => <li key={i}>{l}</li>)}
+                          {c.price != null ? (
+                            <span style={priceDisplay}>
+                              ${Number(c.price).toFixed(2)}
+                            </span>
+                          ) : "—"}
+                        </td>
+                        <td style={td}>
+                          <ul style={{ 
+                            margin: 0, 
+                            paddingLeft: 0,
+                            listStyle: "none"
+                          }}>
+                            {(specs[c.id] || []).slice(0, 3).map((l, i) => (
+                              <li key={i} style={{ 
+                                fontSize: 12,
+                                color: colors.muted,
+                                padding: "2px 0"
+                              }}>
+                                • {l}
+                              </li>
+                            ))}
+                            {(specs[c.id] || []).length > 3 && (
+                              <li style={{ 
+                                fontSize: 11,
+                                color: colors.muted,
+                                fontStyle: "italic"
+                              }}>
+                                +{(specs[c.id] || []).length - 3} more...
+                              </li>
+                            )}
                           </ul>
                         </td>
-                        <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                          <button
-                            onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
-                            style={btnSecondary}
-                          >
-                            Print
-                          </button>
-                          {(role==="editor" || role==="admin") && (
-                            <>
-                              <button onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} style={btnSecondary}>Edit</button>
-                              <button onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} style={dangerBtn}>Delete</button>
-                            </>
-                          )}
+                        <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
+                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                            <button
+                              onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
+                              style={{
+                                ...btnSecondary,
+                                fontSize: 11,
+                                padding: "6px 10px"
+                              }}
+                            >
+                              🖨️
+                            </button>
+                            {(role==="editor" || role==="admin") && (
+                              <>
+                                <button 
+                                  onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} 
+                                  style={{
+                                    ...btnSecondary,
+                                    fontSize: 11,
+                                    padding: "6px 10px"
+                                  }}
+                                >
+                                  ✏️
+                                </button>
+                                <button 
+                                  onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} 
+                                  style={{
+                                    ...dangerBtn,
+                                    fontSize: 11,
+                                    padding: "6px 10px"
+                                  }}
+                                >
+                                  🗑️
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}

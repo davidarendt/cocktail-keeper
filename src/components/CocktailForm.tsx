@@ -1,6 +1,6 @@
 // src/components/CocktailForm.tsx
 import React, { useState } from "react"
-import { inp, btnPrimary, btnSecondary, colors, card } from "../styles"
+import { inp, btnPrimary, btnSecondary, colors, card, textGradient, shadows } from "../styles"
 import type { Unit, IngredientLine } from "../types"
 
 
@@ -84,110 +84,387 @@ export function CocktailForm(props: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} style={card({ marginBottom:16 })}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-        <strong>{editingId ? "Edit cocktail" : "Create cocktail"}</strong>
-        <div style={{ display:"flex", gap:8 }}>
-          <button type="button" onClick={onClose} style={btnSecondary}>Close</button>
-          <button type="submit" style={btnPrimary}>{editingId ? "Save changes" : "Create"}</button>
+    <form onSubmit={onSubmit} style={{
+      ...card({ marginBottom: 24 }),
+      background: colors.glass,
+      backdropFilter: "blur(10px)",
+      border: `1px solid ${colors.glassBorder}`,
+      boxShadow: shadows.lg
+    }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center", 
+        marginBottom: 24,
+        paddingBottom: 16,
+        borderBottom: `1px solid ${colors.border}`
+      }}>
+        <h2 style={{ 
+          margin: 0,
+          fontSize: 24,
+          fontWeight: 700,
+          ...textGradient(colors.textGradient)
+        }}>
+          {editingId ? "✏️ Edit Cocktail" : "✨ Create New Cocktail"}
+        </h2>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button type="button" onClick={onClose} style={btnSecondary}>
+            ❌ Close
+          </button>
+          <button type="submit" style={{
+            ...btnPrimary,
+            background: colors.accent,
+            boxShadow: shadows.lg
+          }}>
+            {editingId ? "💾 Save Changes" : "✨ Create Cocktail"}
+          </button>
         </div>
       </div>
 
-      {/* Row 1 */}
-      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr", gap:8, marginBottom:8 }}>
-        <input value={name} onChange={e=>setName(e.target.value)} placeholder="Name" style={inp} />
-        <select value={method} onChange={e=>setMethod(e.target.value)} style={inp}>
-          <option value="" disabled>Stir/Shake/Build in glass</option>
-          {methods.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
-        <select value={glass} onChange={e=>setGlass(e.target.value)} style={inp}>
-          <option value="" disabled>Glass…</option>
-          {glasses.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-        <select value={ice} onChange={e=>setIce(e.target.value)} style={inp}>
-          <option value="" disabled>Ice…</option>
-          {ices.map(i => <option key={i} value={i}>{i}</option>)}
-        </select>
-        <select value={garnish} onChange={e=>setGarnish(e.target.value)} style={inp}>
-          <option value="" disabled>Garnish…</option>
-          {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
-        </select>
-      </div>
-
-      {/* Notes / price / special date */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
-        <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Notes" style={{ ...inp, minHeight:60, resize:"vertical" }} />
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-          <input value={price} onChange={e=>setPrice(e.target.value)} placeholder="Price" type="number" step="0.01" style={inp} />
-          <input value={specialDate} onChange={e=>setSpecialDate(e.target.value)} type="date" style={inp} />
+      {/* Enhanced Form Fields */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+        gap: 16, 
+        marginBottom: 24 
+      }}>
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🍸 Cocktail Name
+          </label>
+          <input 
+            value={name} 
+            onChange={e=>setName(e.target.value)} 
+            placeholder="Enter cocktail name..." 
+            style={inp} 
+            required
+          />
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🔄 Method
+          </label>
+          <select value={method} onChange={e=>setMethod(e.target.value)} style={inp} required>
+            <option value="" disabled>Choose method...</option>
+            {methods.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🥃 Glass
+          </label>
+          <select value={glass} onChange={e=>setGlass(e.target.value)} style={inp}>
+            <option value="">Choose glass...</option>
+            {glasses.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🧊 Ice
+          </label>
+          <select value={ice} onChange={e=>setIce(e.target.value)} style={inp}>
+            <option value="">Choose ice...</option>
+            {ices.map(i => <option key={i} value={i}>{i}</option>)}
+          </select>
+        </div>
+        
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🌿 Garnish
+          </label>
+          <select value={garnish} onChange={e=>setGarnish(e.target.value)} style={inp}>
+            <option value="">Choose garnish...</option>
+            {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
         </div>
       </div>
 
-      {/* Ingredient lines */}
-      <div style={{ marginTop:10, fontWeight:700 }}>Ingredients</div>
-      <div style={{ display:"grid", gap:8 }}>
-        {lines.map((ln, i) => (
-          <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr .8fr .8fr auto", gap:8 }}>
-            <div style={{ position:"relative" }}>
-              <input
-                value={ln.ingredientName}
-                onChange={async (e) => {
-                  const v = e.target.value
-                  setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
-                  await fetchSuggest(v, i)
-                }}
-                onFocus={() => fetchSuggest(ln.ingredientName, i)}
-                onKeyDown={(e)=>handleIngKeyDown(e, i)}
-                placeholder="Ingredient (e.g., Fresh Lemon Juice)" style={inp}
-              />
-              {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
-                <div style={{
-                  position:"absolute", zIndex:10, top:"100%", left:0, right:0,
-                  background: colors.bg, border:`1px solid ${colors.border}`, borderRadius:10,
-                  padding:6, maxHeight:220, overflowY:"auto"
-                }}>
-                  {ingSuggest.map((s, idx) => (
-                    <div key={s}
-                      onMouseDown={()=>{ applySuggestion(idx) }}
-                      onMouseEnter={()=> setIngIndex(idx)}
-                      style={{
-                        padding:"6px 8px",
-                        cursor:"pointer",
-                        background: idx===ingIndex ? "#1f2937" : "transparent",
-                        borderRadius:8
-                      }}>
-                      {s}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <input
-              value={ln.amount}
-              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))}
-              placeholder="Amount" type="number" step="0.01" style={inp}
+      {/* Additional Details */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+        gap: 16, 
+        marginBottom: 24 
+      }}>
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            📝 Notes
+          </label>
+          <textarea 
+            value={notes} 
+            onChange={e=>setNotes(e.target.value)} 
+            placeholder="Add any special notes or instructions..." 
+            style={{ 
+              ...inp, 
+              minHeight: 80, 
+              resize: "vertical",
+              fontFamily: "inherit"
+            }} 
+          />
+        </div>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={{ 
+              display: "block", 
+              fontSize: 12, 
+              color: colors.muted, 
+              marginBottom: 8,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em"
+            }}>
+              💰 Price
+            </label>
+            <input 
+              value={price} 
+              onChange={e=>setPrice(e.target.value)} 
+              placeholder="0.00" 
+              type="number" 
+              step="0.01" 
+              min="0"
+              style={inp} 
             />
-            <select
-              value={ln.unit}
-              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
-              style={inp}
-            >
-              {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-
-            <div style={{ display:"flex", gap:8 }}>
-              <button type="button" onClick={()=>{
-                setLines(prev => prev.filter((_,idx)=> idx!==i).map((x,idx)=> ({...x, position: idx+1})))
-              }} style={btnSecondary}>Remove</button>
-              {i===lines.length-1 && (
-                <button type="button" onClick={()=>{
-                  setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
-                }} style={btnSecondary}>Add row</button>
-              )}
-            </div>
           </div>
-        ))}
+          
+          <div>
+            <label style={{ 
+              display: "block", 
+              fontSize: 12, 
+              color: colors.muted, 
+              marginBottom: 8,
+              fontWeight: 600,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em"
+            }}>
+              ⭐ Special Date
+            </label>
+            <input 
+              value={specialDate} 
+              onChange={e=>setSpecialDate(e.target.value)} 
+              type="date" 
+              style={inp} 
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Ingredients Section */}
+      <div style={{ 
+        marginTop: 24,
+        padding: 20,
+        background: colors.panel,
+        borderRadius: 12,
+        border: `1px solid ${colors.border}`
+      }}>
+        <h3 style={{ 
+          margin: "0 0 16px 0", 
+          fontSize: 18,
+          fontWeight: 700,
+          ...textGradient(colors.textGradient)
+        }}>
+          🧪 Ingredients
+        </h3>
+        
+        <div style={{ display: "grid", gap: 16 }}>
+          {lines.map((ln, i) => (
+            <div key={i} style={{ 
+              display: "grid", 
+              gridTemplateColumns: "2fr 1fr 1fr auto", 
+              gap: 12,
+              alignItems: "end",
+              padding: 16,
+              background: colors.glass,
+              borderRadius: 8,
+              border: `1px solid ${colors.glassBorder}`
+            }}>
+              <div style={{ position: "relative" }}>
+                <label style={{ 
+                  display: "block", 
+                  fontSize: 11, 
+                  color: colors.muted, 
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}>
+                  Ingredient
+                </label>
+                <input
+                  value={ln.ingredientName}
+                  onChange={async (e) => {
+                    const v = e.target.value
+                    setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
+                    await fetchSuggest(v, i)
+                  }}
+                  onFocus={() => fetchSuggest(ln.ingredientName, i)}
+                  onKeyDown={(e)=>handleIngKeyDown(e, i)}
+                  placeholder="e.g., Fresh Lemon Juice" 
+                  style={inp}
+                />
+                {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
+                  <div style={{
+                    position: "absolute", 
+                    zIndex: 10, 
+                    top: "100%", 
+                    left: 0, 
+                    right: 0,
+                    background: colors.panel, 
+                    border: `1px solid ${colors.border}`, 
+                    borderRadius: 8,
+                    padding: 8, 
+                    maxHeight: 200, 
+                    overflowY: "auto",
+                    boxShadow: shadows.lg
+                  }}>
+                    {ingSuggest.map((s, idx) => (
+                      <div key={s}
+                        onMouseDown={()=>{ applySuggestion(idx) }}
+                        onMouseEnter={()=> setIngIndex(idx)}
+                        style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          background: idx===ingIndex ? colors.primarySolid : "transparent",
+                          color: idx===ingIndex ? "white" : colors.text,
+                          borderRadius: 6,
+                          fontSize: 13,
+                          transition: "all 0.2s ease"
+                        }}>
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ 
+                  display: "block", 
+                  fontSize: 11, 
+                  color: colors.muted, 
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}>
+                  Amount
+                </label>
+                <input
+                  value={ln.amount}
+                  onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))}
+                  placeholder="1.5" 
+                  type="number" 
+                  step="0.01" 
+                  min="0"
+                  style={inp}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: "block", 
+                  fontSize: 11, 
+                  color: colors.muted, 
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}>
+                  Unit
+                </label>
+                <select
+                  value={ln.unit}
+                  onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
+                  style={inp}
+                >
+                  {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
+                <button 
+                  type="button" 
+                  onClick={()=>{
+                    setLines(prev => prev.filter((_,idx)=> idx!==i).map((x,idx)=> ({...x, position: idx+1})))
+                  }} 
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 11,
+                    padding: "8px 12px"
+                  }}
+                >
+                  🗑️
+                </button>
+                {i===lines.length-1 && (
+                  <button 
+                    type="button" 
+                    onClick={()=>{
+                      setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
+                    }} 
+                    style={{
+                      ...btnPrimary,
+                      fontSize: 11,
+                      padding: "8px 12px"
+                    }}
+                  >
+                    ➕
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </form>
   )
