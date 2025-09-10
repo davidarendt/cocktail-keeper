@@ -452,23 +452,96 @@ export default function App() {
     setIngAdminLoading(false)
   }
   async function addIngredient(name: string) {
-    const { error } = await supabase.from("ingredients").insert({ name })
-    if (error) { alert(error.message); return }
-    setIngAdminNew("")
-    await loadIngredients()
+    try {
+      console.log(`Adding ingredient: "${name}"`)
+      console.log("User session:", { userId: session?.user?.id, email: session?.user?.email, role })
+      
+      // Check if user has permission to add ingredients
+      if (role !== "editor" && role !== "admin") {
+        alert("Permission denied. Only editors and admins can add ingredients.")
+        return
+      }
+      
+      const { error } = await supabase.from("ingredients").insert({ name })
+      
+      if (error) {
+        console.error("Ingredient insert error:", error)
+        if (error.message.includes("row-level security")) {
+          alert("Permission denied. You may not have the required privileges to add ingredients.")
+        } else {
+          alert(`Failed to add ingredient: ${error.message}`)
+        }
+        return
+      }
+      
+      console.log(`Successfully added ingredient: "${name}"`)
+      setIngAdminNew("")
+      await loadIngredients()
+    } catch (err) {
+      console.error("Unexpected error adding ingredient:", err)
+      alert("Failed to add ingredient. Please try again.")
+    }
   }
   async function renameIngredient(it: Ingredient) {
-    const n = prompt("Rename ingredient", it.name)?.trim()
-    if (!n || n === it.name) return
-    const { error } = await supabase.from("ingredients").update({ name: n }).eq("id", it.id)
-    if (error) { alert(error.message); return }
-    await loadIngredients()
+    try {
+      const n = prompt("Rename ingredient", it.name)?.trim()
+      if (!n || n === it.name) return
+      
+      // Check if user has permission to rename ingredients
+      if (role !== "editor" && role !== "admin") {
+        alert("Permission denied. Only editors and admins can rename ingredients.")
+        return
+      }
+      
+      console.log(`Renaming ingredient "${it.name}" to "${n}"`)
+      const { error } = await supabase.from("ingredients").update({ name: n }).eq("id", it.id)
+      
+      if (error) {
+        console.error("Ingredient rename error:", error)
+        if (error.message.includes("row-level security")) {
+          alert("Permission denied. You may not have the required privileges to rename ingredients.")
+        } else {
+          alert(`Failed to rename ingredient: ${error.message}`)
+        }
+        return
+      }
+      
+      console.log(`Successfully renamed ingredient to "${n}"`)
+      await loadIngredients()
+    } catch (err) {
+      console.error("Unexpected error renaming ingredient:", err)
+      alert("Failed to rename ingredient. Please try again.")
+    }
   }
   async function deleteIngredient(it: Ingredient) {
-    if (!confirm(`Delete "${it.name}"?`)) return
-    const { error } = await supabase.from("ingredients").delete().eq("id", it.id)
-    if (error) { alert(error.message); return }
-    await loadIngredients()
+    try {
+      if (!confirm(`Delete "${it.name}"?`)) return
+      
+      // Check if user has permission to delete ingredients
+      if (role !== "editor" && role !== "admin") {
+        alert("Permission denied. Only editors and admins can delete ingredients.")
+        return
+      }
+      
+      console.log(`Deleting ingredient: "${it.name}"`)
+      const { error } = await supabase.from("ingredients").delete().eq("id", it.id)
+      
+      if (error) {
+        console.error("Ingredient delete error:", error)
+        if (error.message.includes("row-level security")) {
+          alert("Permission denied. You may not have the required privileges to delete ingredients.")
+        } else {
+          alert(`Failed to delete ingredient: ${error.message}`)
+        }
+        return
+      }
+      
+      console.log(`Successfully deleted ingredient: "${it.name}"`)
+      await loadIngredients()
+    } catch (err) {
+      console.error("Unexpected error deleting ingredient:", err)
+      alert("Failed to delete ingredient. Please try again.")
+    }
   }
   async function doMergeWith(from: string, to: string) {
     setMergeMsg("")

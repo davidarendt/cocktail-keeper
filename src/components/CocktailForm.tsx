@@ -163,8 +163,8 @@ export function CocktailForm(props: Props) {
           </label>
           <select value={method} onChange={e=>setMethod(e.target.value)} style={inp} required>
             <option value="" disabled>Choose method...</option>
-            {methods.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
+          {methods.map(m => <option key={m} value={m}>{m}</option>)}
+        </select>
         </div>
         
         <div>
@@ -179,10 +179,10 @@ export function CocktailForm(props: Props) {
           }}>
             🥃 Glass
           </label>
-          <select value={glass} onChange={e=>setGlass(e.target.value)} style={inp}>
+        <select value={glass} onChange={e=>setGlass(e.target.value)} style={inp}>
             <option value="">Choose glass...</option>
-            {glasses.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+          {glasses.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
         </div>
         
         <div>
@@ -197,10 +197,10 @@ export function CocktailForm(props: Props) {
           }}>
             🧊 Ice
           </label>
-          <select value={ice} onChange={e=>setIce(e.target.value)} style={inp}>
+        <select value={ice} onChange={e=>setIce(e.target.value)} style={inp}>
             <option value="">Choose ice...</option>
-            {ices.map(i => <option key={i} value={i}>{i}</option>)}
-          </select>
+          {ices.map(i => <option key={i} value={i}>{i}</option>)}
+        </select>
         </div>
         
         <div>
@@ -215,17 +215,46 @@ export function CocktailForm(props: Props) {
           }}>
             🌿 Garnish
           </label>
-          <select value={garnish} onChange={e=>setGarnish(e.target.value)} style={inp}>
+        <select value={garnish} onChange={e=>setGarnish(e.target.value)} style={inp}>
             <option value="">Choose garnish...</option>
-            {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+          {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
+        </select>
         </div>
       </div>
 
-      {/* Additional Details */}
+      {/* Notes Section - Full Width */}
+      <div style={{ marginBottom: 24 }}>
+        <label style={{ 
+          display: "block", 
+          fontSize: 12, 
+          color: colors.muted, 
+          marginBottom: 8,
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: "0.05em"
+        }}>
+          📝 Notes & Instructions
+        </label>
+        <textarea 
+          value={notes} 
+          onChange={e=>setNotes(e.target.value)} 
+          placeholder="Add any special notes, instructions, serving suggestions, or additional details about this cocktail..." 
+          style={{ 
+            ...inp, 
+            minHeight: 120, 
+            height: 120,
+            resize: "vertical",
+            fontFamily: "inherit",
+            lineHeight: 1.5,
+            width: "100%"
+          }} 
+        />
+      </div>
+
+      {/* Price and Special Date */}
       <div style={{ 
         display: "grid", 
-        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
         gap: 16, 
         marginBottom: 24 
       }}>
@@ -239,64 +268,37 @@ export function CocktailForm(props: Props) {
             textTransform: "uppercase",
             letterSpacing: "0.05em"
           }}>
-            📝 Notes
+            💰 Price
           </label>
-          <textarea 
-            value={notes} 
-            onChange={e=>setNotes(e.target.value)} 
-            placeholder="Add any special notes or instructions..." 
-            style={{ 
-              ...inp, 
-              minHeight: 80, 
-              resize: "vertical",
-              fontFamily: "inherit"
-            }} 
+          <input 
+            value={price} 
+            onChange={e=>setPrice(e.target.value)} 
+            placeholder="0.00" 
+            type="number" 
+            step="0.01" 
+            min="0"
+            style={inp} 
           />
         </div>
         
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          <div>
-            <label style={{ 
-              display: "block", 
-              fontSize: 12, 
-              color: colors.muted, 
-              marginBottom: 8,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em"
-            }}>
-              💰 Price
-            </label>
-            <input 
-              value={price} 
-              onChange={e=>setPrice(e.target.value)} 
-              placeholder="0.00" 
-              type="number" 
-              step="0.01" 
-              min="0"
-              style={inp} 
-            />
-          </div>
-          
-          <div>
-            <label style={{ 
-              display: "block", 
-              fontSize: 12, 
-              color: colors.muted, 
-              marginBottom: 8,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em"
-            }}>
-              ⭐ Special Date
-            </label>
-            <input 
-              value={specialDate} 
-              onChange={e=>setSpecialDate(e.target.value)} 
-              type="date" 
-              style={inp} 
-            />
-          </div>
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            ⭐ Special Date
+          </label>
+          <input 
+            value={specialDate} 
+            onChange={e=>setSpecialDate(e.target.value)} 
+            type="date" 
+            style={inp} 
+          />
         </div>
       </div>
 
@@ -318,7 +320,7 @@ export function CocktailForm(props: Props) {
         </h3>
         
         <div style={{ display: "grid", gap: 16 }}>
-          {lines.map((ln, i) => (
+        {lines.map((ln, i) => (
             <div key={i} style={{ 
               display: "grid", 
               gridTemplateColumns: "2fr 1fr 1fr auto", 
@@ -341,20 +343,20 @@ export function CocktailForm(props: Props) {
                 }}>
                   Ingredient
                 </label>
-                <input
-                  value={ln.ingredientName}
-                  onChange={async (e) => {
-                    const v = e.target.value
-                    setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
-                    await fetchSuggest(v, i)
-                  }}
-                  onFocus={() => fetchSuggest(ln.ingredientName, i)}
-                  onKeyDown={(e)=>handleIngKeyDown(e, i)}
+              <input
+                value={ln.ingredientName}
+                onChange={async (e) => {
+                  const v = e.target.value
+                  setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
+                  await fetchSuggest(v, i)
+                }}
+                onFocus={() => fetchSuggest(ln.ingredientName, i)}
+                onKeyDown={(e)=>handleIngKeyDown(e, i)}
                   placeholder="e.g., Fresh Lemon Juice" 
                   style={inp}
-                />
-                {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
-                  <div style={{
+              />
+              {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
+                <div style={{
                     position: "absolute", 
                     zIndex: 10, 
                     top: "100%", 
@@ -367,12 +369,12 @@ export function CocktailForm(props: Props) {
                     maxHeight: 200, 
                     overflowY: "auto",
                     boxShadow: shadows.lg
-                  }}>
-                    {ingSuggest.map((s, idx) => (
-                      <div key={s}
-                        onMouseDown={()=>{ applySuggestion(idx) }}
-                        onMouseEnter={()=> setIngIndex(idx)}
-                        style={{
+                }}>
+                  {ingSuggest.map((s, idx) => (
+                    <div key={s}
+                      onMouseDown={()=>{ applySuggestion(idx) }}
+                      onMouseEnter={()=> setIngIndex(idx)}
+                      style={{
                           padding: "8px 12px",
                           cursor: "pointer",
                           background: idx===ingIndex ? colors.primarySolid : "transparent",
@@ -380,13 +382,13 @@ export function CocktailForm(props: Props) {
                           borderRadius: 6,
                           fontSize: 13,
                           transition: "all 0.2s ease"
-                        }}>
-                        {s}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      }}>
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
               <div>
                 <label style={{ 
@@ -400,9 +402,9 @@ export function CocktailForm(props: Props) {
                 }}>
                   Amount
                 </label>
-                <input
-                  value={ln.amount}
-                  onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))}
+            <input
+              value={ln.amount}
+              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))}
                   placeholder="1.5" 
                   type="number" 
                   step="0.01" 
@@ -423,20 +425,20 @@ export function CocktailForm(props: Props) {
                 }}>
                   Unit
                 </label>
-                <select
-                  value={ln.unit}
-                  onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
-                  style={inp}
-                >
-                  {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
+            <select
+              value={ln.unit}
+              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
+              style={inp}
+            >
+              {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
               </div>
 
               <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
                 <button 
                   type="button" 
                   onClick={()=>{
-                    setLines(prev => prev.filter((_,idx)=> idx!==i).map((x,idx)=> ({...x, position: idx+1})))
+                setLines(prev => prev.filter((_,idx)=> idx!==i).map((x,idx)=> ({...x, position: idx+1})))
                   }} 
                   style={{
                     ...btnSecondary,
@@ -446,11 +448,11 @@ export function CocktailForm(props: Props) {
                 >
                   🗑️
                 </button>
-                {i===lines.length-1 && (
+              {i===lines.length-1 && (
                   <button 
                     type="button" 
                     onClick={()=>{
-                      setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
+                  setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
                     }} 
                     style={{
                       ...btnPrimary,
@@ -460,10 +462,10 @@ export function CocktailForm(props: Props) {
                   >
                     ➕
                   </button>
-                )}
-              </div>
+              )}
             </div>
-          ))}
+          </div>
+        ))}
         </div>
       </div>
     </form>
