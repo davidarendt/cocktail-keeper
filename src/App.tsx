@@ -236,6 +236,25 @@ export default function App() {
     if (!name.trim()) { setErr("Name required"); return }
     if (!method.trim()) { setErr("Choose a method"); return }
 
+    // Check if user is authenticated
+    if (!session) {
+      setErr("You must be logged in to save cocktails");
+      return;
+    }
+
+    // Debug: Log user info
+    console.log("User session:", {
+      userId: session.user.id,
+      email: session.user.email,
+      role: role
+    });
+
+    // Check if user has permission to create cocktails
+    if (role !== "editor" && role !== "admin") {
+      setErr("You don't have permission to create cocktails. Your role: " + role);
+      return;
+    }
+
     const cocktail = {
       id: editingId ?? undefined,
       name: name.trim(),
@@ -253,7 +272,21 @@ export default function App() {
       .upsert(cocktail, { onConflict: "name" })
       .select()
       .single()
-    if (error || !up) { setErr(error?.message || "Save failed"); return }
+    
+    if (error) {
+      console.error("Save error:", error);
+      if (error.message.includes("row-level security")) {
+        setErr("Permission denied. Please check your user role and database policies.");
+      } else {
+        setErr(error.message || "Save failed");
+      }
+      return;
+    }
+    
+    if (!up) { 
+      setErr("Save failed - no data returned"); 
+      return;
+    }
     const cocktailId = (up as any).id as string
 
     await supabase.from("recipe_ingredients").delete().eq("cocktail_id", cocktailId)
@@ -263,16 +296,37 @@ export default function App() {
       const ingName = ln.ingredientName.trim()
       const amtNum = ln.amount === "" ? NaN : Number(ln.amount)
       if (!ng(ingName) || !Number.isFinite(amtNum)) continue
-      await supabase.from("ingredients").upsert({ name: ingName }, { onConflict: "name" })
-      const { data: ingRow } = await supabase.from("ingredients").select("id").eq("name", ingName).single()
-      if (!(ingRow && (ingRow as any).id)) continue
-      await supabase.from("recipe_ingredients").insert({
+      
+      // Insert ingredient with error handling
+      const { error: ingError } = await supabase.from("ingredients").upsert({ name: ingName }, { onConflict: "name" })
+      if (ingError) {
+        console.error("Ingredient insert error:", ingError);
+        setErr(`Failed to save ingredient "${ingName}": ${ingError.message}`);
+        return;
+      }
+      
+      const { data: ingRow, error: ingSelectError } = await supabase.from("ingredients").select("id").eq("name", ingName).single()
+      if (ingSelectError || !(ingRow && (ingRow as any).id)) {
+        console.error("Ingredient select error:", ingSelectError);
+        setErr(`Failed to find ingredient "${ingName}"`);
+        return;
+      }
+      
+      // Insert recipe ingredient with error handling
+      const { error: recipeError } = await supabase.from("recipe_ingredients").insert({
         cocktail_id: cocktailId,
         ingredient_id: (ingRow as any).id as string,
         amount: amtNum,
         unit: ln.unit,
         position: pos
       })
+      
+      if (recipeError) {
+        console.error("Recipe ingredient insert error:", recipeError);
+        setErr(`Failed to save recipe ingredient: ${recipeError.message}`);
+        return;
+      }
+      
       pos = pos + 1
     }
 
@@ -442,27 +496,141 @@ export default function App() {
 
   async function loadUsers() {
     setUsersLoading(true)
-    const { data, error } = await supabase.rpc("admin_list_profiles")
+    try {
+      // Try the RPC function first
+      const { data, error } = await supabase.rpc("admin_list_profiles")
+      if (error) {
+        console.warn("RPC function failed, trying direct query:", error.message)
+        // Fallback to direct query if RPC fails
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("profiles")
+          .select(`
+            user_id,
+            role,
+            display_name,
+            created_at,
+            auth_users:user_id(email)
+          `)
+          .order("created_at", { ascending: false })
+        
+        if (fallbackError) {
+          console.error("Fallback query failed:", fallbackError)
+          alert(`Failed to load users: ${fallbackError.message}`)
+          setUsersLoading(false)
+          return
+        }
+        
+        // Transform the fallback data to match UserRow format
+        const transformedData = (fallbackData || []).map((row: any) => ({
+          user_id: row.user_id,
+          email: row.auth_users?.email || null,
+          role: row.role,
+          display_name: row.display_name,
+          created_at: row.created_at
+        }))
+        
+        setUsers(transformedData as UserRow[])
+      } else {
+        setUsers((data || []) as UserRow[])
+      }
+    } catch (err) {
+      console.error("Unexpected error loading users:", err)
+      alert("Failed to load users. Please check your database permissions.")
+    }
     setUsersLoading(false)
-    if (error) { alert(error.message); return }
-    setUsers((data || []) as UserRow[])
   }
   async function changeUserRole(user_id: string, newRole: Role) {
-    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("user_id", user_id)
-    if (error) { alert(error.message); return }
-    await loadUsers()
+    try {
+      console.log(`Changing user ${user_id} role to ${newRole}`)
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("user_id", user_id)
+      
+      if (error) {
+        console.error("Role change error:", error)
+        if (error.message.includes("row-level security")) {
+          alert("Permission denied. You may not have admin privileges to change user roles.")
+        } else {
+          alert(`Failed to change user role: ${error.message}`)
+        }
+        return
+      }
+      
+      // Reload users to show the change
+      await loadUsers()
+      console.log(`Successfully changed user role to ${newRole}`)
+    } catch (err) {
+      console.error("Unexpected error changing user role:", err)
+      alert("Failed to change user role. Please try again.")
+    }
   }
   async function renameUser(user_id: string) {
-    const current = users.find(u => u.user_id === user_id)
-    const n = prompt("Display name", current?.display_name || "")?.trim()
-    if (!n) return
-    const { error } = await supabase.from("profiles").update({ display_name: n }).eq("user_id", user_id)
-    if (error) { alert(error.message); return }
-    await loadUsers()
+    try {
+      const current = users.find(u => u.user_id === user_id)
+      const n = prompt("Display name", current?.display_name || "")?.trim()
+      if (!n) return
+      
+      console.log(`Renaming user ${user_id} to ${n}`)
+      const { error } = await supabase
+        .from("profiles")
+        .update({ display_name: n })
+        .eq("user_id", user_id)
+      
+      if (error) {
+        console.error("Rename error:", error)
+        if (error.message.includes("row-level security")) {
+          alert("Permission denied. You may not have admin privileges to rename users.")
+        } else {
+          alert(`Failed to rename user: ${error.message}`)
+        }
+        return
+      }
+      
+      await loadUsers()
+      console.log(`Successfully renamed user to ${n}`)
+    } catch (err) {
+      console.error("Unexpected error renaming user:", err)
+      alert("Failed to rename user. Please try again.")
+    }
   }
 
   // ---------- CARDS GRID REF ----------
   const cardsRef = useRef<HTMLDivElement | null>(null)
+
+  // ---------- DEBUG: Test database permissions ----------
+  async function testDatabasePermissions() {
+    if (!session) return;
+    
+    try {
+      // Test basic select
+      const { data: testData, error: testError } = await supabase
+        .from("cocktails")
+        .select("id")
+        .limit(1);
+      
+      console.log("Database test - Select:", { testData, testError });
+      
+      // Test profile access
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .single();
+      
+      console.log("Database test - Profile:", { profileData, profileError });
+      
+    } catch (error) {
+      console.error("Database test error:", error);
+    }
+  }
+
+  // Run test when session changes
+  useEffect(() => {
+    if (session) {
+      testDatabasePermissions();
+    }
+  }, [session]);
 
   // ---------- RENDER ----------
   return (
@@ -795,19 +963,7 @@ export default function App() {
                     }}
                     title="Click to edit"
                   >
-                    {/* Special Badge */}
-                    {c.last_special_on && (
-                      <div style={{
-                        position: "absolute",
-                        top: 12,
-                        right: 12,
-                        ...specialBadge
-                      }}>
-                        ⭐ Special
-                      </div>
-                    )}
-
-                    {/* Header */}
+                    {/* Header with name, price, and special badge */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                       <div style={{ flex: 1, marginRight: 16 }}>
                         <h3 style={{ 
@@ -829,7 +985,19 @@ export default function App() {
                           {c.glass && <span>🥃 {c.glass}</span>}
                         </div>
                       </div>
-                      <div style={{ textAlign: "right" }}>
+                      <div style={{ 
+                        display: "flex", 
+                        flexDirection: "column", 
+                        alignItems: "flex-end",
+                        gap: 8
+                      }}>
+                        {/* Special Badge */}
+                        {c.last_special_on && (
+                          <div style={specialBadge}>
+                            ⭐ Special
+                          </div>
+                        )}
+                        {/* Price */}
                         {c.price != null && (
                           <div style={priceDisplay}>
                             ${Number(c.price).toFixed(2)}
@@ -868,6 +1036,34 @@ export default function App() {
                         ))}
                       </ul>
                     </div>
+
+                    {/* Notes */}
+                    {c.notes && (
+                      <div style={{ marginBottom: 16 }}>
+                        <h4 style={{ 
+                          fontSize: 12, 
+                          color: colors.muted, 
+                          margin: "0 0 8px 0",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          fontWeight: 600
+                        }}>
+                          📝 Notes
+                        </h4>
+                        <div style={{
+                          fontSize: 14,
+                          lineHeight: 1.5,
+                          color: colors.text,
+                          background: colors.panel,
+                          padding: 12,
+                          borderRadius: 8,
+                          border: `1px solid ${colors.border}`,
+                          fontStyle: "italic"
+                        }}>
+                          {c.notes}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Actions */}
                     <div style={{ 
@@ -938,6 +1134,7 @@ export default function App() {
                       <th style={th}>🥃 Glass</th>
                       <th style={th}>💰 Price</th>
                       <th style={th}>🧪 Specs</th>
+                      <th style={th}>📝 Notes</th>
                       <th style={th}>⚡ Actions</th>
                     </tr>
                   </thead>
@@ -1011,6 +1208,21 @@ export default function App() {
                               </li>
                             )}
                           </ul>
+                        </td>
+                        <td style={td}>
+                          {c.notes ? (
+                            <div style={{
+                              fontSize: 12,
+                              lineHeight: 1.4,
+                              color: colors.text,
+                              maxWidth: 200,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap"
+                            }} title={c.notes}>
+                              {c.notes}
+                            </div>
+                          ) : "—"}
                         </td>
                         <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
                           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

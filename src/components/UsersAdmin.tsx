@@ -1,6 +1,6 @@
 // src/components/UsersAdmin.tsx
 import React from "react"
-import { inp, btnPrimary, btnSecondary, th, td, card, colors } from "../styles"
+import { inp, btnPrimary, btnSecondary, th, td, card, colors, textGradient, shadows } from "../styles"
 import type { Role } from "../types"
 
 export type UserRow = {
@@ -29,27 +29,81 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
   )
 
   return (
-    <div style={card()}>
-      <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-        <strong>User access</strong>
-        <button onClick={reload} style={btnSecondary}>Refresh</button>
+    <div style={{
+      ...card(),
+      background: colors.glass,
+      backdropFilter: "blur(10px)",
+      border: `1px solid ${colors.glassBorder}`,
+      boxShadow: shadows.lg
+    }}>
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "space-between", 
+        alignItems: "center",
+        marginBottom: 16,
+        paddingBottom: 12,
+        borderBottom: `1px solid ${colors.border}`
+      }}>
+        <h3 style={{ 
+          margin: 0,
+          fontSize: 18,
+          fontWeight: 700,
+          ...textGradient(colors.textGradient)
+        }}>
+          👥 User Management
+        </h3>
+        <button onClick={reload} style={{
+          ...btnSecondary,
+          fontSize: 12,
+          padding: "8px 16px"
+        }}>
+          🔄 Refresh
+        </button>
       </div>
 
-      <input
-        value={filter}
-        onChange={(e)=>setFilter(e.target.value)}
-        placeholder="Search by email or name…"
-        style={{ ...inp, marginBottom:8 }}
-      />
+      <div style={{ position: "relative", marginBottom: 16 }}>
+        <span style={{ 
+          position: "absolute", 
+          left: 12, 
+          top: "50%", 
+          transform: "translateY(-50%)", 
+          color: colors.muted 
+        }}>
+          🔍
+        </span>
+        <input
+          value={filter}
+          onChange={(e)=>setFilter(e.target.value)}
+          placeholder="Search by email or name…"
+          style={{ ...inp, paddingLeft: 40 }}
+        />
+      </div>
 
-      {loading ? "Loading…" : (
-        <table style={{ width:"100%", borderCollapse:"collapse" }}>
-          <thead>
+      {loading ? (
+        <div style={{ 
+          textAlign: "center", 
+          padding: "40px 20px",
+          color: colors.muted 
+        }}>
+          <div style={{ fontSize: 24, marginBottom: 8 }}>⏳</div>
+          Loading users...
+        </div>
+      ) : (
+        <table style={{ 
+          width: "100%", 
+          borderCollapse: "collapse",
+          background: colors.panel,
+          borderRadius: 8,
+          overflow: "hidden"
+        }}>
+          <thead style={{ 
+            background: `linear-gradient(135deg, ${colors.panel} 0%, ${colors.glass} 100%)`
+          }}>
             <tr>
-              <th style={th}>Email</th>
-              <th style={th}>Name</th>
-              <th style={th}>Role</th>
-              <th style={th}></th>
+              <th style={th}>📧 Email</th>
+              <th style={th}>👤 Name</th>
+              <th style={th}>🔐 Role</th>
+              <th style={th}>⚡ Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -64,15 +118,29 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
                   <select
                     value={u.role}
                     onChange={(e)=> onChangeRole(u.user_id, e.target.value as Role)}
-                    style={inp}
+                    style={{
+                      ...inp,
+                      fontSize: 12,
+                      padding: "6px 8px",
+                      minWidth: 140
+                    }}
                   >
-                    <option value="viewer">viewer (read/print)</option>
-                    <option value="editor">editor (add/edit)</option>
-                    <option value="admin">admin (manage users & settings)</option>
+                    <option value="viewer">👁️ Viewer (read/print)</option>
+                    <option value="editor">✏️ Editor (add/edit)</option>
+                    <option value="admin">👑 Admin (manage users & settings)</option>
                   </select>
                 </td>
                 <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                  <button onClick={()=>onRename(u.user_id)} style={btnPrimary}>Rename</button>
+                  <button 
+                    onClick={()=>onRename(u.user_id)} 
+                    style={{
+                      ...btnPrimary,
+                      fontSize: 11,
+                      padding: "6px 12px"
+                    }}
+                  >
+                    ✏️ Rename
+                  </button>
                 </td>
               </tr>
             ))}
@@ -83,9 +151,26 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
         </table>
       )}
 
-      <p style={{ marginTop:10, fontSize:12, color:colors.muted }}>
-        Invite flow: have new users visit the site and request a magic link to their email. Once they appear here, set their role.
-      </p>
+      <div style={{ 
+        marginTop: 16, 
+        padding: 12, 
+        background: colors.panel,
+        borderRadius: 8,
+        border: `1px solid ${colors.border}`
+      }}>
+        <p style={{ 
+          margin: 0, 
+          fontSize: 12, 
+          color: colors.muted,
+          lineHeight: 1.4
+        }}>
+          <strong>📋 User Management Guide:</strong><br/>
+          • <strong>Viewers:</strong> Can read and print cocktails<br/>
+          • <strong>Editors:</strong> Can add, edit, and delete cocktails<br/>
+          • <strong>Admins:</strong> Can manage users and settings<br/><br/>
+          <strong>🔄 Invite Flow:</strong> New users visit the site and request a magic link. Once they appear here, set their role.
+        </p>
+      </div>
     </div>
   )
 }
