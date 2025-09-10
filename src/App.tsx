@@ -58,8 +58,13 @@ export default function App() {
   async function signIn(e: React.FormEvent) {
     e.preventDefault()
     if (!email) return
+    setErr("")
     const { error } = await supabase.auth.signInWithOtp({ email })
-    if (error) alert(error.message); else alert("Check your email for the magic link.")
+    if (error) {
+      setErr(error.message)
+    } else {
+      setErr("✅ Check your email for the magic link!")
+    }
   }
   async function signOut() { await supabase.auth.signOut() }
 
@@ -458,7 +463,7 @@ export default function App() {
       
       // Check if user has permission to add ingredients
       if (role !== "editor" && role !== "admin") {
-        alert("Permission denied. Only editors and admins can add ingredients.")
+        setErr("Permission denied. Only editors and admins can add ingredients.")
         return
       }
       
@@ -467,9 +472,9 @@ export default function App() {
       if (error) {
         console.error("Ingredient insert error:", error)
         if (error.message.includes("row-level security")) {
-          alert("Permission denied. You may not have the required privileges to add ingredients.")
+          setErr("Permission denied. You may not have the required privileges to add ingredients.")
         } else {
-          alert(`Failed to add ingredient: ${error.message}`)
+          setErr(`Failed to add ingredient: ${error.message}`)
         }
         return
       }
@@ -479,7 +484,7 @@ export default function App() {
       await loadIngredients()
     } catch (err) {
       console.error("Unexpected error adding ingredient:", err)
-      alert("Failed to add ingredient. Please try again.")
+      setErr("Failed to add ingredient. Please try again.")
     }
   }
   async function renameIngredient(it: Ingredient) {
@@ -489,7 +494,7 @@ export default function App() {
       
       // Check if user has permission to rename ingredients
       if (role !== "editor" && role !== "admin") {
-        alert("Permission denied. Only editors and admins can rename ingredients.")
+        setErr("Permission denied. Only editors and admins can rename ingredients.")
         return
       }
       
@@ -499,9 +504,9 @@ export default function App() {
       if (error) {
         console.error("Ingredient rename error:", error)
         if (error.message.includes("row-level security")) {
-          alert("Permission denied. You may not have the required privileges to rename ingredients.")
+          setErr("Permission denied. You may not have the required privileges to rename ingredients.")
         } else {
-          alert(`Failed to rename ingredient: ${error.message}`)
+          setErr(`Failed to rename ingredient: ${error.message}`)
         }
         return
       }
@@ -510,7 +515,7 @@ export default function App() {
       await loadIngredients()
     } catch (err) {
       console.error("Unexpected error renaming ingredient:", err)
-      alert("Failed to rename ingredient. Please try again.")
+      setErr("Failed to rename ingredient. Please try again.")
     }
   }
   async function deleteIngredient(it: Ingredient) {
@@ -519,7 +524,7 @@ export default function App() {
       
       // Check if user has permission to delete ingredients
       if (role !== "editor" && role !== "admin") {
-        alert("Permission denied. Only editors and admins can delete ingredients.")
+        setErr("Permission denied. Only editors and admins can delete ingredients.")
         return
       }
       
@@ -588,7 +593,7 @@ export default function App() {
         
         if (fallbackError) {
           console.error("Fallback query failed:", fallbackError)
-          alert(`Failed to load users: ${fallbackError.message}`)
+          setErr(`Failed to load users: ${fallbackError.message}`)
           setUsersLoading(false)
           return
         }
@@ -608,7 +613,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Unexpected error loading users:", err)
-      alert("Failed to load users. Please check your database permissions.")
+      setErr("Failed to load users. Please check your database permissions.")
     }
     setUsersLoading(false)
   }
@@ -623,9 +628,9 @@ export default function App() {
       if (error) {
         console.error("Role change error:", error)
         if (error.message.includes("row-level security")) {
-          alert("Permission denied. You may not have admin privileges to change user roles.")
+          setErr("Permission denied. You may not have admin privileges to change user roles.")
         } else {
-          alert(`Failed to change user role: ${error.message}`)
+          setErr(`Failed to change user role: ${error.message}`)
         }
         return
       }
@@ -635,7 +640,7 @@ export default function App() {
       console.log(`Successfully changed user role to ${newRole}`)
     } catch (err) {
       console.error("Unexpected error changing user role:", err)
-      alert("Failed to change user role. Please try again.")
+      setErr("Failed to change user role. Please try again.")
     }
   }
   async function renameUser(user_id: string) {
@@ -653,9 +658,9 @@ export default function App() {
       if (error) {
         console.error("Rename error:", error)
         if (error.message.includes("row-level security")) {
-          alert("Permission denied. You may not have admin privileges to rename users.")
+          setErr("Permission denied. You may not have admin privileges to rename users.")
         } else {
-          alert(`Failed to rename user: ${error.message}`)
+          setErr(`Failed to rename user: ${error.message}`)
         }
         return
       }
@@ -664,7 +669,7 @@ export default function App() {
       console.log(`Successfully renamed user to ${n}`)
     } catch (err) {
       console.error("Unexpected error renaming user:", err)
-      alert("Failed to rename user. Please try again.")
+      setErr("Failed to rename user. Please try again.")
     }
   }
 
