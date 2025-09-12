@@ -84,6 +84,7 @@ export function IngredientsAdmin({
                   <td style={td}>{it.name}</td>
                   <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
                     <button onClick={()=>onRename(it)} style={btnSecondary}>Rename</button>
+                    <span style={{ margin: "0 8px" }}></span>
                     <button onClick={()=>onDelete(it)} style={dangerBtn}>Delete</button>
                   </td>
                 </tr>
