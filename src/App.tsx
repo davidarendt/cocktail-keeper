@@ -1098,24 +1098,24 @@ export default function App() {
             }}>
               <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "auto 1fr 1fr auto auto auto auto", 
-                gap: 12, 
+                gridTemplateColumns: "auto auto auto auto auto auto auto auto auto", 
+                gap: 8, 
                 alignItems: "center" 
               }}>
                 {/* View Toggle */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: colors.muted }}>View:</span>
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontSize: 11, color: colors.muted }}>View:</span>
                   <button 
                     onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
                     style={{
                       ...btnSecondary,
-                      fontSize: 12,
-                      padding: "4px 8px",
+                      fontSize: 11,
+                      padding: "4px 6px",
                       background: view === "cards" ? colors.accent : colors.glass,
                       color: view === "cards" ? "white" : colors.text,
                       border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
                       borderRadius: 4,
-                      minWidth: 40
+                      minWidth: 32
                     }}
                   >
                     {view==="cards" ? "📋" : "🎴"}
@@ -1127,12 +1127,13 @@ export default function App() {
                   <input 
                     value={nameSearch} 
                     onChange={e=>setNameSearch(e.target.value)} 
-                    placeholder="🍸 Search cocktails..." 
+                    placeholder="🍸 Name..." 
                     style={{ 
                       ...inp, 
-                      paddingLeft: 12,
-                      paddingRight: nameSearch ? 32 : 12,
-                      fontSize: 14
+                      paddingLeft: 8,
+                      paddingRight: nameSearch ? 24 : 8,
+                      fontSize: 12,
+                      minWidth: 100
                     }}
                   />
                   {nameSearch && (
@@ -1140,15 +1141,15 @@ export default function App() {
                       onClick={() => setNameSearch("")}
                       style={{
                         position: "absolute",
-                        right: 8,
+                        right: 6,
                         top: "50%",
                         transform: "translateY(-50%)",
                         background: "none",
                         border: "none",
                         color: colors.muted,
                         cursor: "pointer",
-                        fontSize: 12,
-                        padding: 2
+                        fontSize: 10,
+                        padding: 1
                       }}
                     >
                       ✕
@@ -1167,12 +1168,13 @@ export default function App() {
                         setQ("")
                       }
                     }}
-                    placeholder="🔍 Add ingredient filter..." 
+                    placeholder="🔍 Ingredient..." 
                     style={{ 
                       ...inp, 
-                      paddingLeft: 12,
-                      paddingRight: q ? 32 : 12,
-                      fontSize: 14
+                      paddingLeft: 8,
+                      paddingRight: q ? 24 : 8,
+                      fontSize: 12,
+                      minWidth: 100
                     }}
                   />
                   {q && (
@@ -1187,15 +1189,15 @@ export default function App() {
                       }}
                       style={{
                         position: "absolute",
-                        right: 8,
+                        right: 6,
                         top: "50%",
                         transform: "translateY(-50%)",
                         background: "none",
                         border: "none",
                         color: colors.muted,
                         cursor: "pointer",
-                        fontSize: 12,
-                        padding: 2
+                        fontSize: 10,
+                        padding: 1
                       }}
                     >
                       {q.trim() ? "➕" : "✕"}
@@ -1204,19 +1206,38 @@ export default function App() {
                 </div>
                 
                 {/* Method Filter */}
-                <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={{...inp, fontSize: 14, minWidth: 120}}>
+                <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
                   <option value="">Method</option>
                   {methods.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
                 
                 {/* Glass Filter */}
-                <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={{...inp, fontSize: 14, minWidth: 120}}>
+                <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
                   <option value="">Glass</option>
                   {glasses.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
+
+                {/* Tags Filter */}
+                <select 
+                  value="" 
+                  onChange={e => {
+                    if (e.target.value) {
+                      toggleTag(e.target.value)
+                      e.target.value = ""
+                    }
+                  }}
+                  style={{...inp, fontSize: 12, minWidth: 80}}
+                >
+                  <option value="">🏷️ Tags</option>
+                  {availableTags.map(tag => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
                 
                 {/* Sort */}
-                <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={{...inp, fontSize: 14, minWidth: 140}}>
+                <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={{...inp, fontSize: 12, minWidth: 100}}>
                   <option value="special_desc">📅 Special</option>
                   <option value="special_asc">📅 Old Special</option>
                   <option value="name_asc">🔤 A-Z</option>
@@ -1228,13 +1249,13 @@ export default function App() {
                   onClick={() => setSpecialOnly(!specialOnly)}
                   style={{
                     ...btnSecondary,
-                    fontSize: 12,
-                    padding: "6px 10px",
+                    fontSize: 11,
+                    padding: "4px 8px",
                     background: specialOnly ? colors.primarySolid : colors.glass,
                     color: specialOnly ? "white" : colors.text,
                     border: `1px solid ${specialOnly ? colors.primarySolid : colors.glassBorder}`,
-                    borderRadius: 6,
-                    minWidth: 60
+                    borderRadius: 4,
+                    minWidth: 50
                   }}
                 >
                   ⭐ Special
@@ -1245,13 +1266,13 @@ export default function App() {
                   onClick={() => setOlogyOnly(!ologyOnly)}
                   style={{
                     ...btnSecondary,
-                    fontSize: 12,
-                    padding: "6px 10px",
+                    fontSize: 11,
+                    padding: "4px 8px",
                     background: ologyOnly ? colors.accent : colors.glass,
                     color: ologyOnly ? "white" : colors.text,
                     border: `1px solid ${ologyOnly ? colors.accent : colors.glassBorder}`,
-                    borderRadius: 6,
-                    minWidth: 60
+                    borderRadius: 4,
+                    minWidth: 50
                   }}
                 >
                   🍸 Menu
@@ -1259,38 +1280,6 @@ export default function App() {
 
               </div>
 
-              {/* Tag Filters */}
-              {availableTags.length > 0 && (
-                <div style={{ 
-                  display: "flex", 
-                  gap: 8, 
-                  alignItems: "center", 
-                  marginTop: 12,
-                  paddingTop: 12,
-                  borderTop: `1px solid ${colors.glassBorder}`,
-                  flexWrap: "wrap"
-                }}>
-                  <span style={{ fontSize: 12, color: colors.muted, marginRight: 8 }}>Tags:</span>
-                  {availableTags.map(tag => (
-                    <button
-                      key={tag.id}
-                      onClick={() => toggleTag(tag.id)}
-                      style={{
-                        ...btnSecondary,
-                        fontSize: 11,
-                        padding: "4px 8px",
-                        background: selectedTags.includes(tag.id) ? tag.color : colors.glass,
-                        color: selectedTags.includes(tag.id) ? "white" : colors.text,
-                        border: `1px solid ${selectedTags.includes(tag.id) ? tag.color : colors.glassBorder}`,
-                        borderRadius: 6,
-                        minWidth: "auto"
-                      }}
-                    >
-                      🏷️ {tag.name}
-                    </button>
-                  ))}
-                </div>
-              )}
 
               {/* Active Filters Row */}
               {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly || selectedTags.length > 0) && (
