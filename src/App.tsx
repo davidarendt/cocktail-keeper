@@ -121,6 +121,7 @@ export default function App() {
   // search / filters / view / sort
   const [q, setQ] = useState("")
   const [nameSearch, setNameSearch] = useState("")
+  const [ingredientFilters, setIngredientFilters] = useState<string[]>([])
   const [fMethod, setFMethod] = useState("Any")
   const [fGlass, setFGlass] = useState("")
   const [specialOnly, setSpecialOnly] = useState(false)
@@ -128,7 +129,7 @@ export default function App() {
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
 
-  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy])
+  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
@@ -156,8 +157,40 @@ export default function App() {
 
     let finalRows = (base || []) as TCocktail[]
 
-    // Ingredient search (fuzzy)
-    if (q.trim() && finalRows.length) {
+    // Ingredient search (multiple filters or single fuzzy)
+    if (ingredientFilters.length > 0 && finalRows.length) {
+      const ids = finalRows.map(c=>c.id)
+      const { data: rec, error: rerr } = await supabase
+        .from("recipe_ingredients")
+        .select("cocktail_id, ingredient:ingredients(name)")
+        .in("cocktail_id", ids)
+      if (rerr) { setErr(rerr.message); setLoading(false); return }
+      
+      // Group by cocktail_id and count matching ingredients
+      const cocktailIngredientCounts = (rec || []).reduce((acc: Record<string, number>, r: any) => {
+        const ingredientName = (r.ingredient?.name || "").toLowerCase()
+        const matches = ingredientFilters.some(filter => {
+          const filterLower = filter.toLowerCase()
+          const words = ingredientName.split(/\s+/)
+          const wordStart = words.some((w: string) => w.startsWith(filterLower))
+          const contains = ingredientName.includes(filterLower) || ingredientName.replace(/\s+/g,"").includes(normalizeSearchTerm(filter))
+          return wordStart || contains
+        })
+        
+        if (matches) {
+          acc[r.cocktail_id] = (acc[r.cocktail_id] || 0) + 1
+        }
+        return acc
+      }, {})
+      
+      // Only include cocktails that have ALL the filtered ingredients
+      const matchIds = new Set(
+        Object.keys(cocktailIngredientCounts)
+          .filter(id => cocktailIngredientCounts[id] === ingredientFilters.length)
+      )
+      finalRows = finalRows.filter(c => matchIds.has(c.id))
+    } else if (q.trim() && finalRows.length) {
+      // Fallback to single ingredient search for backward compatibility
       const ids = finalRows.map(c=>c.id)
       const { data: rec, error: rerr } = await supabase
         .from("recipe_ingredients")
@@ -435,6 +468,22 @@ export default function App() {
       console.error("add catalog item error:", err)
       throw err
     }
+  }
+
+  // Ingredient filter management
+  function addIngredientFilter(ingredient: string) {
+    const trimmed = ingredient.trim()
+    if (trimmed && !ingredientFilters.includes(trimmed)) {
+      setIngredientFilters(prev => [...prev, trimmed])
+    }
+  }
+
+  function removeIngredientFilter(ingredient: string) {
+    setIngredientFilters(prev => prev.filter(f => f !== ingredient))
+  }
+
+  function clearAllIngredientFilters() {
+    setIngredientFilters([])
   }
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
@@ -1002,7 +1051,13 @@ export default function App() {
                   <input 
                     value={q} 
                     onChange={e=>setQ(e.target.value)} 
-                    placeholder="🔍 Search ingredients..." 
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && q.trim()) {
+                        addIngredientFilter(q.trim())
+                        setQ("")
+                      }
+                    }}
+                    placeholder="🔍 Add ingredient filter..." 
                     style={{ 
                       ...inp, 
                       paddingLeft: 12,
@@ -1012,7 +1067,14 @@ export default function App() {
                   />
                   {q && (
                     <button
-                      onClick={() => setQ("")}
+                      onClick={() => {
+                        if (q.trim()) {
+                          addIngredientFilter(q.trim())
+                          setQ("")
+                        } else {
+                          setQ("")
+                        }
+                      }}
                       style={{
                         position: "absolute",
                         right: 8,
@@ -1026,7 +1088,7 @@ export default function App() {
                         padding: 2
                       }}
                     >
-                      ✕
+                      {q.trim() ? "➕" : "✕"}
                     </button>
                   )}
                 </div>
@@ -1086,25 +1148,28 @@ export default function App() {
                 </button>
 
                 {/* View Toggle */}
-                <button 
-                  onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
-                  style={{
-                    ...btnSecondary,
-                    fontSize: 12,
-                    padding: "6px 10px",
-                    background: view === "cards" ? colors.accent : colors.glass,
-                    color: view === "cards" ? "white" : colors.text,
-                    border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
-                    borderRadius: 6,
-                    minWidth: 60
-                  }}
-                >
-                  {view==="cards" ? "📋" : "🎴"}
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: colors.muted }}>View:</span>
+                  <button 
+                    onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 12,
+                      padding: "4px 8px",
+                      background: view === "cards" ? colors.accent : colors.glass,
+                      color: view === "cards" ? "white" : colors.text,
+                      border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 4,
+                      minWidth: 40
+                    }}
+                  >
+                    {view==="cards" ? "📋" : "🎴"}
+                  </button>
+                </div>
               </div>
 
               {/* Active Filters Row */}
-              {(q || nameSearch || fMethod || fGlass || specialOnly || ologyOnly) && (
+              {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly) && (
                 <div style={{ 
                   display: "flex", 
                   gap: 8, 
@@ -1114,6 +1179,34 @@ export default function App() {
                   borderTop: `1px solid ${colors.glassBorder}`
                 }}>
                   <span style={{ fontSize: 12, color: colors.muted, marginRight: 8 }}>Active:</span>
+                  
+                  {ingredientFilters.map((ingredient, index) => (
+                    <span key={index} style={{
+                      background: colors.primarySolid,
+                      color: "white",
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}>
+                      🔍 {ingredient}
+                      <button
+                        onClick={() => removeIngredientFilter(ingredient)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          padding: 0
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
                   
                   {nameSearch && (
                     <span style={{
@@ -1291,6 +1384,7 @@ export default function App() {
                       setFGlass("")
                       setSpecialOnly(false)
                       setOlogyOnly(false)
+                      clearAllIngredientFilters()
                     }}
                     style={{
                       ...btnSecondary,
