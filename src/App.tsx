@@ -17,7 +17,7 @@ import { printOnePager } from "./utils/print"
 import { ng, normalizeSearchTerm } from "./utils/text"
 
 import type {
-  Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient
+  Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag
 } from "./types"
 
 export default function App() {
@@ -97,7 +97,7 @@ export default function App() {
   const [ices, setIces] = useState<string[]>([])
   const [garnishes, setGarnishes] = useState<string[]>([])
 
-  useEffect(() => { loadCatalog() }, [])
+  useEffect(() => { loadCatalog(); loadTags() }, [])
   async function loadCatalog() {
     const { data } = await supabase
       .from("catalog_items")
@@ -112,9 +112,18 @@ export default function App() {
     setGarnishes(rows.filter(r=>r.kind==="garnish").map(r=>r.name))
   }
 
+  async function loadTags() {
+    const { data } = await supabase
+      .from("tags")
+      .select("*")
+      .order("name")
+    setAvailableTags(data || [])
+  }
+
   // ---------- COCKTAILS ----------
   const [rows, setRows] = useState<TCocktail[]>([])
   const [specs, setSpecs] = useState<Record<string, string[]>>({})
+  const [cocktailTags, setCocktailTags] = useState<Record<string, Tag[]>>({})
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState("")
 
@@ -126,10 +135,12 @@ export default function App() {
   const [fGlass, setFGlass] = useState("")
   const [specialOnly, setSpecialOnly] = useState(false)
   const [ologyOnly, setOlogyOnly] = useState(false)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [availableTags, setAvailableTags] = useState<Tag[]>([])
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
 
-  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters])
+  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters, selectedTags])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
@@ -139,6 +150,34 @@ export default function App() {
     if (specialOnly) query = query.not("last_special_on","is",null)
     if (ologyOnly) query = query.eq("is_ology_recipe", true)
     if (nameSearch.trim()) query = query.ilike("name", `%${nameSearch.trim()}%`)
+    
+    // Tag filtering - cocktails must have ALL selected tags
+    if (selectedTags.length > 0) {
+      const { data: taggedCocktails } = await supabase
+        .from("cocktail_tags")
+        .select("cocktail_id")
+        .in("tag_id", selectedTags)
+      
+      if (taggedCocktails?.length) {
+        // Group by cocktail_id and count tags
+        const cocktailTagCounts = taggedCocktails.reduce((acc: Record<string, number>, ct: any) => {
+          acc[ct.cocktail_id] = (acc[ct.cocktail_id] || 0) + 1
+          return acc
+        }, {})
+        
+        // Only include cocktails that have ALL the selected tags
+        const cocktailIds = Object.keys(cocktailTagCounts)
+          .filter(id => cocktailTagCounts[id] === selectedTags.length)
+        
+        if (cocktailIds.length > 0) {
+          query = query.in("id", cocktailIds)
+        } else {
+          query = query.eq("id", -1) // no results
+        }
+      } else {
+        query = query.eq("id", -1) // no results
+      }
+    }
 
     if (sortBy === "name_asc") {
       query = query.order("name", { ascending: true })
@@ -213,6 +252,7 @@ export default function App() {
 
     setRows(finalRows)
     await loadSpecsFor(finalRows.map(c=>c.id))
+    await loadTagsForCocktails(finalRows.map(c=>c.id))
     setLoading(false)
   }
 
@@ -234,6 +274,20 @@ export default function App() {
       ;(map[k] ||= []).push(line)
     }
     setSpecs(map)
+  }
+
+  async function loadTagsForCocktails(ids: string[]) {
+    if (!ids.length) { setCocktailTags({}); return }
+    const { data } = await supabase
+      .from("cocktail_tags")
+      .select("cocktail_id, tag:tags(id, name, color)")
+      .in("cocktail_id", ids)
+    const grouped = (data || []).reduce((acc: Record<string, Tag[]>, r: any) => {
+      if (!acc[r.cocktail_id]) acc[r.cocktail_id] = []
+      if (r.tag) acc[r.cocktail_id].push(r.tag)
+      return acc
+    }, {})
+    setCocktailTags(grouped)
   }
 
   // ---------- FORM ----------
@@ -258,6 +312,7 @@ export default function App() {
     setGlass(""); setIce(""); setGarnish(""); setNotes("")
     setPrice(""); setSpecialDate(""); setOlogyRecipe(false)
     setLines([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
+    setSelectedTags([])
   }
   function openAddForm() { resetForm(); setFormOpen(true) }
 
@@ -271,6 +326,13 @@ export default function App() {
     setPrice(c.price == null ? "" : String(c.price))
     setSpecialDate(c.last_special_on || "")
     setOlogyRecipe(c.is_ology_recipe || false)
+    
+    // Load tags for this cocktail
+    const { data: cocktailTags } = await supabase
+      .from("cocktail_tags")
+      .select("tag_id")
+      .eq("cocktail_id", c.id)
+    setSelectedTags(cocktailTags?.map(ct => ct.tag_id) || [])
 
     const { data } = await supabase
       .from("recipe_ingredients")
@@ -397,6 +459,21 @@ export default function App() {
       pos = pos + 1
     }
 
+    // Handle tags
+    await supabase.from("cocktail_tags").delete().eq("cocktail_id", cocktailId)
+    if (selectedTags.length > 0) {
+      const tagInserts = selectedTags.map(tagId => ({
+        cocktail_id: cocktailId,
+        tag_id: tagId
+      }))
+      const { error: tagError } = await supabase.from("cocktail_tags").insert(tagInserts)
+      if (tagError) {
+        console.error("Tag insert error:", tagError);
+        setErr(`Failed to save tags: ${tagError.message}`);
+        return;
+      }
+    }
+
     await load()
     resetForm()
     setFormOpen(false)
@@ -484,6 +561,19 @@ export default function App() {
 
   function clearAllIngredientFilters() {
     setIngredientFilters([])
+  }
+
+  // Tag management
+  function toggleTag(tagId: string) {
+    setSelectedTags(prev => 
+      prev.includes(tagId) 
+        ? prev.filter(id => id !== tagId)
+        : [...prev, tagId]
+    )
+  }
+
+  function clearAllTags() {
+    setSelectedTags([])
   }
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
@@ -820,9 +910,9 @@ export default function App() {
               className="gradient-text" 
               onClick={() => setRoute("main")}
               style={{ 
-                fontSize: 36, 
-                fontWeight: 800, 
-                margin: 0,
+              fontSize: 36, 
+              fontWeight: 800, 
+              margin: 0,
                 textShadow: "0 0 20px rgba(102, 126, 234, 0.3)",
                 cursor: "pointer",
                 transition: "all 0.2s ease"
@@ -853,7 +943,7 @@ export default function App() {
                 gap: 12
               }}>
                 <span>
-                  {session.user.email} • <span style={{ color: colors.primarySolid, fontWeight: 600 }}>{role}</span>
+                {session.user.email} • <span style={{ color: colors.primarySolid, fontWeight: 600 }}>{role}</span>
                 </span>
               </div>
             )}
@@ -1168,8 +1258,41 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Tag Filters */}
+              {availableTags.length > 0 && (
+                <div style={{ 
+                  display: "flex", 
+                  gap: 8, 
+                  alignItems: "center", 
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: `1px solid ${colors.glassBorder}`,
+                  flexWrap: "wrap"
+                }}>
+                  <span style={{ fontSize: 12, color: colors.muted, marginRight: 8 }}>Tags:</span>
+                  {availableTags.map(tag => (
+                    <button
+                      key={tag.id}
+                      onClick={() => toggleTag(tag.id)}
+                      style={{
+                        ...btnSecondary,
+                        fontSize: 11,
+                        padding: "4px 8px",
+                        background: selectedTags.includes(tag.id) ? tag.color : colors.glass,
+                        color: selectedTags.includes(tag.id) ? "white" : colors.text,
+                        border: `1px solid ${selectedTags.includes(tag.id) ? tag.color : colors.glassBorder}`,
+                        borderRadius: 6,
+                        minWidth: "auto"
+                      }}
+                    >
+                      🏷️ {tag.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {/* Active Filters Row */}
-              {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly) && (
+              {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly || selectedTags.length > 0) && (
                 <div style={{ 
                   display: "flex", 
                   gap: 8, 
@@ -1198,7 +1321,7 @@ export default function App() {
                           background: "none",
                           border: "none",
                           color: "white",
-                          cursor: "pointer",
+                  cursor: "pointer",
                           fontSize: 10,
                           padding: 0
                         }}
@@ -1207,6 +1330,37 @@ export default function App() {
                       </button>
                     </span>
                   ))}
+                  
+                  {selectedTags.map((tagId) => {
+                    const tag = availableTags.find(t => t.id === tagId)
+                    return tag ? (
+                      <span key={tagId} style={{
+                        background: tag.color,
+                        color: "white",
+                        padding: "4px 8px",
+                        borderRadius: 12,
+                        fontSize: 11,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4
+                      }}>
+                        🏷️ {tag.name}
+                        <button
+                          onClick={() => toggleTag(tagId)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "white",
+                            cursor: "pointer",
+                            fontSize: 10,
+                            padding: 0
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ) : null
+                  })}
                   
                   {nameSearch && (
                     <span style={{
@@ -1248,7 +1402,7 @@ export default function App() {
                       gap: 4
                     }}>
                       🔍 {q}
-                      <button
+                <button 
                         onClick={() => setQ("")}
                         style={{
                           background: "none",
@@ -1385,20 +1539,21 @@ export default function App() {
                       setSpecialOnly(false)
                       setOlogyOnly(false)
                       clearAllIngredientFilters()
+                      clearAllTags()
                     }}
-                    style={{
-                      ...btnSecondary,
+                  style={{
+                    ...btnSecondary,
                       fontSize: 11,
                       padding: "4px 8px",
-                      background: colors.glass,
+                    background: colors.glass,
                       border: `1px solid ${colors.glassBorder}`,
                       borderRadius: 6,
                       marginLeft: "auto"
-                    }}
-                  >
+                  }}
+                >
                     🗑️ Clear All
-                  </button>
-                </div>
+                </button>
+              </div>
               )}
             </div>
 
@@ -1429,6 +1584,7 @@ export default function App() {
                 glasses={glasses}
                 ices={ices}
                 garnishes={garnishes}
+                availableTags={availableTags}
                 name={name} setName={setName}
                 method={method} setMethod={setMethod}
                 glass={glass} setGlass={setGlass}
@@ -1439,6 +1595,7 @@ export default function App() {
                 specialDate={specialDate} setSpecialDate={setSpecialDate}
                 isOlogyRecipe={isOlogyRecipe} setOlogyRecipe={setOlogyRecipe}
                 lines={lines} setLines={(updater)=> setLines(prev => updater(prev))}
+                selectedTags={selectedTags} setSelectedTags={setSelectedTags}
                 onClose={()=>{ resetForm(); setFormOpen(false) }}
                 onSubmit={save}
                 onQueryIngredients={queryIngredients}
@@ -1513,17 +1670,45 @@ export default function App() {
                       }}>
                         {/* Badges */}
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                          {c.last_special_on && (
-                            <div style={specialBadge}>
-                              ⭐ Special
-                            </div>
-                          )}
+                        {c.last_special_on && (
+                          <div style={specialBadge}>
+                            ⭐ Special
+                          </div>
+                        )}
                           {c.is_ology_recipe && (
                             <div style={ologyBadge}>
                               🍸 Menu
                             </div>
                           )}
                         </div>
+                        
+                        {/* Tags */}
+                        {cocktailTags[c.id] && cocktailTags[c.id].length > 0 && (
+                          <div style={{ 
+                            display: "flex", 
+                            flexDirection: "column", 
+                            gap: 4,
+                            marginTop: 8
+                          }}>
+                            {cocktailTags[c.id].map(tag => (
+                              <span
+                                key={tag.id}
+                                style={{
+                                  background: tag.color,
+                                  color: "white",
+                                  padding: "2px 6px",
+                                  borderRadius: 8,
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.05em"
+                                }}
+                              >
+                                🏷️ {tag.name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                         {/* Price */}
                         {c.price != null && (
                           <div style={priceDisplay}>

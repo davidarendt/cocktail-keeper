@@ -1,7 +1,7 @@
 // src/components/CocktailForm.tsx
 import React, { useState } from "react"
 import { inp, btnPrimary, btnSecondary, colors, card, textGradient, shadows } from "../styles"
-import type { Unit, IngredientLine } from "../types"
+import type { Unit, IngredientLine, Tag } from "../types"
 
 
 type Props = {
@@ -12,6 +12,7 @@ type Props = {
   glasses: string[]
   ices: string[]
   garnishes: string[]
+  availableTags: Tag[]
   // form values
   name: string;          setName: (v: string) => void
   method: string;        setMethod: (v: string) => void
@@ -23,6 +24,7 @@ type Props = {
   specialDate: string;   setSpecialDate: (v: string) => void
   isOlogyRecipe: boolean; setOlogyRecipe: (v: boolean) => void
   lines: IngredientLine[]; setLines: (updater: (prev: IngredientLine[]) => IngredientLine[]) => void
+  selectedTags: string[]; setSelectedTags: (v: string[]) => void
   // actions
   onClose: () => void
   onSubmit: (e: React.FormEvent) => void
@@ -37,10 +39,10 @@ const unitOptions: Unit[] = ["oz","barspoon","dash","drop","ml"]
 export function CocktailForm(props: Props) {
   const {
     editingId,
-    methods, glasses, ices, garnishes,
+    methods, glasses, ices, garnishes, availableTags,
     name, setName, method, setMethod, glass, setGlass, ice, setIce, garnish, setGarnish,
     notes, setNotes, price, setPrice, specialDate, setSpecialDate, isOlogyRecipe, setOlogyRecipe,
-    lines, setLines,
+    lines, setLines, selectedTags, setSelectedTags,
     onClose, onSubmit,
     onQueryIngredients,
     onAddCatalogItem,
@@ -115,6 +117,15 @@ export function CocktailForm(props: Props) {
       console.error("Failed to add catalog item:", error)
       alert("Failed to add new " + kind + ". Please try again.")
     }
+  }
+
+  // Handle tag toggling
+  function toggleTag(tagId: string) {
+    setSelectedTags(prev => 
+      prev.includes(tagId) 
+        ? prev.filter(id => id !== tagId)
+        : [...prev, tagId]
+    )
   }
 
   return (
@@ -397,6 +408,55 @@ export function CocktailForm(props: Props) {
           </label>
         </div>
       </div>
+
+      {/* Tags Section */}
+      {availableTags.length > 0 && (
+        <div style={{ 
+          marginTop: 20,
+          padding: 16,
+          background: colors.panel,
+          borderRadius: 12,
+          border: `1px solid ${colors.glassBorder}`
+        }}>
+          <label style={{ 
+            display: "block", 
+            fontSize: 14, 
+            fontWeight: 600, 
+            color: colors.text, 
+            marginBottom: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🏷️ Tags
+          </label>
+          <div style={{ 
+            display: "flex", 
+            gap: 8, 
+            flexWrap: "wrap" 
+          }}>
+            {availableTags.map(tag => (
+              <button
+                key={tag.id}
+                type="button"
+                onClick={() => toggleTag(tag.id)}
+                style={{
+                  ...btnSecondary,
+                  fontSize: 12,
+                  padding: "6px 12px",
+                  background: selectedTags.includes(tag.id) ? tag.color : colors.glass,
+                  color: selectedTags.includes(tag.id) ? "white" : colors.text,
+                  border: `1px solid ${selectedTags.includes(tag.id) ? tag.color : colors.glassBorder}`,
+                  borderRadius: 8,
+                  minWidth: "auto",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                🏷️ {tag.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Enhanced Ingredients Section */}
       <div style={{ 

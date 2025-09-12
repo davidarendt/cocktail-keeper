@@ -23,6 +23,21 @@ export type CocktailRow = {
   last_special_on: IsoDate | null
   is_ology_recipe: boolean | null
   created_at?: TimestampISO
+  tags?: TagRow[]
+}
+
+export type TagRow = {
+  id: ID
+  name: string
+  color: string
+  created_at?: TimestampISO
+}
+
+export type CocktailTagRow = {
+  id: ID
+  cocktail_id: ID
+  tag_id: ID
+  created_at?: TimestampISO
 }
 
 export type IngredientRow = {
@@ -67,6 +82,7 @@ export type IngredientLine = {
 
 export type Cocktail = CocktailRow
 export type Ingredient = { id: ID; name: string }
+export type Tag = TagRow
 
 /** For printable spec sheets (used by utils/print) */
 export type PrintCocktail = {
@@ -89,3 +105,5 @@ export type CocktailUpsert = Optional<CocktailRow, "id" | "created_at">
 export type CatalogItemInsert = Optional<CatalogItemRow, "id" | "created_at">
 export type IngredientInsert = Optional<IngredientRow, "id" | "created_at">
 export type RecipeIngredientInsert = Optional<RecipeIngredientRow, "id" | "created_at">
+export type TagInsert = Optional<TagRow, "id" | "created_at">
+export type CocktailTagInsert = Optional<CocktailTagRow, "id" | "created_at">
