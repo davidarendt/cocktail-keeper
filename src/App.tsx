@@ -95,13 +95,38 @@ export default function App() {
     }
     
     try {
-      const { error } = await supabase
+      // First try to update existing profile
+      const { data: existing, error: selectError } = await supabase
         .from("profiles")
-        .upsert({ user_id: session.user.id, role: "admin" })
+        .select("user_id")
+        .eq("user_id", session.user.id)
+        .single()
+      
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error("Failed to check existing profile:", selectError)
+        setErr(`Failed to check profile: ${selectError.message}`)
+        return
+      }
+      
+      let error
+      if (existing) {
+        // Update existing profile
+        const { error: updateError } = await supabase
+          .from("profiles")
+          .update({ role: "admin" })
+          .eq("user_id", session.user.id)
+        error = updateError
+      } else {
+        // Insert new profile
+        const { error: insertError } = await supabase
+          .from("profiles")
+          .insert({ user_id: session.user.id, role: "admin" })
+        error = insertError
+      }
       
       if (error) {
         console.error("Failed to set admin role:", error)
-        setErr(`Failed to set admin role: ${error.message}`)
+        setErr(`Failed to set admin role: ${error.message}. You may need to update your database policies.`)
       } else {
         console.log("Successfully set admin role")
         setRole("admin")
@@ -109,7 +134,7 @@ export default function App() {
       }
     } catch (err) {
       console.error("Unexpected error setting admin role:", err)
-      setErr("Failed to set admin role")
+      setErr("Failed to set admin role. Check console for details.")
     }
   }
 
