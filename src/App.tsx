@@ -951,186 +951,219 @@ export default function App() {
 
         {route === "main" && (
           <>
-            {/* MODERN FILTER CONTROLS */}
+            {/* COMPACT FILTER CONTROLS */}
             <div className="animate-slide-in-right" style={{
               ...card({ marginBottom: 24 }),
-              background: `linear-gradient(135deg, ${colors.glass} 0%, rgba(255,255,255,0.1) 100%)`,
-              backdropFilter: "blur(20px)",
-              border: `1px solid ${colors.glassBorder}`,
-              boxShadow: shadows.lg
+              background: colors.glass,
+              backdropFilter: "blur(10px)"
             }}>
-              {/* Search Section */}
               <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "1fr 1fr", 
-                gap: 20, 
-                marginBottom: 20,
-                padding: "20px 0 0 0"
+                gridTemplateColumns: "1fr 1fr auto auto auto auto auto", 
+                gap: 12, 
+                alignItems: "center" 
               }}>
+                {/* Cocktail Name Search */}
                 <div style={{ position: "relative" }}>
-                  <label style={{ 
-                    display: "block", 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: colors.muted, 
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em"
-                  }}>
-                    🍸 Cocktail Name
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input 
-                      value={nameSearch} 
-                      onChange={e=>setNameSearch(e.target.value)} 
-                      placeholder="Search by cocktail name..." 
-                      style={{ 
-                        ...inp, 
-                        paddingLeft: 16,
-                        paddingRight: nameSearch ? 40 : 16,
-                        background: colors.bgSolid,
-                        border: `2px solid ${colors.glassBorder}`,
-                        borderRadius: 12,
-                        fontSize: 15,
-                        transition: "all 0.2s ease"
+                  <input 
+                    value={nameSearch} 
+                    onChange={e=>setNameSearch(e.target.value)} 
+                    placeholder="🍸 Search cocktails..." 
+                    style={{ 
+                      ...inp, 
+                      paddingLeft: 12,
+                      paddingRight: nameSearch ? 32 : 12,
+                      fontSize: 14
+                    }}
+                  />
+                  {nameSearch && (
+                    <button
+                      onClick={() => setNameSearch("")}
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: colors.muted,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        padding: 2
                       }}
-                    />
-                    {nameSearch && (
-                      <button
-                        onClick={() => setNameSearch("")}
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          background: "none",
-                          border: "none",
-                          color: colors.muted,
-                          cursor: "pointer",
-                          fontSize: 16,
-                          padding: 4
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
 
+                {/* Ingredients Search */}
                 <div style={{ position: "relative" }}>
-                  <label style={{ 
-                    display: "block", 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: colors.muted, 
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em"
-                  }}>
-                    🔍 Ingredients
-                  </label>
-                  <div style={{ position: "relative" }}>
-                    <input 
-                      value={q} 
-                      onChange={e=>setQ(e.target.value)} 
-                      placeholder="Search by ingredient..." 
-                      style={{ 
-                        ...inp, 
-                        paddingLeft: 16,
-                        paddingRight: q ? 40 : 16,
-                        background: colors.bgSolid,
-                        border: `2px solid ${colors.glassBorder}`,
-                        borderRadius: 12,
-                        fontSize: 15,
-                        transition: "all 0.2s ease"
+                  <input 
+                    value={q} 
+                    onChange={e=>setQ(e.target.value)} 
+                    placeholder="🔍 Search ingredients..." 
+                    style={{ 
+                      ...inp, 
+                      paddingLeft: 12,
+                      paddingRight: q ? 32 : 12,
+                      fontSize: 14
+                    }}
+                  />
+                  {q && (
+                    <button
+                      onClick={() => setQ("")}
+                      style={{
+                        position: "absolute",
+                        right: 8,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: colors.muted,
+                        cursor: "pointer",
+                        fontSize: 12,
+                        padding: 2
                       }}
-                    />
-                    {q && (
-                      <button
-                        onClick={() => setQ("")}
-                        style={{
-                          position: "absolute",
-                          right: 12,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          background: "none",
-                          border: "none",
-                          color: colors.muted,
-                          cursor: "pointer",
-                          fontSize: 16,
-                          padding: 4
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
+                
+                {/* Method Filter */}
+                <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={{...inp, fontSize: 14, minWidth: 120}}>
+                  <option value="">Method</option>
+                  {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+                
+                {/* Glass Filter */}
+                <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={{...inp, fontSize: 14, minWidth: 120}}>
+                  <option value="">Glass</option>
+                  {glasses.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                
+                {/* Sort */}
+                <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={{...inp, fontSize: 14, minWidth: 140}}>
+                  <option value="special_desc">📅 Special</option>
+                  <option value="special_asc">📅 Old Special</option>
+                  <option value="name_asc">🔤 A-Z</option>
+                  <option value="name_desc">🔤 Z-A</option>
+                </select>
+                
+                {/* Special Toggle */}
+                <button
+                  onClick={() => setSpecialOnly(!specialOnly)}
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 12,
+                    padding: "6px 10px",
+                    background: specialOnly ? colors.primarySolid : colors.glass,
+                    color: specialOnly ? "white" : colors.text,
+                    border: `1px solid ${specialOnly ? colors.primarySolid : colors.glassBorder}`,
+                    borderRadius: 6,
+                    minWidth: 60
+                  }}
+                >
+                  ⭐ Special
+                </button>
+
+                {/* Menu Items Toggle */}
+                <button
+                  onClick={() => setOlogyOnly(!ologyOnly)}
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 12,
+                    padding: "6px 10px",
+                    background: ologyOnly ? colors.accent : colors.glass,
+                    color: ologyOnly ? "white" : colors.text,
+                    border: `1px solid ${ologyOnly ? colors.accent : colors.glassBorder}`,
+                    borderRadius: 6,
+                    minWidth: 60
+                  }}
+                >
+                  🍸 Menu
+                </button>
+
+                {/* View Toggle */}
+                <button 
+                  onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 12,
+                    padding: "6px 10px",
+                    background: view === "cards" ? colors.accent : colors.glass,
+                    color: view === "cards" ? "white" : colors.text,
+                    border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
+                    borderRadius: 6,
+                    minWidth: 60
+                  }}
+                >
+                  {view==="cards" ? "📋" : "🎴"}
+                </button>
               </div>
 
-              {/* Filter Tags & Controls */}
-              <div style={{ 
-                display: "flex", 
-                flexWrap: "wrap", 
-                gap: 12, 
-                alignItems: "center",
-                padding: "0 0 20px 0"
-              }}>
-                {/* Filter Tags */}
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {specialOnly && (
+              {/* Active Filters Row */}
+              {(q || nameSearch || fMethod || fGlass || specialOnly || ologyOnly) && (
+                <div style={{ 
+                  display: "flex", 
+                  gap: 8, 
+                  alignItems: "center",
+                  marginTop: 12,
+                  paddingTop: 12,
+                  borderTop: `1px solid ${colors.glassBorder}`
+                }}>
+                  <span style={{ fontSize: 12, color: colors.muted, marginRight: 8 }}>Active:</span>
+                  
+                  {nameSearch && (
                     <span style={{
-                      background: colors.primarySolid,
+                      background: colors.accent,
                       color: "white",
-                      padding: "6px 12px",
-                      borderRadius: 20,
-                      fontSize: 12,
-                      fontWeight: 600,
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
                       display: "flex",
                       alignItems: "center",
-                      gap: 6
+                      gap: 4
                     }}>
-                      ⭐ Special Only
+                      🍸 {nameSearch}
                       <button
-                        onClick={() => setSpecialOnly(false)}
+                        onClick={() => setNameSearch("")}
                         style={{
                           background: "none",
                           border: "none",
                           color: "white",
                           cursor: "pointer",
-                          fontSize: 14,
-                          padding: 0,
-                          marginLeft: 4
+                          fontSize: 10,
+                          padding: 0
                         }}
                       >
                         ✕
                       </button>
                     </span>
                   )}
-                  
-                  {ologyOnly && (
+
+                  {q && (
                     <span style={{
-                      background: colors.accent,
+                      background: colors.primarySolid,
                       color: "white",
-                      padding: "6px 12px",
-                      borderRadius: 20,
-                      fontSize: 12,
-                      fontWeight: 600,
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
                       display: "flex",
                       alignItems: "center",
-                      gap: 6
+                      gap: 4
                     }}>
-                      🍸 Menu Items
+                      🔍 {q}
                       <button
-                        onClick={() => setOlogyOnly(false)}
+                        onClick={() => setQ("")}
                         style={{
                           background: "none",
                           border: "none",
                           color: "white",
                           cursor: "pointer",
-                          fontSize: 14,
-                          padding: 0,
-                          marginLeft: 4
+                          fontSize: 10,
+                          padding: 0
                         }}
                       >
                         ✕
@@ -1142,13 +1175,12 @@ export default function App() {
                     <span style={{
                       background: colors.glassBorder,
                       color: colors.text,
-                      padding: "6px 12px",
-                      borderRadius: 20,
-                      fontSize: 12,
-                      fontWeight: 600,
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
                       display: "flex",
                       alignItems: "center",
-                      gap: 6
+                      gap: 4
                     }}>
                       🥃 {fMethod}
                       <button
@@ -1158,9 +1190,8 @@ export default function App() {
                           border: "none",
                           color: colors.text,
                           cursor: "pointer",
-                          fontSize: 14,
-                          padding: 0,
-                          marginLeft: 4
+                          fontSize: 10,
+                          padding: 0
                         }}
                       >
                         ✕
@@ -1172,13 +1203,12 @@ export default function App() {
                     <span style={{
                       background: colors.glassBorder,
                       color: colors.text,
-                      padding: "6px 12px",
-                      borderRadius: 20,
-                      fontSize: 12,
-                      fontWeight: 600,
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
                       display: "flex",
                       alignItems: "center",
-                      gap: 6
+                      gap: 4
                     }}>
                       🥃 {fGlass}
                       <button
@@ -1188,24 +1218,71 @@ export default function App() {
                           border: "none",
                           color: colors.text,
                           cursor: "pointer",
-                          fontSize: 14,
-                          padding: 0,
-                          marginLeft: 4
+                          fontSize: 10,
+                          padding: 0
                         }}
                       >
                         ✕
                       </button>
                     </span>
                   )}
-                </div>
 
-                {/* Quick Actions */}
-                <div style={{ 
-                  display: "flex", 
-                  gap: 8, 
-                  marginLeft: "auto",
-                  alignItems: "center"
-                }}>
+                  {specialOnly && (
+                    <span style={{
+                      background: colors.primarySolid,
+                      color: "white",
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}>
+                      ⭐ Special
+                      <button
+                        onClick={() => setSpecialOnly(false)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          padding: 0
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+
+                  {ologyOnly && (
+                    <span style={{
+                      background: colors.accent,
+                      color: "white",
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}>
+                      🍸 Menu
+                      <button
+                        onClick={() => setOlogyOnly(false)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          padding: 0
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+
                   <button
                     onClick={() => {
                       setQ("")
@@ -1217,182 +1294,18 @@ export default function App() {
                     }}
                     style={{
                       ...btnSecondary,
-                      fontSize: 12,
-                      padding: "6px 12px",
+                      fontSize: 11,
+                      padding: "4px 8px",
                       background: colors.glass,
                       border: `1px solid ${colors.glassBorder}`,
-                      borderRadius: 8
+                      borderRadius: 6,
+                      marginLeft: "auto"
                     }}
                   >
                     🗑️ Clear All
                   </button>
-
-                  <button 
-                    onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
-                    style={{
-                      ...btnSecondary,
-                      fontSize: 12,
-                      padding: "6px 12px",
-                      background: view === "cards" ? colors.accent : colors.glass,
-                      color: view === "cards" ? "white" : colors.text,
-                      border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 8
-                    }}
-                  >
-                    {view==="cards" ? "📋 List" : "🎴 Cards"}
-                  </button>
                 </div>
-              </div>
-
-              {/* Advanced Filters */}
-              <div style={{ 
-                display: "grid", 
-                gridTemplateColumns: "1fr 1fr", 
-                gap: 20,
-                padding: "20px 0 0 0",
-                borderTop: `1px solid ${colors.glassBorder}`
-              }}>
-                <div>
-                  <label style={{ 
-                    display: "block", 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: colors.muted, 
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em"
-                  }}>
-                    🥃 Method
-                  </label>
-                  <select 
-                    value={fMethod} 
-                    onChange={e=>setFMethod(e.target.value)} 
-                    style={{
-                      ...inp,
-                      background: colors.bgSolid,
-                      border: `2px solid ${colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 15
-                    }}
-                  >
-                    <option value="">Any Method</option>
-                    {methods.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                
-                <div>
-                  <label style={{ 
-                    display: "block", 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: colors.muted, 
-                    marginBottom: 8,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em"
-                  }}>
-                    🥃 Glass Type
-                  </label>
-                  <select 
-                    value={fGlass} 
-                    onChange={e=>setFGlass(e.target.value)} 
-                    style={{
-                      ...inp,
-                      background: colors.bgSolid,
-                      border: `2px solid ${colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 15
-                    }}
-                  >
-                    <option value="">Any Glass</option>
-                    {glasses.map(g => <option key={g} value={g}>{g}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Sort & Quick Filters */}
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between", 
-                alignItems: "center",
-                marginTop: 20,
-                padding: "20px 0 0 0",
-                borderTop: `1px solid ${colors.glassBorder}`
-              }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <label style={{ 
-                    fontSize: 12, 
-                    fontWeight: 600, 
-                    color: colors.muted,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em"
-                  }}>
-                    📊 Sort by:
-                  </label>
-                  <select 
-                    value={sortBy} 
-                    onChange={e=>setSortBy(e.target.value as any)} 
-                    style={{
-                      ...inp,
-                      background: colors.bgSolid,
-                      border: `2px solid ${colors.glassBorder}`,
-                      borderRadius: 8,
-                      fontSize: 14,
-                      minWidth: 200
-                    }}
-                  >
-                    <option value="special_desc">📅 Last Special (new → old)</option>
-                    <option value="special_asc">📅 Last Special (old → new)</option>
-                    <option value="name_asc">🔤 Name (A–Z)</option>
-                    <option value="name_desc">🔤 Name (Z–A)</option>
-                  </select>
-                </div>
-
-                <div style={{ display: "flex", gap: 8 }}>
-                  <label style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    gap: 8, 
-                    fontSize: 14,
-                    cursor: "pointer",
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    background: specialOnly ? colors.primarySolid : colors.glass,
-                    color: specialOnly ? "white" : colors.text,
-                    transition: "all 0.2s ease",
-                    border: `1px solid ${specialOnly ? colors.primarySolid : colors.glassBorder}`
-                  }}>
-                    <input 
-                      type="checkbox" 
-                      checked={specialOnly} 
-                      onChange={e=>setSpecialOnly(e.target.checked)}
-                      style={{ margin: 0 }}
-                    /> 
-                    ⭐ Special Only
-                  </label>
-
-                  <label style={{ 
-                    display: "flex", 
-                    alignItems: "center", 
-                    gap: 8, 
-                    fontSize: 14,
-                    cursor: "pointer",
-                    padding: "8px 16px",
-                    borderRadius: 8,
-                    background: ologyOnly ? colors.accent : colors.glass,
-                    color: ologyOnly ? "white" : colors.text,
-                    transition: "all 0.2s ease",
-                    border: `1px solid ${ologyOnly ? colors.accent : colors.glassBorder}`
-                  }}>
-                    <input 
-                      type="checkbox" 
-                      checked={ologyOnly} 
-                      onChange={e=>setOlogyOnly(e.target.checked)}
-                      style={{ margin: 0 }}
-                    /> 
-                    🍸 Menu Items
-                  </label>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* ENHANCED ADD BUTTON */}
