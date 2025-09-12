@@ -1098,10 +1098,30 @@ export default function App() {
             }}>
               <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "1fr 1fr auto auto auto auto auto", 
+                gridTemplateColumns: "auto 1fr 1fr auto auto auto auto", 
                 gap: 12, 
                 alignItems: "center" 
               }}>
+                {/* View Toggle */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 12, color: colors.muted }}>View:</span>
+                  <button 
+                    onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 12,
+                      padding: "4px 8px",
+                      background: view === "cards" ? colors.accent : colors.glass,
+                      color: view === "cards" ? "white" : colors.text,
+                      border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 4,
+                      minWidth: 40
+                    }}
+                  >
+                    {view==="cards" ? "📋" : "🎴"}
+                  </button>
+                </div>
+
                 {/* Cocktail Name Search */}
                 <div style={{ position: "relative" }}>
                   <input 
@@ -1237,25 +1257,6 @@ export default function App() {
                   🍸 Menu
                 </button>
 
-                {/* View Toggle */}
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <span style={{ fontSize: 12, color: colors.muted }}>View:</span>
-                  <button 
-                    onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
-                    style={{
-                      ...btnSecondary,
-                      fontSize: 12,
-                      padding: "4px 8px",
-                      background: view === "cards" ? colors.accent : colors.glass,
-                      color: view === "cards" ? "white" : colors.text,
-                      border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 4,
-                      minWidth: 40
-                    }}
-                  >
-                    {view==="cards" ? "📋" : "🎴"}
-                  </button>
-                </div>
               </div>
 
               {/* Tag Filters */}

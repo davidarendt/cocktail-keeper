@@ -24,7 +24,7 @@ type Props = {
   specialDate: string;   setSpecialDate: (v: string) => void
   isOlogyRecipe: boolean; setOlogyRecipe: (v: boolean) => void
   lines: IngredientLine[]; setLines: (updater: (prev: IngredientLine[]) => IngredientLine[]) => void
-  selectedTags: string[]; setSelectedTags: (v: string[]) => void
+  selectedTags: string[]; setSelectedTags: (v: string[] | ((prev: string[]) => string[])) => void
   // actions
   onClose: () => void
   onSubmit: (e: React.FormEvent) => void
@@ -121,9 +121,9 @@ export function CocktailForm(props: Props) {
 
   // Handle tag toggling
   function toggleTag(tagId: string) {
-    setSelectedTags(prev => 
+    setSelectedTags((prev: string[]) => 
       prev.includes(tagId) 
-        ? prev.filter(id => id !== tagId)
+        ? prev.filter((id: string) => id !== tagId)
         : [...prev, tagId]
     )
   }
