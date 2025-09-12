@@ -120,14 +120,15 @@ export default function App() {
 
   // search / filters / view / sort
   const [q, setQ] = useState("")
+  const [nameSearch, setNameSearch] = useState("")
   const [fMethod, setFMethod] = useState("Any")
   const [fGlass, setFGlass] = useState("")
   const [specialOnly, setSpecialOnly] = useState(false)
   const [ologyOnly, setOlogyOnly] = useState(false)
   const [view, setView] = useState<"cards"|"list">("cards")
-  const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc">("special_desc")
+  const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
 
-  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, ologyOnly, sortBy])
+  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
@@ -136,9 +137,12 @@ export default function App() {
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
     if (specialOnly) query = query.not("last_special_on","is",null)
     if (ologyOnly) query = query.eq("is_ology_recipe", true)
+    if (nameSearch.trim()) query = query.ilike("name", `%${nameSearch.trim()}%`)
 
     if (sortBy === "name_asc") {
       query = query.order("name", { ascending: true })
+    } else if (sortBy === "name_desc") {
+      query = query.order("name", { ascending: false })
     } else {
       const asc = sortBy === "special_asc"
       query = query
@@ -955,6 +959,16 @@ export default function App() {
                     style={{ ...inp, paddingLeft: 40 }}
                   />
                 </div>
+
+                <div style={{ position: "relative" }}>
+                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: colors.muted }}>🍸</span>
+                  <input 
+                    value={nameSearch} 
+                    onChange={e=>setNameSearch(e.target.value)} 
+                    placeholder="Search by cocktail name..." 
+                    style={{ ...inp, paddingLeft: 40 }}
+                  />
+                </div>
                 
                 <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={inp}>
                   <option>Any Method</option>
@@ -1012,6 +1026,7 @@ export default function App() {
                   <option value="special_desc">📅 Last Special (new → old)</option>
                   <option value="special_asc">📅 Last Special (old → new)</option>
                   <option value="name_asc">🔤 Name (A–Z)</option>
+                  <option value="name_desc">🔤 Name (Z–A)</option>
                 </select>
                 
                 <button 
