@@ -3,11 +3,11 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import type { PrintCocktail } from "@/types"
 
 type PrintOptions = {
-  /** "A5" | "HalfLetter" | "Letter" — default "A5" */
-  page?: "A5" | "HalfLetter" | "Letter"
-  /** "portrait" | "landscape" — default "portrait" */
+  /** "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape" — default "HalfLetterLandscape" */
+  page?: "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape"
+  /** "portrait" | "landscape" — default "landscape" */
   orientation?: "portrait" | "landscape"
-  /** CSS margin (e.g., "14mm") — default "14mm" */
+  /** CSS margin (e.g., "14mm") — default "8mm" */
   margin?: string
   /** Document title override. Defaults to cocktail name. */
   title?: string
@@ -18,9 +18,9 @@ export async function printOnePager(
   c: PrintCocktail,
   opts: PrintOptions = {}
 ): Promise<void> {
-  const page = opts.page ?? "A5"
-  const orientation = opts.orientation ?? "portrait"
-  const margin = opts.margin ?? "14mm"
+  const page = opts.page ?? "HalfLetterLandscape"
+  const orientation = opts.orientation ?? "landscape"
+  const margin = opts.margin ?? "8mm"
   const title = opts.title ?? c.name
 
   const pageSize = computePageSize(page, orientation)
@@ -53,17 +53,17 @@ export async function printOnePager(
     @page { size: ${pageSize}; margin: ${margin}; }
     :root { --ink: #111; --muted: #555; --border: #ddd; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; color: var(--ink); margin: 0; line-height: 1.3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    h1 { margin: 0 0 6px; font-size: 22px; }
-    .muted { color: var(--muted); font-size: 12px; }
-    .row { margin: 6px 0; }
-    .box { border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
-    ul { margin: 8px 0 12px; padding-left: 18px; }
-    li { margin: 3px 0; }
-    .footer { margin-top: 10px; font-size: 12px; color: var(--muted); }
+    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; color: var(--ink); margin: 0; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    h1 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+    .muted { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+    .row { margin: 4px 0; }
+    .box { border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+    ul { margin: 6px 0 8px; padding-left: 16px; }
+    li { margin: 2px 0; font-size: 13px; }
+    .footer { margin-top: 8px; font-size: 10px; color: var(--muted); }
     @media print { .noprint { display: none; } }
-    .actions { position: fixed; right: 12px; top: 12px; }
-    .btn { font: inherit; font-size: 12px; padding: 6px 10px; border-radius: 8px; border: 1px solid #bbb; background: #f3f4f6; cursor: pointer; margin-left: 8px; }
+    .actions { position: fixed; right: 8px; top: 8px; }
+    .btn { font: inherit; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid #bbb; background: #f3f4f6; cursor: pointer; margin-left: 6px; }
   </style>
 </head>
 <body>
@@ -96,7 +96,11 @@ export async function printOnePager(
   w.document.close()
 }
 
-function computePageSize(page: "A5" | "HalfLetter" | "Letter", orientation: "portrait" | "landscape"): string {
+function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape", orientation: "portrait" | "landscape"): string {
+  if (page === "HalfLetterLandscape") {
+    // Half of 8.5x11 in landscape: 5.5" x 8.5"
+    return "5.5in 8.5in"
+  }
   if (page === "HalfLetter") {
     // portrait 5.5" x 8.5", landscape 8.5" x 5.5"
     return orientation === "landscape" ? "8.5in 5.5in" : "5.5in 8.5in"
