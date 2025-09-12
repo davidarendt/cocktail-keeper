@@ -52,10 +52,6 @@ export function CocktailForm(props: Props) {
   const [ingOpen, setIngOpen] = useState(false)
   const [ingIndex, setIngIndex] = useState(-1)
 
-  // catalog item addition state
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [addModalKind, setAddModalKind] = useState<"method" | "glass" | "ice" | "garnish" | null>(null)
-  const [newItemName, setNewItemName] = useState("")
 
   // fetch suggestions when the active row text changes
   async function fetchSuggest(term: string, rowIndex: number) {
@@ -93,39 +89,31 @@ export function CocktailForm(props: Props) {
   }
 
   // Handle adding new catalog items
-  function handleAddNew(kind: "method" | "glass" | "ice" | "garnish") {
-    setAddModalKind(kind)
-    setNewItemName("")
-    setShowAddModal(true)
-  }
-
-  async function handleAddCatalogItem() {
-    if (!addModalKind || !newItemName.trim()) return
+  async function handleAddNew(kind: "method" | "glass" | "ice" | "garnish") {
+    const name = prompt(`Add new ${kind}:`)
+    if (!name?.trim()) return
     
     try {
-      await onAddCatalogItem(addModalKind, newItemName.trim())
+      await onAddCatalogItem(kind, name.trim())
       
       // Set the new item as selected
-      switch (addModalKind) {
+      switch (kind) {
         case "method":
-          setMethod(newItemName.trim())
+          setMethod(name.trim())
           break
         case "glass":
-          setGlass(newItemName.trim())
+          setGlass(name.trim())
           break
         case "ice":
-          setIce(newItemName.trim())
+          setIce(name.trim())
           break
         case "garnish":
-          setGarnish(newItemName.trim())
+          setGarnish(name.trim())
           break
       }
-      
-      setShowAddModal(false)
-      setAddModalKind(null)
-      setNewItemName("")
     } catch (error) {
       console.error("Failed to add catalog item:", error)
+      alert("Failed to add new " + kind + ". Please try again.")
     }
   }
 
@@ -234,7 +222,13 @@ export function CocktailForm(props: Props) {
           }}>
             🥃 Glass
           </label>
-        <select value={glass} onChange={e=>setGlass(e.target.value)} style={inp}>
+        <select value={glass} onChange={e=>{
+            if (e.target.value === "__add_new__") {
+              handleAddNew("glass")
+            } else {
+              setGlass(e.target.value)
+            }
+          }} style={inp}>
             <option value="">Choose glass...</option>
           {glasses.map(g => <option key={g} value={g}>{g}</option>)}
           <option value="__add_new__" style={{ color: colors.accent, fontWeight: 600 }}>
@@ -255,7 +249,13 @@ export function CocktailForm(props: Props) {
           }}>
             🧊 Ice
           </label>
-        <select value={ice} onChange={e=>setIce(e.target.value)} style={inp}>
+        <select value={ice} onChange={e=>{
+            if (e.target.value === "__add_new__") {
+              handleAddNew("ice")
+            } else {
+              setIce(e.target.value)
+            }
+          }} style={inp}>
             <option value="">Choose ice...</option>
           {ices.map(i => <option key={i} value={i}>{i}</option>)}
           <option value="__add_new__" style={{ color: colors.accent, fontWeight: 600 }}>
@@ -276,7 +276,13 @@ export function CocktailForm(props: Props) {
           }}>
             🌿 Garnish
           </label>
-        <select value={garnish} onChange={e=>setGarnish(e.target.value)} style={inp}>
+        <select value={garnish} onChange={e=>{
+            if (e.target.value === "__add_new__") {
+              handleAddNew("garnish")
+            } else {
+              setGarnish(e.target.value)
+            }
+          }} style={inp}>
             <option value="">Choose garnish...</option>
           {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
           <option value="__add_new__" style={{ color: colors.accent, fontWeight: 600 }}>

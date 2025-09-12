@@ -423,6 +423,19 @@ export default function App() {
     const { error } = await supabase.from("catalog_items").insert({ kind, name: n, position: maxPos + 1, active: true })
     if (!error) { setNewName(p => ({ ...p, [kind]: "" })); await reloadSettings(); await loadCatalog() }
   }
+
+  async function addCatalogItem(kind: "method" | "glass" | "ice" | "garnish", name: string) {
+    try {
+      const maxPos = Math.max(0, ...catalog.filter(c=>c.kind===kind).map(c=>c.position))
+      const { error } = await supabase.from("catalog_items").insert({ kind, name, position: maxPos + 1, active: true })
+      if (error) throw error
+      await reloadSettings()
+      await loadCatalog()
+    } catch (err) {
+      console.error("add catalog item error:", err)
+      throw err
+    }
+  }
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
     if (!n || n === item.name) return
@@ -1082,6 +1095,7 @@ export default function App() {
                 onClose={()=>{ resetForm(); setFormOpen(false) }}
                 onSubmit={save}
                 onQueryIngredients={queryIngredients}
+                onAddCatalogItem={addCatalogItem}
               />
             )}
 
