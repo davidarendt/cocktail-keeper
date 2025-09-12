@@ -951,107 +951,447 @@ export default function App() {
 
         {route === "main" && (
           <>
-            {/* ENHANCED CONTROLS */}
+            {/* MODERN FILTER CONTROLS */}
             <div className="animate-slide-in-right" style={{
               ...card({ marginBottom: 24 }),
-              background: colors.glass,
-              backdropFilter: "blur(10px)"
+              background: `linear-gradient(135deg, ${colors.glass} 0%, rgba(255,255,255,0.1) 100%)`,
+              backdropFilter: "blur(20px)",
+              border: `1px solid ${colors.glassBorder}`,
+              boxShadow: shadows.lg
             }}>
-              <div className="form-controls" style={{ 
+              {/* Search Section */}
+              <div style={{ 
                 display: "grid", 
-                gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-                gap: 16, 
-                alignItems: "center" 
+                gridTemplateColumns: "1fr 1fr", 
+                gap: 20, 
+                marginBottom: 20,
+                padding: "20px 0 0 0"
               }}>
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: colors.muted }}>🔍</span>
-                  <input 
-                    value={q} 
-                    onChange={e=>setQ(e.target.value)} 
-                    placeholder="Search by ingredient..." 
-                    style={{ ...inp, paddingLeft: 40 }}
-                  />
+                  <label style={{ 
+                    display: "block", 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    color: colors.muted, 
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em"
+                  }}>
+                    🍸 Cocktail Name
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input 
+                      value={nameSearch} 
+                      onChange={e=>setNameSearch(e.target.value)} 
+                      placeholder="Search by cocktail name..." 
+                      style={{ 
+                        ...inp, 
+                        paddingLeft: 16,
+                        paddingRight: nameSearch ? 40 : 16,
+                        background: colors.bgSolid,
+                        border: `2px solid ${colors.glassBorder}`,
+                        borderRadius: 12,
+                        fontSize: 15,
+                        transition: "all 0.2s ease"
+                      }}
+                    />
+                    {nameSearch && (
+                      <button
+                        onClick={() => setNameSearch("")}
+                        style={{
+                          position: "absolute",
+                          right: 12,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          color: colors.muted,
+                          cursor: "pointer",
+                          fontSize: 16,
+                          padding: 4
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div style={{ position: "relative" }}>
-                  <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: colors.muted }}>🍸</span>
-                  <input 
-                    value={nameSearch} 
-                    onChange={e=>setNameSearch(e.target.value)} 
-                    placeholder="Search by cocktail name..." 
-                    style={{ ...inp, paddingLeft: 40 }}
-                  />
+                  <label style={{ 
+                    display: "block", 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    color: colors.muted, 
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em"
+                  }}>
+                    🔍 Ingredients
+                  </label>
+                  <div style={{ position: "relative" }}>
+                    <input 
+                      value={q} 
+                      onChange={e=>setQ(e.target.value)} 
+                      placeholder="Search by ingredient..." 
+                      style={{ 
+                        ...inp, 
+                        paddingLeft: 16,
+                        paddingRight: q ? 40 : 16,
+                        background: colors.bgSolid,
+                        border: `2px solid ${colors.glassBorder}`,
+                        borderRadius: 12,
+                        fontSize: 15,
+                        transition: "all 0.2s ease"
+                      }}
+                    />
+                    {q && (
+                      <button
+                        onClick={() => setQ("")}
+                        style={{
+                          position: "absolute",
+                          right: 12,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          color: colors.muted,
+                          cursor: "pointer",
+                          fontSize: 16,
+                          padding: 4
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Filter Tags & Controls */}
+              <div style={{ 
+                display: "flex", 
+                flexWrap: "wrap", 
+                gap: 12, 
+                alignItems: "center",
+                padding: "0 0 20px 0"
+              }}>
+                {/* Filter Tags */}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {specialOnly && (
+                    <span style={{
+                      background: colors.primarySolid,
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: 20,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      ⭐ Special Only
+                      <button
+                        onClick={() => setSpecialOnly(false)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: 14,
+                          padding: 0,
+                          marginLeft: 4
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+                  
+                  {ologyOnly && (
+                    <span style={{
+                      background: colors.accent,
+                      color: "white",
+                      padding: "6px 12px",
+                      borderRadius: 20,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      🍸 Menu Items
+                      <button
+                        onClick={() => setOlogyOnly(false)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: 14,
+                          padding: 0,
+                          marginLeft: 4
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+
+                  {fMethod && (
+                    <span style={{
+                      background: colors.glassBorder,
+                      color: colors.text,
+                      padding: "6px 12px",
+                      borderRadius: 20,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      🥃 {fMethod}
+                      <button
+                        onClick={() => setFMethod("")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: colors.text,
+                          cursor: "pointer",
+                          fontSize: 14,
+                          padding: 0,
+                          marginLeft: 4
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+
+                  {fGlass && (
+                    <span style={{
+                      background: colors.glassBorder,
+                      color: colors.text,
+                      padding: "6px 12px",
+                      borderRadius: 20,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      🥃 {fGlass}
+                      <button
+                        onClick={() => setFGlass("")}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: colors.text,
+                          cursor: "pointer",
+                          fontSize: 14,
+                          padding: 0,
+                          marginLeft: 4
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick Actions */}
+                <div style={{ 
+                  display: "flex", 
+                  gap: 8, 
+                  marginLeft: "auto",
+                  alignItems: "center"
+                }}>
+                  <button
+                    onClick={() => {
+                      setQ("")
+                      setNameSearch("")
+                      setFMethod("")
+                      setFGlass("")
+                      setSpecialOnly(false)
+                      setOlogyOnly(false)
+                    }}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 12,
+                      padding: "6px 12px",
+                      background: colors.glass,
+                      border: `1px solid ${colors.glassBorder}`,
+                      borderRadius: 8
+                    }}
+                  >
+                    🗑️ Clear All
+                  </button>
+
+                  <button 
+                    onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 12,
+                      padding: "6px 12px",
+                      background: view === "cards" ? colors.accent : colors.glass,
+                      color: view === "cards" ? "white" : colors.text,
+                      border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 8
+                    }}
+                  >
+                    {view==="cards" ? "📋 List" : "🎴 Cards"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Advanced Filters */}
+              <div style={{ 
+                display: "grid", 
+                gridTemplateColumns: "1fr 1fr", 
+                gap: 20,
+                padding: "20px 0 0 0",
+                borderTop: `1px solid ${colors.glassBorder}`
+              }}>
+                <div>
+                  <label style={{ 
+                    display: "block", 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    color: colors.muted, 
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em"
+                  }}>
+                    🥃 Method
+                  </label>
+                  <select 
+                    value={fMethod} 
+                    onChange={e=>setFMethod(e.target.value)} 
+                    style={{
+                      ...inp,
+                      background: colors.bgSolid,
+                      border: `2px solid ${colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 15
+                    }}
+                  >
+                    <option value="">Any Method</option>
+                    {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
                 </div>
                 
-                <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={inp}>
-                  <option>Any Method</option>
-                  {methods.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                
-                <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={inp}>
-                  <option value="">Any Glass</option>
-                  {glasses.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-                
-                <label style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: 8, 
-                  fontSize: 14,
-                  cursor: "pointer",
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  background: specialOnly ? colors.primarySolid : "transparent",
-                  color: specialOnly ? "white" : colors.text,
-                  transition: "all 0.2s ease"
-                }}>
-                  <input 
-                    type="checkbox" 
-                    checked={specialOnly} 
-                    onChange={e=>setSpecialOnly(e.target.checked)}
-                    style={{ margin: 0 }}
-                  /> 
-                  ⭐ Special only
-                </label>
+                <div>
+                  <label style={{ 
+                    display: "block", 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    color: colors.muted, 
+                    marginBottom: 8,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em"
+                  }}>
+                    🥃 Glass Type
+                  </label>
+                  <select 
+                    value={fGlass} 
+                    onChange={e=>setFGlass(e.target.value)} 
+                    style={{
+                      ...inp,
+                      background: colors.bgSolid,
+                      border: `2px solid ${colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 15
+                    }}
+                  >
+                    <option value="">Any Glass</option>
+                    {glasses.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+              </div>
 
-                <label style={{ 
-                  display: "flex", 
-                  alignItems: "center", 
-                  gap: 8, 
-                  fontSize: 14,
-                  cursor: "pointer",
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  background: ologyOnly ? colors.accent : "transparent",
-                  color: ologyOnly ? "white" : colors.text,
-                  transition: "all 0.2s ease"
-                }}>
-                  <input 
-                    type="checkbox" 
-                    checked={ologyOnly} 
-                    onChange={e=>setOlogyOnly(e.target.checked)}
-                    style={{ margin: 0 }}
-                  /> 
-                  🍸 Menu items only
-                </label>
-                
-                <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={inp}>
-                  <option value="special_desc">📅 Last Special (new → old)</option>
-                  <option value="special_asc">📅 Last Special (old → new)</option>
-                  <option value="name_asc">🔤 Name (A–Z)</option>
-                  <option value="name_desc">🔤 Name (Z–A)</option>
-                </select>
-                
-                <button 
-                  onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
-                  style={{
-                    ...btnSecondary,
-                    background: colors.glass,
-                    border: `1px solid ${colors.glassBorder}`
-                  }}
-                >
-                  {view==="cards" ? "📋 List View" : "🎴 Card View"}
-                </button>
+              {/* Sort & Quick Filters */}
+              <div style={{ 
+                display: "flex", 
+                justifyContent: "space-between", 
+                alignItems: "center",
+                marginTop: 20,
+                padding: "20px 0 0 0",
+                borderTop: `1px solid ${colors.glassBorder}`
+              }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  <label style={{ 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    color: colors.muted,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.05em"
+                  }}>
+                    📊 Sort by:
+                  </label>
+                  <select 
+                    value={sortBy} 
+                    onChange={e=>setSortBy(e.target.value as any)} 
+                    style={{
+                      ...inp,
+                      background: colors.bgSolid,
+                      border: `2px solid ${colors.glassBorder}`,
+                      borderRadius: 8,
+                      fontSize: 14,
+                      minWidth: 200
+                    }}
+                  >
+                    <option value="special_desc">📅 Last Special (new → old)</option>
+                    <option value="special_asc">📅 Last Special (old → new)</option>
+                    <option value="name_asc">🔤 Name (A–Z)</option>
+                    <option value="name_desc">🔤 Name (Z–A)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", gap: 8 }}>
+                  <label style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 8, 
+                    fontSize: 14,
+                    cursor: "pointer",
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: specialOnly ? colors.primarySolid : colors.glass,
+                    color: specialOnly ? "white" : colors.text,
+                    transition: "all 0.2s ease",
+                    border: `1px solid ${specialOnly ? colors.primarySolid : colors.glassBorder}`
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={specialOnly} 
+                      onChange={e=>setSpecialOnly(e.target.checked)}
+                      style={{ margin: 0 }}
+                    /> 
+                    ⭐ Special Only
+                  </label>
+
+                  <label style={{ 
+                    display: "flex", 
+                    alignItems: "center", 
+                    gap: 8, 
+                    fontSize: 14,
+                    cursor: "pointer",
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    background: ologyOnly ? colors.accent : colors.glass,
+                    color: ologyOnly ? "white" : colors.text,
+                    transition: "all 0.2s ease",
+                    border: `1px solid ${ologyOnly ? colors.accent : colors.glassBorder}`
+                  }}>
+                    <input 
+                      type="checkbox" 
+                      checked={ologyOnly} 
+                      onChange={e=>setOlogyOnly(e.target.checked)}
+                      style={{ margin: 0 }}
+                    /> 
+                    🍸 Menu Items
+                  </label>
+                </div>
               </div>
             </div>
 
