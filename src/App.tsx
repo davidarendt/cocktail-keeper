@@ -90,6 +90,9 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings"|"ingredients">("main")
+  const [settingsTab, setSettingsTab] = useState<"catalog"|"tags"|"ingredients"|"users">("catalog")
+  const [newTagName, setNewTagName] = useState("")
+  const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
   // ---------- CATALOGS ----------
   const [methods, setMethods] = useState<string[]>([])
@@ -575,6 +578,43 @@ export default function App() {
   function clearAllTags() {
     setSelectedTags([])
   }
+
+  // Tag management functions
+  async function addTag(name: string, color: string = '#3B82F6') {
+    try {
+      const { error } = await supabase.from("tags").insert({ name: name.trim(), color })
+      if (error) throw error
+      await loadTags()
+    } catch (err) {
+      console.error("add tag error:", err)
+      setErr(err instanceof Error ? err.message : "Failed to add tag")
+    }
+  }
+
+  async function renameTag(tag: Tag) {
+    const newName = prompt(`Rename tag "${tag.name}":`, tag.name)?.trim()
+    if (!newName || newName === tag.name) return
+    try {
+      const { error } = await supabase.from("tags").update({ name: newName }).eq("id", tag.id)
+      if (error) throw error
+      await loadTags()
+    } catch (err) {
+      console.error("rename tag error:", err)
+      setErr(err instanceof Error ? err.message : "Failed to rename tag")
+    }
+  }
+
+  async function deleteTag(tag: Tag) {
+    if (!confirm(`Delete tag "${tag.name}"? This will remove it from all cocktails.`)) return
+    try {
+      const { error } = await supabase.from("tags").delete().eq("id", tag.id)
+      if (error) throw error
+      await loadTags()
+    } catch (err) {
+      console.error("delete tag error:", err)
+      setErr(err instanceof Error ? err.message : "Failed to delete tag")
+    }
+  }
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
     if (!n || n === item.name) return
@@ -1035,7 +1075,133 @@ export default function App() {
           role !== "admin" ? (
             <div style={{ color: colors.muted }}>Settings are admin-only.</div>
           ) : (
-            <>
+            <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+              <h2 style={{ 
+                marginBottom: 24, 
+                fontSize: 24, 
+                fontWeight: 700,
+                color: colors.text,
+                textAlign: "center"
+              }}>
+                ⚙️ Settings
+              </h2>
+              
+              {/* Settings Menu */}
+              <div style={{
+                ...card({ marginBottom: 24 }),
+                background: colors.glass,
+                backdropFilter: "blur(10px)"
+              }}>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gap: 12,
+                  padding: 20
+                }}>
+                  <button
+                    onClick={() => setSettingsTab("catalog")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "catalog" ? colors.accent : colors.glass,
+                      color: settingsTab === "catalog" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "catalog" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🥃</span>
+                    <span>Catalog Items</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Methods, Glasses, Ice, Garnishes
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("tags")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "tags" ? colors.accent : colors.glass,
+                      color: settingsTab === "tags" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "tags" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🏷️</span>
+                    <span>Tags</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Cocktail Categories & Labels
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("ingredients")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "ingredients" ? colors.accent : colors.glass,
+                      color: settingsTab === "ingredients" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "ingredients" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🧪</span>
+                    <span>Ingredients</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Manage Ingredient Database
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("users")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "users" ? colors.accent : colors.glass,
+                      color: settingsTab === "users" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "users" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>👥</span>
+                    <span>Users</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Manage User Roles & Access
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Settings Content */}
+              {settingsTab === "catalog" && (
               <SettingsBlock
                 catalog={catalog}
                 catLoading={catLoading}
@@ -1050,7 +1216,119 @@ export default function App() {
                 onDrop={onDrop}
                 draggingId={draggingId}
               />
-              <div style={{ height:12 }} />
+              )}
+
+              {settingsTab === "tags" && (
+                <div style={{
+                  ...card({ marginBottom: 24 }),
+                  background: colors.panel,
+                  padding: 24
+                }}>
+                  <h3 style={{ margin: "0 0 20px 0", fontSize: 18, fontWeight: 600, color: colors.text }}>
+                    🏷️ Tag Management
+                  </h3>
+                  
+                  {/* Add New Tag */}
+                  <div style={{ marginBottom: 24, padding: 16, background: colors.glass, borderRadius: 8 }}>
+                    <h4 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: colors.text }}>
+                      Add New Tag
+                    </h4>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                      <input
+                        value={newTagName}
+                        onChange={e => setNewTagName(e.target.value)}
+                        placeholder="Tag name..."
+                        style={{ ...inp, flex: 1 }}
+                      />
+                      <input
+                        type="color"
+                        value={newTagColor}
+                        onChange={e => setNewTagColor(e.target.value)}
+                        style={{ width: 40, height: 40, border: "none", borderRadius: 6, cursor: "pointer" }}
+                      />
+                      <button
+                        onClick={() => {
+                          if (newTagName.trim()) {
+                            addTag(newTagName.trim(), newTagColor)
+                            setNewTagName("")
+                            setNewTagColor("#3B82F6")
+                          }
+                        }}
+                        style={{
+                          ...btnPrimary,
+                          padding: "8px 16px",
+                          fontSize: 14
+                        }}
+                      >
+                        Add Tag
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Tags List */}
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {availableTags.map(tag => (
+                      <div
+                        key={tag.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          padding: 12,
+                          background: colors.glass,
+                          borderRadius: 8,
+                          border: `1px solid ${colors.glassBorder}`
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: 4,
+                            background: tag.color
+                          }}
+                        />
+                        <span style={{ flex: 1, fontWeight: 500, color: colors.text }}>
+                          {tag.name}
+                        </span>
+                        <button
+                          onClick={() => renameTag(tag)}
+                          style={{
+                            ...btnSecondary,
+                            fontSize: 12,
+                            padding: "4px 8px"
+                          }}
+                        >
+                          Rename
+                        </button>
+                        <button
+                          onClick={() => deleteTag(tag)}
+                          style={{
+                            ...dangerBtn,
+                            fontSize: 12,
+                            padding: "4px 8px"
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === "ingredients" && (
+                <IngredientsAdmin
+                  ingredients={ingredients}
+                  loading={ingAdminLoading}
+                  q={ingAdminQ}
+                  onQChange={setIngAdminQ}
+                  onRename={renameIngredient}
+                  onDelete={deleteIngredient}
+                />
+              )}
+
+              {settingsTab === "users" && (
               <UsersAdmin
                 meEmail={session?.user?.email ?? null}
                 users={users}
@@ -1059,7 +1337,8 @@ export default function App() {
                 onChangeRole={changeUserRole}
                 onRename={renameUser}
               />
-            </>
+              )}
+            </div>
           )
         )}
 
@@ -1096,6 +1375,30 @@ export default function App() {
               background: colors.glass,
               backdropFilter: "blur(10px)"
             }}>
+              {/* Header */}
+              <div style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+                paddingBottom: 12,
+                borderBottom: `1px solid ${colors.glassBorder}`
+              }}>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  color: colors.text,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8
+                }}>
+                  🔍 Search & Filter
+                </h3>
+                <div style={{ fontSize: 12, color: colors.muted }}>
+                  {rows.length} cocktail{rows.length !== 1 ? 's' : ''}
+                </div>
+              </div>
               <div style={{ 
                 display: "grid", 
                 gridTemplateColumns: "auto auto auto auto auto auto auto auto auto", 
@@ -1216,7 +1519,7 @@ export default function App() {
                   <option value="">Glass</option>
                   {glasses.map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
-
+                
                 {/* Tags Filter */}
                 <select 
                   value="" 
@@ -1325,7 +1628,7 @@ export default function App() {
                     const tag = availableTags.find(t => t.id === tagId)
                     return tag ? (
                       <span key={tagId} style={{
-                        background: tag.color,
+                        background: colors.accent,
                         color: "white",
                         padding: "4px 8px",
                         borderRadius: 12,
@@ -1588,8 +1891,9 @@ export default function App() {
                 selectedTags={selectedTags} setSelectedTags={setSelectedTags}
                 onClose={()=>{ resetForm(); setFormOpen(false) }}
                 onSubmit={save}
-                onQueryIngredients={queryIngredients}
-                onAddCatalogItem={addCatalogItem}
+            onQueryIngredients={queryIngredients}
+            onAddCatalogItem={addCatalogItem}
+            onAddTag={addTag}
               />
             )}
 
@@ -1673,32 +1977,32 @@ export default function App() {
                         </div>
                         
                         {/* Tags */}
-                        {cocktailTags[c.id] && cocktailTags[c.id].length > 0 && (
-                          <div style={{ 
-                            display: "flex", 
-                            flexDirection: "column", 
-                            gap: 4,
-                            marginTop: 8
-                          }}>
-                            {cocktailTags[c.id].map(tag => (
-                              <span
-                                key={tag.id}
-                                style={{
-                                  background: tag.color,
-                                  color: "white",
-                                  padding: "2px 6px",
-                                  borderRadius: 8,
-                                  fontSize: 10,
-                                  fontWeight: 600,
-                                  textTransform: "uppercase",
-                                  letterSpacing: "0.05em"
-                                }}
-                              >
-                                🏷️ {tag.name}
-                              </span>
-                            ))}
-                          </div>
-                        )}
+                {cocktailTags[c.id] && cocktailTags[c.id].length > 0 && (
+                  <div style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 4,
+                    marginTop: 8
+                  }}>
+                    {cocktailTags[c.id].map(tag => (
+                      <span
+                        key={tag.id}
+                        style={{
+                          background: colors.accent,
+                          color: "white",
+                          padding: "2px 6px",
+                          borderRadius: 8,
+                          fontSize: 10,
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em"
+                        }}
+                      >
+                        🏷️ {tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
                         {/* Price */}
                         {c.price != null && (
                           <div style={priceDisplay}>

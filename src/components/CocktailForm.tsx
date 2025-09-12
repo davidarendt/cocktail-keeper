@@ -32,6 +32,7 @@ type Props = {
   onQueryIngredients: (term: string) => Promise<string[]>
   // catalog management
   onAddCatalogItem: (kind: "method" | "glass" | "ice" | "garnish", name: string) => Promise<void>
+  onAddTag: (name: string, color: string) => Promise<void>
 }
 
 const unitOptions: Unit[] = ["oz","barspoon","dash","drop","ml"]
@@ -46,6 +47,7 @@ export function CocktailForm(props: Props) {
     onClose, onSubmit,
     onQueryIngredients,
     onAddCatalogItem,
+    onAddTag,
   } = props
 
   // local suggestion state
@@ -126,6 +128,19 @@ export function CocktailForm(props: Props) {
         ? prev.filter((id: string) => id !== tagId)
         : [...prev, tagId]
     )
+  }
+
+  // Handle adding new tags
+  async function handleAddNewTag() {
+    const name = prompt("Add new tag:")
+    if (!name?.trim()) return
+    
+    try {
+      await onAddTag(name.trim(), "#3B82F6")
+    } catch (error) {
+      console.error("Failed to add tag:", error)
+      alert("Failed to add new tag. Please try again.")
+    }
   }
 
   return (
@@ -443,9 +458,9 @@ export function CocktailForm(props: Props) {
                   ...btnSecondary,
                   fontSize: 12,
                   padding: "6px 12px",
-                  background: selectedTags.includes(tag.id) ? tag.color : colors.glass,
+                  background: selectedTags.includes(tag.id) ? colors.accent : colors.glass,
                   color: selectedTags.includes(tag.id) ? "white" : colors.text,
-                  border: `1px solid ${selectedTags.includes(tag.id) ? tag.color : colors.glassBorder}`,
+                  border: `1px solid ${selectedTags.includes(tag.id) ? colors.accent : colors.glassBorder}`,
                   borderRadius: 8,
                   minWidth: "auto",
                   transition: "all 0.2s ease"
@@ -454,6 +469,23 @@ export function CocktailForm(props: Props) {
                 🏷️ {tag.name}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={handleAddNewTag}
+              style={{
+                ...btnSecondary,
+                fontSize: 12,
+                padding: "6px 12px",
+                background: colors.glass,
+                color: colors.accent,
+                border: `1px dashed ${colors.accent}`,
+                borderRadius: 8,
+                minWidth: "auto",
+                transition: "all 0.2s ease"
+              }}
+            >
+              ➕ Add New Tag
+            </button>
           </div>
         </div>
       )}

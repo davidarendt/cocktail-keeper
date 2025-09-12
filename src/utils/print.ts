@@ -1,6 +1,6 @@
 // src/utils/print.ts
 import type { SupabaseClient } from "@supabase/supabase-js"
-import type { PrintCocktail } from "@/types"
+import type { PrintCocktail } from "../types"
 
 type PrintOptions = {
   /** "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape" — default "HalfLetterLandscape" */
@@ -18,6 +18,8 @@ export async function printOnePager(
   c: PrintCocktail,
   opts: PrintOptions = {}
 ): Promise<void> {
+  console.log("Print function called with:", c)
+  
   const page = opts.page ?? "HalfLetterLandscape"
   const orientation = opts.orientation ?? "landscape"
   const margin = opts.margin ?? "8mm"
@@ -31,6 +33,8 @@ export async function printOnePager(
     .eq("cocktail_id", c.id)
     .order("position", { ascending: true })
 
+  console.log("Recipe ingredients query result:", { data, error })
+
   if (error) {
     alert("Could not load specs: " + error.message)
     return
@@ -40,8 +44,18 @@ export async function printOnePager(
     `${normalizeAmount(r.amount)} ${r.unit ?? ""} ${r.ingredient?.name ?? ""}`.trim()
   )
 
+  console.log("Generated lines:", lines)
+
+  // Fallback if no ingredients found
+  if (lines.length === 0) {
+    console.log("No ingredients found, using fallback")
+    lines.push("No ingredients found")
+  }
+
   const w = window.open("", "_blank", "width=980,height=720,noopener")
   if (!w) { alert("Popup blocked. Please allow popups for this site to print."); return }
+  
+  console.log("Window opened:", w)
 
   w.document.write(`
 <!doctype html>
@@ -93,7 +107,10 @@ export async function printOnePager(
 </body>
 </html>
   `)
+  
+  console.log("Document written, closing...")
   w.document.close()
+  console.log("Document closed")
 }
 
 function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape", orientation: "portrait" | "landscape"): string {
