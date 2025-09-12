@@ -387,7 +387,7 @@ export function CocktailForm(props: Props) {
                 accentColor: colors.primarySolid
               }} 
             />
-            🍸 Ology Recipe
+            🍸 Ology Menu Item
           </label>
         </div>
       </div>

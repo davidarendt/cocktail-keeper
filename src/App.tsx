@@ -123,10 +123,11 @@ export default function App() {
   const [fMethod, setFMethod] = useState("Any")
   const [fGlass, setFGlass] = useState("")
   const [specialOnly, setSpecialOnly] = useState(false)
+  const [ologyOnly, setOlogyOnly] = useState(false)
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc">("special_desc")
 
-  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, sortBy])
+  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, ologyOnly, sortBy])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
@@ -134,6 +135,7 @@ export default function App() {
     if (fMethod !== "Any" && fMethod.trim()) query = query.eq("method", fMethod)
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
     if (specialOnly) query = query.not("last_special_on","is",null)
+    if (ologyOnly) query = query.eq("is_ology_recipe", true)
 
     if (sortBy === "name_asc") {
       query = query.order("name", { ascending: true })
@@ -748,12 +750,26 @@ export default function App() {
           position: "relative"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <h1 className="gradient-text" style={{ 
-              fontSize: 36, 
-              fontWeight: 800, 
-              margin: 0,
-              textShadow: "0 0 20px rgba(102, 126, 234, 0.3)"
-            }}>
+            <h1 
+              className="gradient-text" 
+              onClick={() => setRoute("main")}
+              style={{ 
+                fontSize: 36, 
+                fontWeight: 800, 
+                margin: 0,
+                textShadow: "0 0 20px rgba(102, 126, 234, 0.3)",
+                cursor: "pointer",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.05)"
+                e.currentTarget.style.textShadow = "0 0 25px rgba(102, 126, 234, 0.5)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1)"
+                e.currentTarget.style.textShadow = "0 0 20px rgba(102, 126, 234, 0.3)"
+              }}
+            >
               🍸 Cocktail Keeper
             </h1>
             {session && (
@@ -970,6 +986,27 @@ export default function App() {
                   /> 
                   ⭐ Special only
                 </label>
+
+                <label style={{ 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 8, 
+                  fontSize: 14,
+                  cursor: "pointer",
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background: ologyOnly ? colors.accent : "transparent",
+                  color: ologyOnly ? "white" : colors.text,
+                  transition: "all 0.2s ease"
+                }}>
+                  <input 
+                    type="checkbox" 
+                    checked={ologyOnly} 
+                    onChange={e=>setOlogyOnly(e.target.checked)}
+                    style={{ margin: 0 }}
+                  /> 
+                  🍸 Menu items only
+                </label>
                 
                 <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={inp}>
                   <option value="special_desc">📅 Last Special (new → old)</option>
@@ -1107,7 +1144,7 @@ export default function App() {
                           )}
                           {c.is_ology_recipe && (
                             <div style={ologyBadge}>
-                              🍸 Ology
+                              🍸 Menu
                             </div>
                           )}
                         </div>
