@@ -130,11 +130,46 @@ export default function App() {
       } else {
         console.log("Successfully set admin role")
         setRole("admin")
-        setErr("✅ Admin role set successfully! Please refresh the page.")
+        setErr("✅ Admin role set successfully!")
       }
     } catch (err) {
       console.error("Unexpected error setting admin role:", err)
       setErr("Failed to set admin role. Check console for details.")
+    }
+  }
+
+  // Helper function to refresh role from database
+  async function refreshRole() {
+    if (!session) {
+      setErr("No session found")
+      return
+    }
+    
+    try {
+      console.log("Refreshing role from database...")
+      const { data: rows, error } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .limit(1)
+
+      if (error) {
+        console.error("Failed to refresh role:", error)
+        setErr(`Failed to refresh role: ${error.message}`)
+        return
+      }
+
+      console.log("Role refresh result:", rows)
+      const currentRole = rows && (rows[0] as any)?.role
+      if (currentRole) {
+        setRole(String(currentRole).trim().toLowerCase() as Role)
+        setErr(`✅ Role refreshed: ${currentRole}`)
+      } else {
+        setErr("No role found in database")
+      }
+    } catch (err) {
+      console.error("Unexpected error refreshing role:", err)
+      setErr("Failed to refresh role. Check console for details.")
     }
   }
 
@@ -824,20 +859,36 @@ export default function App() {
                   {session.user.email} • <span style={{ color: colors.primarySolid, fontWeight: 600 }}>{role}</span>
                 </span>
                 {role !== "admin" && (
-                  <button
-                    onClick={setAdminRole}
-                    style={{
-                      ...btnSecondary,
-                      fontSize: 10,
-                      padding: "4px 8px",
-                      background: colors.accent,
-                      color: colors.bgSolid,
-                      border: "none"
-                    }}
-                    title="Click to set admin role"
-                  >
-                    👑 Set Admin
-                  </button>
+                  <>
+                    <button
+                      onClick={setAdminRole}
+                      style={{
+                        ...btnSecondary,
+                        fontSize: 10,
+                        padding: "4px 8px",
+                        background: colors.accent,
+                        color: colors.bgSolid,
+                        border: "none"
+                      }}
+                      title="Click to set admin role"
+                    >
+                      👑 Set Admin
+                    </button>
+                    <button
+                      onClick={refreshRole}
+                      style={{
+                        ...btnSecondary,
+                        fontSize: 10,
+                        padding: "4px 8px",
+                        background: colors.primarySolid,
+                        color: colors.bgSolid,
+                        border: "none"
+                      }}
+                      title="Refresh role from database"
+                    >
+                      🔄 Refresh
+                    </button>
+                  </>
                 )}
               </div>
             )}
