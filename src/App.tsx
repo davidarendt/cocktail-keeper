@@ -147,6 +147,20 @@ export default function App() {
     
     try {
       console.log("Refreshing role from database...")
+      
+      // Try using RPC function first (if it exists)
+      const { data: rpcData, error: rpcError } = await supabase.rpc("get_user_role", {
+        user_id: session.user.id
+      })
+      
+      if (!rpcError && rpcData) {
+        console.log("RPC role result:", rpcData)
+        setRole(String(rpcData).trim().toLowerCase() as Role)
+        setErr(`✅ Role refreshed via RPC: ${rpcData}`)
+        return
+      }
+      
+      // Fallback: try direct query with different approach
       const { data: rows, error } = await supabase
         .from("profiles")
         .select("role")
@@ -155,7 +169,7 @@ export default function App() {
 
       if (error) {
         console.error("Failed to refresh role:", error)
-        setErr(`Failed to refresh role: ${error.message}`)
+        setErr(`Failed to refresh role: ${error.message}. The database policies need to be fixed.`)
         return
       }
 
