@@ -21,6 +21,7 @@ export type CocktailRow = {
   notes: string | null
   price: number | null
   last_special_on: IsoDate | null
+  is_ology_recipe: boolean | null
   created_at?: TimestampISO
 }
 
@@ -77,6 +78,7 @@ export type PrintCocktail = {
   notes?: string | null
   price?: number | null
   last_special_on?: IsoDate | null
+  is_ology_recipe?: boolean | null
 }
 
 /** ---------- Small helpers (optional) ---------- */

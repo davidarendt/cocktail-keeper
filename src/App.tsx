@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient"
 
 import {
   appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors,
-  cocktailCard, specialBadge, priceDisplay, ingredientList, textGradient, shadows
+  cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, textGradient, shadows
 } from "./styles"
 
 import { SettingsBlock } from "./components/SettingsBlock"
@@ -35,7 +35,13 @@ export default function App() {
   // self-healing role loader
   useEffect(() => {
     (async () => {
-      if (!session) { setRole("viewer"); return }
+      if (!session) { 
+        console.log("No session, setting role to viewer")
+        setRole("viewer"); 
+        return 
+      }
+
+      console.log("Loading role for user:", session.user.id, session.user.email)
 
       const { data: rows, error } = await supabase
         .from("profiles")
@@ -43,14 +49,27 @@ export default function App() {
         .eq("user_id", session.user.id)
         .limit(1)
 
-      if (error) { console.warn("profiles select failed:", error.message); setRole("viewer"); return }
+      if (error) { 
+        console.warn("profiles select failed:", error.message); 
+        setRole("viewer"); 
+        return 
+      }
+
+      console.log("Profile query result:", rows)
 
       let currentRole: string | undefined = rows && (rows[0] as any)?.role
       if (!currentRole) {
+        console.log("No role found, creating new profile with viewer role")
         const { error: insErr } = await supabase.from("profiles").insert({ user_id: session.user.id, role: "viewer" })
-        if (insErr) { console.warn("profiles insert failed:", insErr.message); setRole("viewer"); return }
+        if (insErr) { 
+          console.warn("profiles insert failed:", insErr.message); 
+          setRole("viewer"); 
+          return 
+        }
         currentRole = "viewer"
       }
+      
+      console.log("Setting role to:", currentRole)
       setRole(String(currentRole).trim().toLowerCase() as Role)
     })()
   }, [session])
@@ -67,6 +86,32 @@ export default function App() {
     }
   }
   async function signOut() { await supabase.auth.signOut() }
+
+  // Helper function to manually set admin role (for debugging)
+  async function setAdminRole() {
+    if (!session) {
+      setErr("No session found")
+      return
+    }
+    
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .upsert({ user_id: session.user.id, role: "admin" })
+      
+      if (error) {
+        console.error("Failed to set admin role:", error)
+        setErr(`Failed to set admin role: ${error.message}`)
+      } else {
+        console.log("Successfully set admin role")
+        setRole("admin")
+        setErr("✅ Admin role set successfully! Please refresh the page.")
+      }
+    } catch (err) {
+      console.error("Unexpected error setting admin role:", err)
+      setErr("Failed to set admin role")
+    }
+  }
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings"|"ingredients">("main")
@@ -188,6 +233,7 @@ export default function App() {
   const [notes, setNotes] = useState("")
   const [price, setPrice] = useState("")
   const [specialDate, setSpecialDate] = useState("") // YYYY-MM-DD
+  const [isOlogyRecipe, setOlogyRecipe] = useState(false)
   const [lines, setLines] = useState<IngredientLine[]>([
     { ingredientName:"", amount:"", unit:"oz", position:1 }
   ])
@@ -196,7 +242,7 @@ export default function App() {
     setEditingId(null)
     setName(""); setMethod("")
     setGlass(""); setIce(""); setGarnish(""); setNotes("")
-    setPrice(""); setSpecialDate("")
+    setPrice(""); setSpecialDate(""); setOlogyRecipe(false)
     setLines([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
   }
   function openAddForm() { resetForm(); setFormOpen(true) }
@@ -210,6 +256,7 @@ export default function App() {
     setGlass(c.glass || ""); setIce(c.ice || ""); setGarnish(c.garnish || ""); setNotes(c.notes || "")
     setPrice(c.price == null ? "" : String(c.price))
     setSpecialDate(c.last_special_on || "")
+    setOlogyRecipe(c.is_ology_recipe || false)
 
     const { data } = await supabase
       .from("recipe_ingredients")
@@ -269,7 +316,8 @@ export default function App() {
       garnish: garnish.trim() || null,
       notes: notes.trim() || null,
       price: price === "" ? null : Number(price),
-      last_special_on: specialDate || null
+      last_special_on: specialDate || null,
+      is_ology_recipe: isOlogyRecipe
     }
 
     const { data: up, error } = await supabase
@@ -742,9 +790,30 @@ export default function App() {
                 padding: "8px 16px",
                 fontSize: 12,
                 color: colors.muted,
-                fontWeight: 500
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                gap: 12
               }}>
-                {session.user.email} • <span style={{ color: colors.primarySolid, fontWeight: 600 }}>{role}</span>
+                <span>
+                  {session.user.email} • <span style={{ color: colors.primarySolid, fontWeight: 600 }}>{role}</span>
+                </span>
+                {role !== "admin" && (
+                  <button
+                    onClick={setAdminRole}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 10,
+                      padding: "4px 8px",
+                      background: colors.accent,
+                      color: colors.bgSolid,
+                      border: "none"
+                    }}
+                    title="Click to set admin role"
+                  >
+                    👑 Set Admin
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -997,6 +1066,7 @@ export default function App() {
                 notes={notes} setNotes={setNotes}
                 price={price} setPrice={setPrice}
                 specialDate={specialDate} setSpecialDate={setSpecialDate}
+                isOlogyRecipe={isOlogyRecipe} setOlogyRecipe={setOlogyRecipe}
                 lines={lines} setLines={(updater)=> setLines(prev => updater(prev))}
                 onClose={()=>{ resetForm(); setFormOpen(false) }}
                 onSubmit={save}
@@ -1069,12 +1139,19 @@ export default function App() {
                         alignItems: "flex-end",
                         gap: 8
                       }}>
-                        {/* Special Badge */}
-                        {c.last_special_on && (
-                          <div style={specialBadge}>
-                            ⭐ Special
-                          </div>
-                        )}
+                        {/* Badges */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {c.last_special_on && (
+                            <div style={specialBadge}>
+                              ⭐ Special
+                            </div>
+                          )}
+                          {c.is_ology_recipe && (
+                            <div style={ologyBadge}>
+                              🍸 Ology
+                            </div>
+                          )}
+                        </div>
                         {/* Price */}
                         {c.price != null && (
                           <div style={priceDisplay}>
@@ -1244,6 +1321,7 @@ export default function App() {
                         <td style={td}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             {c.last_special_on && <span style={{ color: colors.specialSolid }}>⭐</span>}
+                            {c.is_ology_recipe && <span style={{ color: colors.accent }}>🍸</span>}
                             <span style={{ 
                               fontWeight: 600,
                               ...textGradient(colors.textGradient)

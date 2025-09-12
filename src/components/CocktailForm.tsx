@@ -21,6 +21,7 @@ type Props = {
   notes: string;         setNotes: (v: string) => void
   price: string;         setPrice: (v: string) => void
   specialDate: string;   setSpecialDate: (v: string) => void
+  isOlogyRecipe: boolean; setOlogyRecipe: (v: boolean) => void
   lines: IngredientLine[]; setLines: (updater: (prev: IngredientLine[]) => IngredientLine[]) => void
   // actions
   onClose: () => void
@@ -36,7 +37,7 @@ export function CocktailForm(props: Props) {
     editingId,
     methods, glasses, ices, garnishes,
     name, setName, method, setMethod, glass, setGlass, ice, setIce, garnish, setGarnish,
-    notes, setNotes, price, setPrice, specialDate, setSpecialDate,
+    notes, setNotes, price, setPrice, specialDate, setSpecialDate, isOlogyRecipe, setOlogyRecipe,
     lines, setLines,
     onClose, onSubmit,
     onQueryIngredients,
@@ -251,7 +252,7 @@ export function CocktailForm(props: Props) {
         />
       </div>
 
-      {/* Price and Special Date */}
+      {/* Price, Special Date, and Ology Recipe */}
       <div style={{ 
         display: "grid", 
         gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
@@ -299,6 +300,32 @@ export function CocktailForm(props: Props) {
             type="date" 
             style={inp} 
           />
+        </div>
+
+        <div>
+          <label style={{ 
+            display: "flex", 
+            alignItems: "center", 
+            gap: 8,
+            fontSize: 12, 
+            color: colors.muted, 
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            <input 
+              type="checkbox" 
+              checked={isOlogyRecipe} 
+              onChange={e=>setOlogyRecipe(e.target.checked)} 
+              style={{ 
+                width: 16, 
+                height: 16,
+                accentColor: colors.primarySolid
+              }} 
+            />
+            🍸 Ology Recipe
+          </label>
         </div>
       </div>
 

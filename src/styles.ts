@@ -83,6 +83,19 @@ export const specialBadge: CSSProperties = {
   boxShadow: shadows.sm,
 }
 
+// Ology recipe badge
+export const ologyBadge: CSSProperties = {
+  background: colors.accent,
+  color: colors.bgSolid,
+  padding: `${space.xs}px ${space.sm}px`,
+  borderRadius: radii.full,
+  fontSize: fonts.caption,
+  fontWeight: 600,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  boxShadow: shadows.sm,
+}
+
 // Price display
 export const priceDisplay: CSSProperties = {
   ...textGradient(colors.accent),
