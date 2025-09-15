@@ -1319,12 +1319,22 @@ export default function App() {
 
               {settingsTab === "ingredients" && (
                 <IngredientsAdmin
-                  ingredients={ingredients}
+                  items={ingAdmin}
                   loading={ingAdminLoading}
                   q={ingAdminQ}
-                  onQChange={setIngAdminQ}
+                  setQ={setIngAdminQ}
+                  newName={ingAdminNew}
+                  setNewName={setIngAdminNew}
+                  onAdd={addIngredient}
                   onRename={renameIngredient}
                   onDelete={deleteIngredient}
+                  mergeFrom={mergeFrom}
+                  setMergeFrom={setMergeFrom}
+                  mergeTo={mergeTo}
+                  setMergeTo={setMergeTo}
+                  onMerge={doMergeWith}
+                  mergeBusy={mergeBusy}
+                  mergeMsg={mergeMsg}
                 />
               )}
 
