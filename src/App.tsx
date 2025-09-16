@@ -89,8 +89,8 @@ export default function App() {
 
 
   // ---------- ROUTING ----------
-  const [route, setRoute] = useState<"main"|"settings"|"ingredients">("main")
-  const [settingsTab, setSettingsTab] = useState<"catalog"|"tags"|"ingredients"|"users">("catalog")
+  const [route, setRoute] = useState<"main"|"settings">("main")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"garnishes"|"tags"|"ingredients"|"users">("methods")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -667,7 +667,7 @@ export default function App() {
   const [mergeBusy, setMergeBusy] = useState(false)
   const [mergeMsg, setMergeMsg] = useState("")
 
-  useEffect(() => { if (route==="ingredients") loadIngredients() }, [route, ingAdminQ])
+  useEffect(() => { if (route==="settings" && settingsTab==="ingredients") loadIngredients() }, [route, settingsTab, ingAdminQ])
   async function loadIngredients() {
     setIngAdminLoading(true)
     const base = supabase.from("ingredients").select("id,name").order("name")
@@ -1017,19 +1017,6 @@ export default function App() {
               </button>
             )}
 
-            {(role==="editor" || role==="admin") && (
-              <button 
-                onClick={()=> setRoute("ingredients")} 
-                style={{
-                  ...btnSecondary,
-                  background: route === "ingredients" ? colors.primarySolid : colors.glass,
-                  color: route === "ingredients" ? "white" : colors.text,
-                  boxShadow: route === "ingredients" ? shadows.lg : "none"
-                }}
-              >
-                🧪 Ingredients
-              </button>
-            )}
 
             {session ? (
               <button onClick={signOut} style={btnSecondary}>
@@ -1094,18 +1081,43 @@ export default function App() {
               }}>
                 <div style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                   gap: 12,
                   padding: 20
                 }}>
                   <button
-                    onClick={() => setSettingsTab("catalog")}
+                    onClick={() => setSettingsTab("methods")}
                     style={{
                       ...btnSecondary,
                       padding: "16px 20px",
-                      background: settingsTab === "catalog" ? colors.accent : colors.glass,
-                      color: settingsTab === "catalog" ? "white" : colors.text,
-                      border: `2px solid ${settingsTab === "catalog" ? colors.accent : colors.glassBorder}`,
+                      background: settingsTab === "methods" ? colors.accent : colors.glass,
+                      color: settingsTab === "methods" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "methods" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🔄</span>
+                    <span>Methods</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Shake, Stir, Build, etc.
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("glasses")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "glasses" ? colors.accent : colors.glass,
+                      color: settingsTab === "glasses" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "glasses" ? colors.accent : colors.glassBorder}`,
                       borderRadius: 12,
                       fontSize: 14,
                       fontWeight: 600,
@@ -1117,9 +1129,59 @@ export default function App() {
                     }}
                   >
                     <span style={{ fontSize: 24 }}>🥃</span>
-                    <span>Catalog Items</span>
+                    <span>Glasses</span>
                     <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      Methods, Glasses, Ice, Garnishes
+                      Coupe, Highball, etc.
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("ices")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "ices" ? colors.accent : colors.glass,
+                      color: settingsTab === "ices" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "ices" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🧊</span>
+                    <span>Ice</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Cubed, Crushed, etc.
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("garnishes")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "garnishes" ? colors.accent : colors.glass,
+                      color: settingsTab === "garnishes" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "garnishes" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🌿</span>
+                    <span>Garnishes</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Lime, Cherry, etc.
                     </span>
                   </button>
 
@@ -1201,21 +1263,72 @@ export default function App() {
               </div>
 
               {/* Settings Content */}
-              {settingsTab === "catalog" && (
-              <SettingsBlock
-                catalog={catalog}
-                catLoading={catLoading}
-                newName={newName}
-                onNewNameChange={handleNewNameChange}
-                addCatalog={addCatalog}
-                renameCatalog={renameCatalog}
-                toggleCatalog={toggleCatalog}
-                deleteCatalog={deleteCatalog}
-                onDragStart={onDragStart}
-                onDragOver={onDragOver}
-                onDrop={onDrop}
-                draggingId={draggingId}
-              />
+              {settingsTab === "methods" && (
+                <SettingsBlock
+                  catalog={catalog.filter(c => c.kind === "method")}
+                  catLoading={catLoading}
+                  newName={newName}
+                  onNewNameChange={handleNewNameChange}
+                  addCatalog={addCatalog}
+                  renameCatalog={renameCatalog}
+                  toggleCatalog={toggleCatalog}
+                  deleteCatalog={deleteCatalog}
+                  onDragStart={onDragStart}
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  draggingId={draggingId}
+                />
+              )}
+
+              {settingsTab === "glasses" && (
+                <SettingsBlock
+                  catalog={catalog.filter(c => c.kind === "glass")}
+                  catLoading={catLoading}
+                  newName={newName}
+                  onNewNameChange={handleNewNameChange}
+                  addCatalog={addCatalog}
+                  renameCatalog={renameCatalog}
+                  toggleCatalog={toggleCatalog}
+                  deleteCatalog={deleteCatalog}
+                  onDragStart={onDragStart}
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  draggingId={draggingId}
+                />
+              )}
+
+              {settingsTab === "ices" && (
+                <SettingsBlock
+                  catalog={catalog.filter(c => c.kind === "ice")}
+                  catLoading={catLoading}
+                  newName={newName}
+                  onNewNameChange={handleNewNameChange}
+                  addCatalog={addCatalog}
+                  renameCatalog={renameCatalog}
+                  toggleCatalog={toggleCatalog}
+                  deleteCatalog={deleteCatalog}
+                  onDragStart={onDragStart}
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  draggingId={draggingId}
+                />
+              )}
+
+              {settingsTab === "garnishes" && (
+                <SettingsBlock
+                  catalog={catalog.filter(c => c.kind === "garnish")}
+                  catLoading={catLoading}
+                  newName={newName}
+                  onNewNameChange={handleNewNameChange}
+                  addCatalog={addCatalog}
+                  renameCatalog={renameCatalog}
+                  toggleCatalog={toggleCatalog}
+                  deleteCatalog={deleteCatalog}
+                  onDragStart={onDragStart}
+                  onDragOver={onDragOver}
+                  onDrop={onDrop}
+                  draggingId={draggingId}
+                />
               )}
 
               {settingsTab === "tags" && (
@@ -1352,30 +1465,6 @@ export default function App() {
           )
         )}
 
-        {route === "ingredients" && (
-          (role==="editor" || role==="admin") ? (
-            <IngredientsAdmin
-              items={ingAdmin}
-              loading={ingAdminLoading}
-              q={ingAdminQ}
-              setQ={setIngAdminQ}
-              newName={ingAdminNew}
-              setNewName={setIngAdminNew}
-              onAdd={addIngredient}
-              onRename={renameIngredient}
-              onDelete={deleteIngredient}
-              mergeFrom={mergeFrom}
-              setMergeFrom={setMergeFrom}
-              mergeTo={mergeTo}
-              setMergeTo={setMergeTo}
-              onMerge={doMergeWith}
-              mergeBusy={mergeBusy}
-              mergeMsg={mergeMsg}
-            />
-          ) : (
-            <div style={{ color: colors.muted }}>Ingredients admin is editor-only.</div>
-          )
-        )}
 
         {route === "main" && (
           <>
