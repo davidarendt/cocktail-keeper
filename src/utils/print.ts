@@ -52,12 +52,15 @@ export async function printOnePager(
     lines.push("No ingredients found")
   }
 
+  console.log("Final lines array:", lines)
+  console.log("Cocktail data:", c)
+
   const w = window.open("", "_blank", "width=980,height=720,noopener")
   if (!w) { alert("Popup blocked. Please allow popups for this site to print."); return }
   
   console.log("Window opened:", w)
 
-  w.document.write(`
+  const htmlContent = `
 <!doctype html>
 <html>
 <head>
@@ -106,7 +109,10 @@ export async function printOnePager(
   <script> setTimeout(() => { window.print() }, 50); </script>
 </body>
 </html>
-  `)
+  `
+
+  console.log("Generated HTML content:", htmlContent)
+  w.document.write(htmlContent)
   
   console.log("Document written, closing...")
   w.document.close()
