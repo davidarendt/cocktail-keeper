@@ -70,17 +70,28 @@ export async function printOnePager(
     @page { size: ${pageSize}; margin: ${margin}; }
     :root { --ink: #111; --muted: #555; --border: #ddd; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; color: var(--ink); margin: 0; line-height: 1.2; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    h1 { margin: 0 0 4px; font-size: 18px; font-weight: 700; }
+    body { 
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; 
+      color: var(--ink); 
+      margin: 0; 
+      padding: 20px;
+      line-height: 1.2; 
+      background: white;
+      -webkit-print-color-adjust: exact; 
+      print-color-adjust: exact; 
+    }
+    h1 { margin: 0 0 4px; font-size: 18px; font-weight: 700; color: #000; }
     .muted { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
     .row { margin: 4px 0; }
-    .box { border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; }
+    .box { border: 1px solid var(--border); border-radius: 6px; padding: 8px; margin-bottom: 8px; background: #f9f9f9; }
     ul { margin: 6px 0 8px; padding-left: 16px; }
-    li { margin: 2px 0; font-size: 13px; }
+    li { margin: 2px 0; font-size: 13px; color: #000; }
     .footer { margin-top: 8px; font-size: 10px; color: var(--muted); }
     @media print { .noprint { display: none; } }
-    .actions { position: fixed; right: 8px; top: 8px; }
+    .actions { position: fixed; right: 8px; top: 8px; z-index: 1000; }
     .btn { font: inherit; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid #bbb; background: #f3f4f6; cursor: pointer; margin-left: 6px; }
+    /* Debug styles to ensure content is visible */
+    body::before { content: "Print Preview - Content should be visible"; display: block; background: yellow; padding: 10px; margin-bottom: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -117,6 +128,18 @@ export async function printOnePager(
   console.log("Document written, closing...")
   w.document.close()
   console.log("Document closed")
+  
+  // Ensure the window is ready before trying to print
+  w.addEventListener('load', () => {
+    console.log("Window loaded, ready to print")
+  })
+  
+  // Fallback: if load event doesn't fire, try after a short delay
+  setTimeout(() => {
+    if (w.document.readyState === 'complete') {
+      console.log("Window ready via timeout")
+    }
+  }, 100)
 }
 
 function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape", orientation: "portrait" | "landscape"): string {
