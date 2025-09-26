@@ -11,6 +11,8 @@ type PrintOptions = {
   margin?: string
   /** Document title override. Defaults to cocktail name. */
   title?: string
+  /** Auto-print immediately when opened */
+  autoPrint?: boolean
 }
 
 export async function printOnePager(
@@ -18,12 +20,11 @@ export async function printOnePager(
   c: PrintCocktail,
   opts: PrintOptions = {}
 ): Promise<void> {
-  console.log("Print function called with:", c)
-  
   const page = opts.page ?? "HalfLetterLandscape"
   const orientation = opts.orientation ?? "landscape"
   const margin = opts.margin ?? "8mm"
   const title = opts.title ?? c.name
+  const autoPrint = opts.autoPrint ?? true
 
   const pageSize = computePageSize(page, orientation)
 
@@ -33,10 +34,9 @@ export async function printOnePager(
     .eq("cocktail_id", c.id)
     .order("position", { ascending: true })
 
-  console.log("Recipe ingredients query result:", { data, error })
-
   if (error) {
-    alert("Could not load specs: " + error.message)
+    console.error("PrintOnePager: Could not load recipe ingredients:", error)
+    alert("Could not load recipe ingredients: " + error.message)
     return
   }
 
@@ -44,21 +44,13 @@ export async function printOnePager(
     `${normalizeAmount(r.amount)} ${r.unit ?? ""} ${r.ingredient?.name ?? ""}`.trim()
   )
 
-  console.log("Generated lines:", lines)
-
   // Fallback if no ingredients found
   if (lines.length === 0) {
-    console.log("No ingredients found, using fallback")
     lines.push("No ingredients found")
   }
 
-  console.log("Final lines array:", lines)
-  console.log("Cocktail data:", c)
-
   const w = window.open("", "_blank", "width=980,height=720,noopener")
   if (!w) { alert("Popup blocked. Please allow popups for this site to print."); return }
-  
-  console.log("Window opened:", w)
 
   const htmlContent = `
 <!doctype html>
@@ -90,8 +82,6 @@ export async function printOnePager(
     @media print { .noprint { display: none; } }
     .actions { position: fixed; right: 8px; top: 8px; z-index: 1000; }
     .btn { font: inherit; font-size: 11px; padding: 4px 8px; border-radius: 6px; border: 1px solid #bbb; background: #f3f4f6; cursor: pointer; margin-left: 6px; }
-    /* Debug styles to ensure content is visible */
-    body::before { content: "Print Preview - Content should be visible"; display: block; background: yellow; padding: 10px; margin-bottom: 20px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -117,29 +107,29 @@ export async function printOnePager(
     ${c.last_special_on ? " • Special: " + escapeHtml(c.last_special_on) : ""}
   </div>
 
-  <script> setTimeout(() => { window.print() }, 50); </script>
+  <script>
+    ${autoPrint ? `setTimeout(() => { window.print() }, 50);` : ''}
+  </script>
 </body>
 </html>
   `
 
-  console.log("Generated HTML content:", htmlContent)
   w.document.write(htmlContent)
-  
-  console.log("Document written, closing...")
   w.document.close()
-  console.log("Document closed")
   
-  // Ensure the window is ready before trying to print
-  w.addEventListener('load', () => {
-    console.log("Window loaded, ready to print")
-  })
-  
-  // Fallback: if load event doesn't fire, try after a short delay
-  setTimeout(() => {
-    if (w.document.readyState === 'complete') {
-      console.log("Window ready via timeout")
-    }
-  }, 100)
+  // Auto-print on window load if enabled
+  if (autoPrint) {
+    w.addEventListener('load', () => {
+      w.print()
+    })
+    
+    // Fallback: if load event doesn't fire, try after a short delay
+    setTimeout(() => {
+      if (w.document.readyState === 'complete') {
+        w.print()
+      }
+    }, 100)
+  }
 }
 
 function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape", orientation: "portrait" | "landscape"): string {
