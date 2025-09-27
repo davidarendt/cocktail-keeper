@@ -1,5 +1,5 @@
 // src/components/PrintDesigner.tsx
-import React, { useState, useRef, useEffect } from "react"
+import React, { useState, useRef } from "react"
 import { btnPrimary, btnSecondary, colors, shadows } from "../styles"
 import type { PrintCocktail } from "../types"
 
@@ -160,7 +160,6 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
 
   const getPageDimensions = () => {
     const { pageSize, orientation } = design.layout
-    const aspectRatio = orientation === "landscape" ? 11/8.5 : 8.5/11
     
     if (pageSize === "A4") {
       return orientation === "landscape" ? { width: 400, height: 283 } : { width: 283, height: 400 }
