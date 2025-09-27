@@ -387,4 +387,9 @@ button:active {
   .table-responsive td {
     padding: 8px 4px !important;
   }
+  
+  /* Hide print buttons on mobile */
+  .print-button {
+    display: none !important;
+  }
 }

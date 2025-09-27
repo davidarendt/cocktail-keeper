@@ -2186,6 +2186,7 @@ export default function App() {
                           fontSize: 12,
                           padding: "8px 12px"
                         }}
+                        className="print-button"
                       >
                         🖨️ Print
                       </button>
@@ -2339,6 +2340,7 @@ export default function App() {
                                 fontSize: 11,
                                 padding: "6px 10px"
                               }}
+                              className="print-button"
                             >
                               🖨️
                             </button>
