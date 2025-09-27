@@ -54,11 +54,6 @@ export async function printOnePager(
     lines.push("No ingredients found")
   }
 
-  const w = window.open("", "_blank", "width=980,height=720,noopener")
-  if (!w) { alert("Popup blocked. Please allow popups for this site to print."); return }
-  
-  console.log("Print window opened, writing content...")
-
   const htmlContent = `
 <!doctype html>
 <html>
@@ -121,7 +116,16 @@ export async function printOnePager(
 </html>
   `
 
-  console.log("Writing HTML content to window...")
+  // Try to open popup window
+  const w = window.open("", "_blank", "width=980,height=720,noopener")
+  if (!w) { 
+    // Fallback: use current window for printing
+    console.log("Popup blocked, using fallback print method...")
+    printInCurrentWindow(htmlContent, title)
+    return 
+  }
+  
+  console.log("Print window opened, writing content...")
   console.log("HTML content preview:", htmlContent.substring(0, 200) + "...")
   w.document.write(htmlContent)
   w.document.close()
@@ -158,6 +162,35 @@ function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLands
   }
   // A5 supports "A5 landscape"
   return orientation === "landscape" ? "A5 landscape" : "A5"
+}
+
+/** Fallback print method when popups are blocked */
+function printInCurrentWindow(htmlContent: string, _title: string): void {
+  // Create a temporary iframe for printing
+  const iframe = document.createElement('iframe')
+  iframe.style.position = 'absolute'
+  iframe.style.left = '-9999px'
+  iframe.style.top = '-9999px'
+  iframe.style.width = '1px'
+  iframe.style.height = '1px'
+  
+  document.body.appendChild(iframe)
+  
+  const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+  if (iframeDoc) {
+    iframeDoc.open()
+    iframeDoc.write(htmlContent)
+    iframeDoc.close()
+    
+    // Wait for content to load, then print
+    setTimeout(() => {
+      iframe.contentWindow?.print()
+      // Clean up after printing
+      setTimeout(() => {
+        document.body.removeChild(iframe)
+      }, 1000)
+    }, 100)
+  }
 }
 
 /** helpers */
