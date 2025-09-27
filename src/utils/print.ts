@@ -1,6 +1,7 @@
 // src/utils/print.ts
 import type { SupabaseClient } from "@supabase/supabase-js"
 import type { PrintCocktail } from "../types"
+import { escapeHtml } from "./text"
 
 type PrintOptions = {
   /** "A5" | "HalfLetter" | "Letter" | "HalfLetterLandscape" — default "HalfLetterLandscape" */
@@ -44,6 +45,10 @@ export async function printOnePager(
     `${normalizeAmount(r.amount)} ${r.unit ?? ""} ${r.ingredient?.name ?? ""}`.trim()
   )
 
+  console.log("Recipe data:", data)
+  console.log("Generated lines:", lines)
+  console.log("Cocktail data:", c)
+
   // Fallback if no ingredients found
   if (lines.length === 0) {
     lines.push("No ingredients found")
@@ -51,6 +56,8 @@ export async function printOnePager(
 
   const w = window.open("", "_blank", "width=980,height=720,noopener")
   if (!w) { alert("Popup blocked. Please allow popups for this site to print."); return }
+  
+  console.log("Print window opened, writing content...")
 
   const htmlContent = `
 <!doctype html>
@@ -114,18 +121,23 @@ export async function printOnePager(
 </html>
   `
 
+  console.log("Writing HTML content to window...")
+  console.log("HTML content preview:", htmlContent.substring(0, 200) + "...")
   w.document.write(htmlContent)
   w.document.close()
+  console.log("HTML content written and document closed")
   
   // Auto-print on window load if enabled
   if (autoPrint) {
     w.addEventListener('load', () => {
+      console.log("Window loaded, triggering print...")
       w.print()
     })
     
     // Fallback: if load event doesn't fire, try after a short delay
     setTimeout(() => {
       if (w.document.readyState === 'complete') {
+        console.log("Window ready via timeout, triggering print...")
         w.print()
       }
     }, 100)
@@ -149,11 +161,6 @@ function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLands
 }
 
 /** helpers */
-function escapeHtml(s: string) {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c] as string)
-  )
-}
 function normalizeAmount(a: any): string {
   const n = Number(a)
   if (!isFinite(n)) return String(a ?? "")
