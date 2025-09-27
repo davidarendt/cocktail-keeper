@@ -16,6 +16,71 @@ type PrintOptions = {
   autoPrint?: boolean
 }
 
+export async function printWithDesign(
+  supabase: SupabaseClient,
+  cocktails: PrintCocktail[],
+  design: any
+): Promise<void> {
+  if (cocktails.length === 0) {
+    alert("No cocktails selected for printing")
+    return
+  }
+
+  // Fetch ingredients for all cocktails
+  const cocktailData = await Promise.all(
+    cocktails.map(async (c) => {
+      const { data, error } = await supabase
+        .from("recipe_ingredients")
+        .select("amount, unit, position, ingredient:ingredients(name)")
+        .eq("cocktail_id", c.id)
+        .order("position", { ascending: true })
+
+      if (error) {
+        console.error(`Error loading ingredients for ${c.name}:`, error)
+        return { ...c, lines: ["Error loading ingredients"] }
+      }
+
+      const lines = (data || []).map((r: any) =>
+        `${normalizeAmount(r.amount)} ${r.unit ?? ""} ${r.ingredient?.name ?? ""}`.trim()
+      )
+
+      return {
+        ...c,
+        lines: lines.length > 0 ? lines : ["No ingredients found"]
+      }
+    })
+  )
+
+  const htmlContent = generateDesignHTML(cocktailData, design)
+
+  // Try to open popup window
+  const w = window.open("", "_blank", "width=1200,height=800,noopener")
+  if (!w) { 
+    // Fallback: use current window for printing
+    console.log("Popup blocked, using fallback print method...")
+    printInCurrentWindow(htmlContent, "Custom Print")
+    return 
+  }
+  
+  console.log("Design print window opened, writing content...")
+  w.document.write(htmlContent)
+  w.document.close()
+  
+  // Auto-print on window load
+  w.addEventListener('load', () => {
+    console.log("Window loaded, triggering print...")
+    w.print()
+  })
+  
+  // Fallback: if load event doesn't fire, try after a short delay
+  setTimeout(() => {
+    if (w.document.readyState === 'complete') {
+      console.log("Window ready via timeout, triggering print...")
+      w.print()
+    }
+  }, 100)
+}
+
 export async function printMultipleCocktails(
   supabase: SupabaseClient,
   cocktails: PrintCocktail[],
@@ -237,6 +302,151 @@ function computePageSize(page: "A5" | "HalfLetter" | "Letter" | "HalfLetterLands
   }
   // A5 supports "A5 landscape"
   return orientation === "landscape" ? "A5 landscape" : "A5"
+}
+
+/** Generate HTML from design configuration */
+function generateDesignHTML(
+  cocktailData: Array<PrintCocktail & { lines: string[] }>,
+  design: any
+): string {
+  const { layout, elements, backgroundColor, borderColor, borderWidth } = design
+  
+  const pageSize = computePageSize(layout.pageSize, layout.orientation)
+  
+  // Group cocktails into pages based on columns
+  const cocktailsPerPage = layout.columns
+  const pages = []
+  for (let i = 0; i < cocktailData.length; i += cocktailsPerPage) {
+    pages.push(cocktailData.slice(i, i + cocktailsPerPage))
+  }
+
+  const pageHTML = pages.map(page => {
+    const cocktailsHTML = page.map((cocktail, index) => {
+      const elementsHTML = elements
+        .filter((el: any) => el.visible)
+        .map((element: any) => {
+          let content = ""
+          switch (element.type) {
+            case "name":
+              content = escapeHtml(cocktail.name)
+              break
+            case "method":
+              content = escapeHtml(cocktail.method || "")
+              break
+            case "glass":
+              content = escapeHtml(cocktail.glass || "")
+              break
+            case "ingredients":
+              content = cocktail.lines.map(line => escapeHtml(line)).join("<br>")
+              break
+            case "garnish":
+              content = escapeHtml(cocktail.garnish || "")
+              break
+            case "notes":
+              content = escapeHtml(cocktail.notes || "")
+              break
+            case "price":
+              content = cocktail.price ? `$${Number(cocktail.price).toFixed(2)}` : ""
+              break
+          }
+
+          return `
+            <div style="
+              position: absolute;
+              left: ${element.x}%;
+              top: ${element.y}%;
+              width: ${element.width}%;
+              height: ${element.height}%;
+              font-size: ${element.fontSize}px;
+              font-weight: ${element.fontWeight};
+              color: ${element.color};
+              padding: 2px;
+              white-space: pre-wrap;
+              overflow: hidden;
+            ">
+              ${content}
+            </div>
+          `
+        }).join("")
+
+      return `
+        <div style="
+          position: absolute;
+          left: ${index === 0 ? "5%" : "50%"};
+          top: 5%;
+          width: 40%;
+          height: 90%;
+          border: 1px solid ${borderColor};
+          padding: 10px;
+        ">
+          ${elementsHTML}
+        </div>
+      `
+    }).join("")
+
+    return `
+      <div style="
+        width: 100%;
+        height: 100vh;
+        page-break-after: always;
+        position: relative;
+        background: ${backgroundColor};
+        border: ${borderWidth}px solid ${borderColor};
+      ">
+        ${cocktailsHTML}
+      </div>
+    `
+  }).join("")
+
+  return `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Custom Print Design</title>
+  <style>
+    @page { 
+      size: ${pageSize}; 
+      margin: ${layout.margin}px; 
+    }
+    * { box-sizing: border-box; }
+    body { 
+      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial; 
+      margin: 0; 
+      padding: 0;
+      background: white;
+      -webkit-print-color-adjust: exact; 
+      print-color-adjust: exact; 
+    }
+    .actions {
+      position: fixed;
+      right: 8px;
+      top: 8px;
+      z-index: 1000;
+    }
+    .btn {
+      font: inherit;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #bbb;
+      background: #f3f4f6;
+      cursor: pointer;
+      margin-left: 6px;
+    }
+    @media print { .noprint { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="actions noprint">
+    <button class="btn" onclick="window.print()">Print</button>
+    <button class="btn" onclick="window.close()">Close</button>
+  </div>
+
+  ${pageHTML}
+</body>
+</html>
+  `
 }
 
 /** Generate HTML for multi-cocktail print layout */

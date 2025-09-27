@@ -12,8 +12,9 @@ import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
 import { IngredientsAdmin } from "./components/IngredientsAdmin"
 import { UsersAdmin, type UserRow } from "./components/UsersAdmin"
+import { PrintDesigner } from "./components/PrintDesigner"
 
-import { printOnePager, printMultipleCocktails } from "./utils/print"
+import { printOnePager, printWithDesign } from "./utils/print"
 import { ng, normalizeSearchTerm } from "./utils/text"
 
 import type {
@@ -97,6 +98,7 @@ export default function App() {
   // ---------- MULTI-PRINT SELECTION ----------
   const [selectedCocktails, setSelectedCocktails] = useState<Set<string>>(new Set())
   const [multiPrintMode, setMultiPrintMode] = useState(false)
+  const [showPrintDesigner, setShowPrintDesigner] = useState(false)
 
   // ---------- CATALOGS ----------
   const [methods, setMethods] = useState<string[]>([])
@@ -392,13 +394,13 @@ export default function App() {
       return
     }
 
+    setShowPrintDesigner(true)
+  }
+
+  async function handlePrintWithDesign(design: any) {
     const cocktailsToPrint = rows.filter(c => selectedCocktails.has(c.id))
-    await printMultipleCocktails(supabase, cocktailsToPrint, {
-      page: "Letter",
-      orientation: "landscape",
-      margin: "6mm",
-      title: `${cocktailsToPrint.length} Cocktails`
-    })
+    await printWithDesign(supabase, cocktailsToPrint, design)
+    setShowPrintDesigner(false)
   }
 
   async function save(e: React.FormEvent) {
@@ -2538,6 +2540,15 @@ export default function App() {
           </>
         )}
       </div>
+
+      {/* Print Designer Modal */}
+      {showPrintDesigner && (
+        <PrintDesigner
+          cocktails={rows.filter(c => selectedCocktails.has(c.id))}
+          onClose={() => setShowPrintDesigner(false)}
+          onPrint={handlePrintWithDesign}
+        />
+      )}
     </div>
   )
 }
