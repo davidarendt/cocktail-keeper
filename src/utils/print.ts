@@ -309,7 +309,7 @@ function generateDesignHTML(
   cocktailData: Array<PrintCocktail & { lines: string[] }>,
   design: any
 ): string {
-  const { layout, elements, backgroundColor, borderColor, borderWidth } = design
+  const { layout, blocks, backgroundColor, borderColor, borderWidth } = design
   
   const pageSize = computePageSize(layout.pageSize, layout.orientation)
   
@@ -322,11 +322,11 @@ function generateDesignHTML(
 
   const pageHTML = pages.map(page => {
     const cocktailsHTML = page.map((cocktail, index) => {
-      const elementsHTML = elements
-        .filter((el: any) => el.visible)
-        .map((element: any) => {
+      const blocksHTML = blocks
+        .filter((block: any) => block.visible)
+        .map((block: any) => {
           let content = ""
-          switch (element.type) {
+          switch (block.type) {
             case "name":
               content = escapeHtml(cocktail.name)
               break
@@ -348,21 +348,28 @@ function generateDesignHTML(
             case "price":
               content = cocktail.price ? `$${Number(cocktail.price).toFixed(2)}` : ""
               break
+            case "divider":
+              content = "—"
+              break
           }
 
           return `
             <div style="
               position: absolute;
-              left: ${element.x}%;
-              top: ${element.y}%;
-              width: ${element.width}%;
-              height: ${element.height}%;
-              font-size: ${element.fontSize}px;
-              font-weight: ${element.fontWeight};
-              color: ${element.color};
-              padding: 2px;
+              left: ${block.x}%;
+              top: ${block.y}%;
+              width: ${block.width}%;
+              height: ${block.height}%;
+              font-size: ${block.fontSize}px;
+              font-weight: ${block.fontWeight};
+              color: ${block.color};
+              background-color: ${block.backgroundColor};
+              border: ${block.borderWidth}px solid ${block.borderColor};
+              padding: ${block.padding}px;
+              text-align: ${block.textAlign};
               white-space: pre-wrap;
               overflow: hidden;
+              box-sizing: border-box;
             ">
               ${content}
             </div>
@@ -379,7 +386,7 @@ function generateDesignHTML(
           border: 1px solid ${borderColor};
           padding: 10px;
         ">
-          ${elementsHTML}
+          ${blocksHTML}
         </div>
       `
     }).join("")

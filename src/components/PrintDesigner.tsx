@@ -1,7 +1,27 @@
 // src/components/PrintDesigner.tsx
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useCallback } from "react"
 import { btnPrimary, btnSecondary, colors, shadows } from "../styles"
 import type { PrintCocktail } from "../types"
+
+type BlockType = "name" | "method" | "glass" | "ingredients" | "garnish" | "notes" | "price" | "divider"
+
+type Block = {
+  id: string
+  type: BlockType
+  x: number
+  y: number
+  width: number
+  height: number
+  fontSize: number
+  fontWeight: "normal" | "bold"
+  color: string
+  backgroundColor: string
+  borderColor: string
+  borderWidth: number
+  padding: number
+  textAlign: "left" | "center" | "right"
+  visible: boolean
+}
 
 type PrintLayout = {
   pageSize: "Letter" | "A4" | "HalfLetter"
@@ -11,22 +31,9 @@ type PrintLayout = {
   gap: number
 }
 
-type CocktailElement = {
-  id: string
-  type: "name" | "method" | "glass" | "ingredients" | "garnish" | "notes" | "price"
-  x: number
-  y: number
-  width: number
-  height: number
-  fontSize: number
-  fontWeight: "normal" | "bold"
-  color: string
-  visible: boolean
-}
-
 type PrintDesign = {
   layout: PrintLayout
-  elements: CocktailElement[]
+  blocks: Block[]
   backgroundColor: string
   borderColor: string
   borderWidth: number
@@ -46,70 +53,134 @@ const defaultDesign: PrintDesign = {
     columns: 2,
     gap: 15
   },
-  elements: [
-    { id: "name", type: "name", x: 10, y: 10, width: 80, height: 15, fontSize: 18, fontWeight: "bold", color: "#000000", visible: true },
-    { id: "method", type: "method", x: 10, y: 30, width: 40, height: 10, fontSize: 12, fontWeight: "normal", color: "#666666", visible: true },
-    { id: "glass", type: "glass", x: 55, y: 30, width: 40, height: 10, fontSize: 12, fontWeight: "normal", color: "#666666", visible: true },
-    { id: "ingredients", type: "ingredients", x: 10, y: 45, width: 80, height: 30, fontSize: 13, fontWeight: "normal", color: "#000000", visible: true },
-    { id: "garnish", type: "garnish", x: 10, y: 80, width: 40, height: 8, fontSize: 11, fontWeight: "normal", color: "#333333", visible: true },
-    { id: "notes", type: "notes", x: 55, y: 80, width: 40, height: 8, fontSize: 11, fontWeight: "normal", color: "#333333", visible: true },
-    { id: "price", type: "price", x: 10, y: 90, width: 20, height: 8, fontSize: 12, fontWeight: "bold", color: "#000000", visible: true }
+  blocks: [
+    { id: "name-1", type: "name", x: 10, y: 10, width: 80, height: 15, fontSize: 18, fontWeight: "bold", color: "#000000", backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, padding: 4, textAlign: "left", visible: true },
+    { id: "method-1", type: "method", x: 10, y: 30, width: 40, height: 10, fontSize: 12, fontWeight: "normal", color: "#666666", backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, padding: 2, textAlign: "left", visible: true },
+    { id: "glass-1", type: "glass", x: 55, y: 30, width: 40, height: 10, fontSize: 12, fontWeight: "normal", color: "#666666", backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, padding: 2, textAlign: "left", visible: true },
+    { id: "ingredients-1", type: "ingredients", x: 10, y: 45, width: 80, height: 30, fontSize: 13, fontWeight: "normal", color: "#000000", backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, padding: 4, textAlign: "left", visible: true },
+    { id: "garnish-1", type: "garnish", x: 10, y: 80, width: 40, height: 8, fontSize: 11, fontWeight: "normal", color: "#333333", backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, padding: 2, textAlign: "left", visible: true },
+    { id: "price-1", type: "price", x: 55, y: 80, width: 40, height: 8, fontSize: 12, fontWeight: "bold", color: "#000000", backgroundColor: "transparent", borderColor: "transparent", borderWidth: 0, padding: 2, textAlign: "right", visible: true }
   ],
   backgroundColor: "#ffffff",
   borderColor: "#dddddd",
   borderWidth: 1
 }
 
+const blockTemplates: { [key in BlockType]: Partial<Block> } = {
+  name: { width: 80, height: 15, fontSize: 18, fontWeight: "bold", color: "#000000", textAlign: "left" },
+  method: { width: 40, height: 10, fontSize: 12, fontWeight: "normal", color: "#666666", textAlign: "left" },
+  glass: { width: 40, height: 10, fontSize: 12, fontWeight: "normal", color: "#666666", textAlign: "left" },
+  ingredients: { width: 80, height: 30, fontSize: 13, fontWeight: "normal", color: "#000000", textAlign: "left" },
+  garnish: { width: 40, height: 8, fontSize: 11, fontWeight: "normal", color: "#333333", textAlign: "left" },
+  notes: { width: 40, height: 8, fontSize: 11, fontWeight: "normal", color: "#333333", textAlign: "left" },
+  price: { width: 20, height: 8, fontSize: 12, fontWeight: "bold", color: "#000000", textAlign: "right" },
+  divider: { width: 80, height: 2, fontSize: 1, fontWeight: "normal", color: "#cccccc", backgroundColor: "#cccccc", textAlign: "center" }
+}
+
 export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
   const [design, setDesign] = useState<PrintDesign>(defaultDesign)
-  const [selectedElement, setSelectedElement] = useState<string | null>(null)
+  const [selectedBlock, setSelectedBlock] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const [draggedBlockType, setDraggedBlockType] = useState<BlockType | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
 
-  const updateElement = (elementId: string, updates: Partial<CocktailElement>) => {
+  const updateBlock = (blockId: string, updates: Partial<Block>) => {
     setDesign(prev => ({
       ...prev,
-      elements: prev.elements.map(el => 
-        el.id === elementId ? { ...el, ...updates } : el
+      blocks: prev.blocks.map(block => 
+        block.id === blockId ? { ...block, ...updates } : block
       )
     }))
   }
 
-  const handleMouseDown = (e: React.MouseEvent, elementId: string) => {
+  const addBlock = (type: BlockType, x: number, y: number) => {
+    const template = blockTemplates[type]
+    const newBlock: Block = {
+      id: `${type}-${Date.now()}`,
+      type,
+      x: Math.max(0, Math.min(90, x)),
+      y: Math.max(0, Math.min(90, y)),
+      width: template.width || 40,
+      height: template.height || 10,
+      fontSize: template.fontSize || 12,
+      fontWeight: template.fontWeight || "normal",
+      color: template.color || "#000000",
+      backgroundColor: template.backgroundColor || "transparent",
+      borderColor: template.borderColor || "transparent",
+      borderWidth: template.borderWidth || 0,
+      padding: 4,
+      textAlign: template.textAlign || "left",
+      visible: true
+    }
+    
+    setDesign(prev => ({
+      ...prev,
+      blocks: [...prev.blocks, newBlock]
+    }))
+  }
+
+  const removeBlock = (blockId: string) => {
+    setDesign(prev => ({
+      ...prev,
+      blocks: prev.blocks.filter(block => block.id !== blockId)
+    }))
+    if (selectedBlock === blockId) {
+      setSelectedBlock(null)
+    }
+  }
+
+  const handleBlockMouseDown = (e: React.MouseEvent, blockId: string) => {
     e.preventDefault()
-    setSelectedElement(elementId)
+    e.stopPropagation()
+    setSelectedBlock(blockId)
     setDragging(true)
     
-    const element = design.elements.find(el => el.id === elementId)
-    if (element && canvasRef.current) {
+    const block = design.blocks.find(b => b.id === blockId)
+    if (block && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect()
       setDragOffset({
-        x: e.clientX - rect.left - element.x,
-        y: e.clientY - rect.top - element.y
+        x: e.clientX - rect.left - (block.x * rect.width / 100),
+        y: e.clientY - rect.top - (block.y * rect.height / 100)
       })
     }
   }
 
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (dragging && selectedElement && canvasRef.current) {
+  const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (dragging && selectedBlock && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect()
-      const newX = Math.max(0, Math.min(90, e.clientX - rect.left - dragOffset.x))
-      const newY = Math.max(0, Math.min(90, e.clientY - rect.top - dragOffset.y))
+      const newX = Math.max(0, Math.min(90, ((e.clientX - rect.left - dragOffset.x) / rect.width) * 100))
+      const newY = Math.max(0, Math.min(90, ((e.clientY - rect.top - dragOffset.y) / rect.height) * 100))
       
-      updateElement(selectedElement, { x: newX, y: newY })
+      updateBlock(selectedBlock, { x: newX, y: newY })
     }
   }
 
-  const handleMouseUp = () => {
+  const handleCanvasMouseUp = () => {
     setDragging(false)
   }
 
-  const renderElement = (element: CocktailElement, cocktail: PrintCocktail) => {
-    if (!element.visible) return null
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    if (draggedBlockType && canvasRef.current) {
+      const rect = canvasRef.current.getBoundingClientRect()
+      const x = ((e.clientX - rect.left) / rect.width) * 100
+      const y = ((e.clientY - rect.top) / rect.height) * 100
+      addBlock(draggedBlockType, x, y)
+      setDraggedBlockType(null)
+    } else {
+      setSelectedBlock(null)
+    }
+  }
+
+  const handleBlockDragStart = (e: React.DragEvent, blockType: BlockType) => {
+    setDraggedBlockType(blockType)
+  }
+
+  const renderBlock = (block: Block, cocktail: PrintCocktail) => {
+    if (!block.visible) return null
 
     let content = ""
-    switch (element.type) {
+    switch (block.type) {
       case "name":
         content = cocktail.name
         break
@@ -120,7 +191,7 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
         content = cocktail.glass || ""
         break
       case "ingredients":
-        content = "2 oz Gin\n1 oz Lemon\n0.5 oz Simple" // Placeholder
+        content = cocktail.ingredients.map(ing => `${ing.amount} ${ing.unit} ${ing.name}`).join("\n")
         break
       case "garnish":
         content = cocktail.garnish || ""
@@ -131,29 +202,94 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
       case "price":
         content = cocktail.price ? `$${cocktail.price.toFixed(2)}` : ""
         break
+      case "divider":
+        content = "—"
+        break
     }
+
+    const isSelected = selectedBlock === block.id
 
     return (
       <div
-        key={element.id}
+        key={block.id}
         style={{
           position: "absolute",
-          left: `${element.x}%`,
-          top: `${element.y}%`,
-          width: `${element.width}%`,
-          height: `${element.height}%`,
-          fontSize: `${element.fontSize}px`,
-          fontWeight: element.fontWeight,
-          color: element.color,
-          border: selectedElement === element.id ? "2px dashed #007bff" : "1px dashed transparent",
+          left: `${block.x}%`,
+          top: `${block.y}%`,
+          width: `${block.width}%`,
+          height: `${block.height}%`,
+          fontSize: `${block.fontSize}px`,
+          fontWeight: block.fontWeight,
+          color: block.color,
+          backgroundColor: block.backgroundColor,
+          border: block.borderWidth > 0 ? `${block.borderWidth}px solid ${block.borderColor}` : "none",
+          padding: `${block.padding}px`,
+          textAlign: block.textAlign,
           cursor: "move",
-          padding: "2px",
           whiteSpace: "pre-wrap",
-          overflow: "hidden"
+          overflow: "hidden",
+          boxSizing: "border-box",
+          // Selection styling
+          outline: isSelected ? "2px solid #007bff" : "none",
+          outlineOffset: isSelected ? "1px" : "0",
+          backgroundColor: isSelected ? "rgba(0, 123, 255, 0.1)" : block.backgroundColor,
+          // Resize handles for selected blocks
+          ...(isSelected && {
+            boxShadow: "0 0 0 1px #007bff, 0 0 0 3px rgba(0, 123, 255, 0.2)"
+          })
         }}
-        onMouseDown={(e) => handleMouseDown(e, element.id)}
+        onMouseDown={(e) => handleBlockMouseDown(e, block.id)}
       >
         {content}
+        {isSelected && (
+          <>
+            {/* Resize handles */}
+            <div style={{
+              position: "absolute",
+              top: "-4px",
+              right: "-4px",
+              width: "8px",
+              height: "8px",
+              backgroundColor: "#007bff",
+              border: "1px solid white",
+              borderRadius: "50%",
+              cursor: "nw-resize"
+            }} />
+            <div style={{
+              position: "absolute",
+              bottom: "-4px",
+              right: "-4px",
+              width: "8px",
+              height: "8px",
+              backgroundColor: "#007bff",
+              border: "1px solid white",
+              borderRadius: "50%",
+              cursor: "se-resize"
+            }} />
+            <div style={{
+              position: "absolute",
+              top: "-4px",
+              left: "-4px",
+              width: "8px",
+              height: "8px",
+              backgroundColor: "#007bff",
+              border: "1px solid white",
+              borderRadius: "50%",
+              cursor: "nw-resize"
+            }} />
+            <div style={{
+              position: "absolute",
+              bottom: "-4px",
+              left: "-4px",
+              width: "8px",
+              height: "8px",
+              backgroundColor: "#007bff",
+              border: "1px solid white",
+              borderRadius: "50%",
+              cursor: "sw-resize"
+            }} />
+          </>
+        )}
       </div>
     )
   }
@@ -171,6 +307,8 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
   }
 
   const pageDimensions = getPageDimensions()
+
+  const selectedBlockData = selectedBlock ? design.blocks.find(b => b.id === selectedBlock) : null
 
   return (
     <div style={{
@@ -193,7 +331,7 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
         justifyContent: "space-between",
         alignItems: "center"
       }}>
-        <h2 style={{ margin: 0, color: colors.text }}>Print Designer</h2>
+        <h2 style={{ margin: 0, color: colors.text }}>Block-Based Print Designer</h2>
         <div style={{ display: "flex", gap: 8 }}>
           <button onClick={() => onPrint(design)} style={btnPrimary}>
             🖨️ Print
@@ -205,124 +343,92 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
       </div>
 
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-        {/* Left Panel - Controls */}
+        {/* Left Panel - Block Library */}
         <div style={{
-          width: 300,
+          width: 250,
           background: colors.panel,
           borderRight: `1px solid ${colors.border}`,
           padding: 16,
           overflowY: "auto"
         }}>
-          <h3 style={{ margin: "0 0 16px 0", color: colors.text }}>Layout Settings</h3>
+          <h3 style={{ margin: "0 0 16px 0", color: colors.text }}>Block Library</h3>
+          <p style={{ fontSize: 12, color: colors.muted, marginBottom: 16 }}>
+            Drag blocks to the canvas to add them
+          </p>
           
-          {/* Page Settings */}
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Page Size</label>
-            <select 
-              value={design.layout.pageSize}
-              onChange={(e) => setDesign(prev => ({
-                ...prev,
-                layout: { ...prev.layout, pageSize: e.target.value as any }
-              }))}
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: `1px solid ${colors.border}` }}
+          {Object.entries(blockTemplates).map(([type, template]) => (
+            <div
+              key={type}
+              draggable
+              onDragStart={(e) => handleBlockDragStart(e, type as BlockType)}
+              style={{
+                padding: 12,
+                marginBottom: 8,
+                background: colors.background,
+                border: `2px solid ${colors.border}`,
+                borderRadius: 6,
+                cursor: "grab",
+                textAlign: "center",
+                transition: "all 0.2s ease"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = colors.accent
+                e.currentTarget.style.transform = "translateY(-2px)"
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = colors.border
+                e.currentTarget.style.transform = "translateY(0)"
+              }}
             >
-              <option value="Letter">Letter (8.5" x 11")</option>
-              <option value="A4">A4 (210mm x 297mm)</option>
-              <option value="HalfLetter">Half Letter (5.5" x 8.5")</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Orientation</label>
-            <select 
-              value={design.layout.orientation}
-              onChange={(e) => setDesign(prev => ({
-                ...prev,
-                layout: { ...prev.layout, orientation: e.target.value as any }
-              }))}
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: `1px solid ${colors.border}` }}
-            >
-              <option value="landscape">Landscape</option>
-              <option value="portrait">Portrait</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Columns</label>
-            <select 
-              value={design.layout.columns}
-              onChange={(e) => setDesign(prev => ({
-                ...prev,
-                layout: { ...prev.layout, columns: parseInt(e.target.value) as any }
-              }))}
-              style={{ width: "100%", padding: 8, borderRadius: 4, border: `1px solid ${colors.border}` }}
-            >
-              <option value={1}>1 Column</option>
-              <option value={2}>2 Columns</option>
-            </select>
-          </div>
-
-          {/* Element Selection */}
-          <h3 style={{ margin: "20px 0 16px 0", color: colors.text }}>Elements</h3>
-          {design.elements.map(element => (
-            <div key={element.id} style={{
-              padding: 8,
-              marginBottom: 8,
-              background: selectedElement === element.id ? colors.accent + "20" : "transparent",
-              border: `1px solid ${selectedElement === element.id ? colors.accent : colors.border}`,
-              borderRadius: 4,
-              cursor: "pointer"
-            }} onClick={() => setSelectedElement(element.id)}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ color: colors.text, textTransform: "capitalize" }}>{element.type}</span>
-                <input
-                  type="checkbox"
-                  checked={element.visible}
-                  onChange={(e) => updateElement(element.id, { visible: e.target.checked })}
-                  onClick={(e) => e.stopPropagation()}
-                />
+              <div style={{ 
+                fontSize: 14, 
+                fontWeight: "bold", 
+                color: colors.text, 
+                textTransform: "capitalize",
+                marginBottom: 4
+              }}>
+                {type}
               </div>
-              
-              {selectedElement === element.id && (
-                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.muted }}>Font Size</label>
-                    <input
-                      type="range"
-                      min="8"
-                      max="24"
-                      value={element.fontSize}
-                      onChange={(e) => updateElement(element.id, { fontSize: parseInt(e.target.value) })}
-                      style={{ width: "100%" }}
-                    />
-                    <span style={{ fontSize: 12, color: colors.muted }}>{element.fontSize}px</span>
-                  </div>
-                  
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.muted }}>Font Weight</label>
-                    <select
-                      value={element.fontWeight}
-                      onChange={(e) => updateElement(element.id, { fontWeight: e.target.value as any })}
-                      style={{ width: "100%", padding: 4, fontSize: 12 }}
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="bold">Bold</option>
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label style={{ fontSize: 12, color: colors.muted }}>Color</label>
-                    <input
-                      type="color"
-                      value={element.color}
-                      onChange={(e) => updateElement(element.id, { color: e.target.value })}
-                      style={{ width: "100%", height: 32 }}
-                    />
-                  </div>
-                </div>
-              )}
+              <div style={{ fontSize: 11, color: colors.muted }}>
+                {template.width}% × {template.height}%
+              </div>
             </div>
           ))}
+
+          <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid ${colors.border}` }}>
+            <h4 style={{ margin: "0 0 12px 0", color: colors.text, fontSize: 14 }}>Layout Settings</h4>
+            
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", marginBottom: 4, color: colors.text, fontSize: 12 }}>Page Size</label>
+              <select 
+                value={design.layout.pageSize}
+                onChange={(e) => setDesign(prev => ({
+                  ...prev,
+                  layout: { ...prev.layout, pageSize: e.target.value as any }
+                }))}
+                style={{ width: "100%", padding: 6, fontSize: 12, borderRadius: 4, border: `1px solid ${colors.border}` }}
+              >
+                <option value="Letter">Letter</option>
+                <option value="A4">A4</option>
+                <option value="HalfLetter">Half Letter</option>
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ display: "block", marginBottom: 4, color: colors.text, fontSize: 12 }}>Orientation</label>
+              <select 
+                value={design.layout.orientation}
+                onChange={(e) => setDesign(prev => ({
+                  ...prev,
+                  layout: { ...prev.layout, orientation: e.target.value as any }
+                }))}
+                style={{ width: "100%", padding: 6, fontSize: 12, borderRadius: 4, border: `1px solid ${colors.border}` }}
+              >
+                <option value="landscape">Landscape</option>
+                <option value="portrait">Portrait</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         {/* Center Panel - Canvas */}
@@ -336,89 +442,215 @@ export function PrintDesigner({ cocktails, onClose, onPrint }: Props) {
               border: `${design.borderWidth}px solid ${design.borderColor}`,
               position: "relative",
               boxShadow: shadows.lg,
-              cursor: dragging ? "grabbing" : "default"
+              cursor: draggedBlockType ? "crosshair" : "default"
             }}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={handleMouseUp}
+            onMouseMove={handleCanvasMouseMove}
+            onMouseUp={handleCanvasMouseUp}
+            onMouseLeave={handleCanvasMouseUp}
+            onClick={handleCanvasClick}
           >
-            {cocktails.slice(0, design.layout.columns).map((cocktail, index) => (
-              <div
-                key={cocktail.id}
-                style={{
-                  position: "absolute",
-                  left: index === 0 ? "5%" : "50%",
-                  top: "5%",
-                  width: "40%",
-                  height: "90%",
-                  border: "1px dashed #ccc",
-                  padding: 10
-                }}
-              >
-                {design.elements.map(element => renderElement(element, cocktail))}
+            {/* Grid overlay for better alignment */}
+            <div style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundImage: `
+                linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px)
+              `,
+              backgroundSize: "20px 20px",
+              pointerEvents: "none",
+              opacity: 0.3
+            }} />
+            
+            {/* Render blocks */}
+            {design.blocks.map(block => renderBlock(block, cocktails[0]))}
+            
+            {/* Drop zone indicator */}
+            {draggedBlockType && (
+              <div style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "rgba(0, 123, 255, 0.1)",
+                border: "2px dashed #007bff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#007bff",
+                fontSize: 16,
+                fontWeight: "bold"
+              }}>
+                Drop {draggedBlockType} block here
               </div>
-            ))}
+            )}
           </div>
         </div>
 
-        {/* Right Panel - Properties */}
+        {/* Right Panel - Block Properties */}
         <div style={{
-          width: 250,
+          width: 280,
           background: colors.panel,
           borderLeft: `1px solid ${colors.border}`,
           padding: 16,
           overflowY: "auto"
         }}>
-          <h3 style={{ margin: "0 0 16px 0", color: colors.text }}>Page Properties</h3>
-          
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Background Color</label>
-            <input
-              type="color"
-              value={design.backgroundColor}
-              onChange={(e) => setDesign(prev => ({ ...prev, backgroundColor: e.target.value }))}
-              style={{ width: "100%", height: 40 }}
-            />
-          </div>
+          {selectedBlockData ? (
+            <>
+              <h3 style={{ margin: "0 0 16px 0", color: colors.text }}>Block Properties</h3>
+              <div style={{ marginBottom: 16, padding: 12, background: colors.background, borderRadius: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: "bold", color: colors.text, textTransform: "capitalize" }}>
+                  {selectedBlockData.type}
+                </div>
+                <div style={{ fontSize: 12, color: colors.muted }}>
+                  ID: {selectedBlockData.id}
+                </div>
+              </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Border Color</label>
-            <input
-              type="color"
-              value={design.borderColor}
-              onChange={(e) => setDesign(prev => ({ ...prev, borderColor: e.target.value }))}
-              style={{ width: "100%", height: 40 }}
-            />
-          </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Visibility</label>
+                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedBlockData.visible}
+                    onChange={(e) => updateBlock(selectedBlockData.id, { visible: e.target.checked })}
+                  />
+                  <span style={{ fontSize: 12, color: colors.text }}>Show block</span>
+                </label>
+              </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Border Width</label>
-            <input
-              type="range"
-              min="0"
-              max="5"
-              value={design.borderWidth}
-              onChange={(e) => setDesign(prev => ({ ...prev, borderWidth: parseInt(e.target.value) }))}
-              style={{ width: "100%" }}
-            />
-            <span style={{ fontSize: 12, color: colors.muted }}>{design.borderWidth}px</span>
-          </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Font Size</label>
+                <input
+                  type="range"
+                  min="8"
+                  max="32"
+                  value={selectedBlockData.fontSize}
+                  onChange={(e) => updateBlock(selectedBlockData.id, { fontSize: parseInt(e.target.value) })}
+                  style={{ width: "100%" }}
+                />
+                <span style={{ fontSize: 12, color: colors.muted }}>{selectedBlockData.fontSize}px</span>
+              </div>
 
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", marginBottom: 8, color: colors.text }}>Margin</label>
-            <input
-              type="range"
-              min="5"
-              max="50"
-              value={design.layout.margin}
-              onChange={(e) => setDesign(prev => ({
-                ...prev,
-                layout: { ...prev.layout, margin: parseInt(e.target.value) }
-              }))}
-              style={{ width: "100%" }}
-            />
-            <span style={{ fontSize: 12, color: colors.muted }}>{design.layout.margin}px</span>
-          </div>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Font Weight</label>
+                <select
+                  value={selectedBlockData.fontWeight}
+                  onChange={(e) => updateBlock(selectedBlockData.id, { fontWeight: e.target.value as any })}
+                  style={{ width: "100%", padding: 6, fontSize: 12, borderRadius: 4, border: `1px solid ${colors.border}` }}
+                >
+                  <option value="normal">Normal</option>
+                  <option value="bold">Bold</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Text Color</label>
+                <input
+                  type="color"
+                  value={selectedBlockData.color}
+                  onChange={(e) => updateBlock(selectedBlockData.id, { color: e.target.value })}
+                  style={{ width: "100%", height: 40 }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Background Color</label>
+                <input
+                  type="color"
+                  value={selectedBlockData.backgroundColor}
+                  onChange={(e) => updateBlock(selectedBlockData.id, { backgroundColor: e.target.value })}
+                  style={{ width: "100%", height: 40 }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Text Alignment</label>
+                <select
+                  value={selectedBlockData.textAlign}
+                  onChange={(e) => updateBlock(selectedBlockData.id, { textAlign: e.target.value as any })}
+                  style={{ width: "100%", padding: 6, fontSize: 12, borderRadius: 4, border: `1px solid ${colors.border}` }}
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Padding</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="20"
+                  value={selectedBlockData.padding}
+                  onChange={(e) => updateBlock(selectedBlockData.id, { padding: parseInt(e.target.value) })}
+                  style={{ width: "100%" }}
+                />
+                <span style={{ fontSize: 12, color: colors.muted }}>{selectedBlockData.padding}px</span>
+              </div>
+
+              <button
+                onClick={() => removeBlock(selectedBlockData.id)}
+                style={{
+                  ...btnSecondary,
+                  width: "100%",
+                  background: "#dc3545",
+                  color: "white",
+                  border: "none"
+                }}
+              >
+                🗑️ Delete Block
+              </button>
+            </>
+          ) : (
+            <>
+              <h3 style={{ margin: "0 0 16px 0", color: colors.text }}>Page Properties</h3>
+              
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Background Color</label>
+                <input
+                  type="color"
+                  value={design.backgroundColor}
+                  onChange={(e) => setDesign(prev => ({ ...prev, backgroundColor: e.target.value }))}
+                  style={{ width: "100%", height: 40 }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Border Color</label>
+                <input
+                  type="color"
+                  value={design.borderColor}
+                  onChange={(e) => setDesign(prev => ({ ...prev, borderColor: e.target.value }))}
+                  style={{ width: "100%", height: 40 }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", marginBottom: 8, color: colors.text, fontSize: 12 }}>Border Width</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="5"
+                  value={design.borderWidth}
+                  onChange={(e) => setDesign(prev => ({ ...prev, borderWidth: parseInt(e.target.value) }))}
+                  style={{ width: "100%" }}
+                />
+                <span style={{ fontSize: 12, color: colors.muted }}>{design.borderWidth}px</span>
+              </div>
+
+              <div style={{ marginTop: 20, padding: 12, background: colors.background, borderRadius: 6 }}>
+                <div style={{ fontSize: 12, color: colors.muted, textAlign: "center" }}>
+                  Click a block to edit its properties
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
