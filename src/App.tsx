@@ -12,9 +12,7 @@ import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
 import { IngredientsAdmin } from "./components/IngredientsAdmin"
 import { UsersAdmin, type UserRow } from "./components/UsersAdmin"
-import { PrintDesigner } from "./components/PrintDesigner"
 
-import { printOnePager, printWithDesign } from "./utils/print"
 import { ng, normalizeSearchTerm } from "./utils/text"
 
 import type {
@@ -95,10 +93,6 @@ export default function App() {
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
-  // ---------- MULTI-PRINT SELECTION ----------
-  const [selectedCocktails, setSelectedCocktails] = useState<Set<string>>(new Set())
-  const [multiPrintMode, setMultiPrintMode] = useState(false)
-  const [showPrintDesigner, setShowPrintDesigner] = useState(false)
 
   // ---------- CATALOGS ----------
   const [methods, setMethods] = useState<string[]>([])
@@ -365,42 +359,6 @@ export default function App() {
     if (error) { setErr(error.message); return }
     setRows(prev=> prev.filter(r=> r.id !== cId))
     if (editingId === cId) { resetForm(); setFormOpen(false) }
-  }
-
-  // ---------- MULTI-PRINT FUNCTIONS ----------
-  function toggleCocktailSelection(cocktailId: string) {
-    setSelectedCocktails(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(cocktailId)) {
-        newSet.delete(cocktailId)
-      } else {
-        newSet.add(cocktailId)
-      }
-      return newSet
-    })
-  }
-
-  function selectAllCocktails() {
-    setSelectedCocktails(new Set(rows.map(c => c.id)))
-  }
-
-  function clearSelection() {
-    setSelectedCocktails(new Set())
-  }
-
-  async function printSelectedCocktails() {
-    if (selectedCocktails.size === 0) {
-      alert("Please select at least one cocktail to print")
-      return
-    }
-
-    setShowPrintDesigner(true)
-  }
-
-  async function handlePrintWithDesign(design: any) {
-    const cocktailsToPrint = rows.filter(c => selectedCocktails.has(c.id))
-    await printWithDesign(supabase, cocktailsToPrint, design)
-    setShowPrintDesigner(false)
   }
 
   async function save(e: React.FormEvent) {
@@ -1566,81 +1524,6 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Multi-Print Controls */}
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button 
-                    onClick={() => {
-                      setMultiPrintMode(!multiPrintMode)
-                      if (multiPrintMode) {
-                        clearSelection()
-                      }
-                    }}
-                    style={{
-                      ...btnSecondary,
-                      fontSize: 11,
-                      padding: "4px 8px",
-                      background: multiPrintMode ? colors.accent : colors.glass,
-                      color: multiPrintMode ? "white" : colors.text,
-                      border: `1px solid ${multiPrintMode ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 4
-                    }}
-                  >
-                    🖨️ {multiPrintMode ? "Exit" : "Multi-Print"}
-                  </button>
-                  
-                  {multiPrintMode && (
-                    <>
-                      <span style={{ fontSize: 11, color: colors.muted }}>
-                        {selectedCocktails.size} selected
-                      </span>
-                      <button 
-                        onClick={selectAllCocktails}
-                        style={{
-                          ...btnSecondary,
-                          fontSize: 10,
-                          padding: "2px 6px",
-                          background: colors.glass,
-                          color: colors.text,
-                          border: `1px solid ${colors.glassBorder}`,
-                          borderRadius: 4
-                        }}
-                      >
-                        Select All
-                      </button>
-                      <button 
-                        onClick={clearSelection}
-                        style={{
-                          ...btnSecondary,
-                          fontSize: 10,
-                          padding: "2px 6px",
-                          background: colors.glass,
-                          color: colors.text,
-                          border: `1px solid ${colors.glassBorder}`,
-                          borderRadius: 4
-                        }}
-                      >
-                        Clear
-                      </button>
-                      <button 
-                        onClick={printSelectedCocktails}
-                        disabled={selectedCocktails.size === 0}
-                        style={{
-                          ...btnPrimary,
-                          fontSize: 11,
-                          padding: "4px 8px",
-                          background: selectedCocktails.size > 0 ? colors.accent : colors.muted,
-                          color: "white",
-                          border: "none",
-                          borderRadius: 4,
-                          cursor: selectedCocktails.size > 0 ? "pointer" : "not-allowed",
-                          opacity: selectedCocktails.size > 0 ? 1 : 0.5
-                        }}
-                      >
-                        Print {selectedCocktails.size}
-                      </button>
-                    </>
-                  )}
-                </div>
 
                 {/* Cocktail Name Search */}
                 <div style={{ position: "relative" }}>
@@ -2132,7 +2015,7 @@ export default function App() {
                   <div
                     key={c.id}
                     className="card-hover animate-fade-in-up"
-                    onClick={() => multiPrintMode ? toggleCocktailSelection(c.id) : startEdit(c)}
+                    onClick={() => startEdit(c)}
                     style={{
                       ...cocktailCard,
                       position: "relative",
@@ -2141,41 +2024,16 @@ export default function App() {
                       background: c.last_special_on ? 
                         `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.1) 100%)` : 
                         colors.panel,
-                      border: selectedCocktails.has(c.id) ? 
-                        `2px solid ${colors.accent}` : 
-                        c.last_special_on ? 
-                          `1px solid ${colors.specialSolid}` : 
-                          `1px solid ${colors.border}`,
-                      boxShadow: selectedCocktails.has(c.id) ? 
-                        `0 0 20px rgba(102, 126, 234, 0.3)` : 
-                        c.last_special_on ? 
-                          `0 0 20px rgba(167, 243, 208, 0.2)` : 
-                          shadows.md,
+                      border: c.last_special_on ? 
+                        `1px solid ${colors.specialSolid}` : 
+                        `1px solid ${colors.border}`,
+                      boxShadow: c.last_special_on ? 
+                        `0 0 20px rgba(167, 243, 208, 0.2)` : 
+                        shadows.md,
                       animationDelay: `${index * 0.1}s`
                     }}
-                    title={multiPrintMode ? "Click to select" : "Click to edit"}
+                    title="Click to edit"
                   >
-                    {/* Multi-Print Selection Checkbox */}
-                    {multiPrintMode && (
-                      <div style={{
-                        position: "absolute",
-                        top: 8,
-                        right: 8,
-                        zIndex: 10
-                      }}>
-                        <input
-                          type="checkbox"
-                          checked={selectedCocktails.has(c.id)}
-                          onChange={() => toggleCocktailSelection(c.id)}
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            width: 18,
-                            height: 18,
-                            accentColor: colors.accent
-                          }}
-                        />
-                      </div>
-                    )}
                     {/* Header with name, price, and special badge */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                       <div style={{ flex: 1, marginRight: 16 }}>
@@ -2314,52 +2172,38 @@ export default function App() {
                     )}
 
                     {/* Actions */}
-                    <div style={{ 
-                      display: "flex", 
-                      gap: 8, 
-                      marginTop: "auto",
-                      paddingTop: 16,
-                      borderTop: `1px solid ${colors.border}`
-                    }}>
-                      <button
-                        onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
-                        style={{
-                          ...btnSecondary,
-                          flex: 1,
-                          fontSize: 12,
-                          padding: "8px 12px"
-                        }}
-                        className="print-button"
-                      >
-                        🖨️ Print
-                      </button>
-                      {(role==="editor" || role==="admin") && (
-                        <>
-                          <button 
-                            onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} 
-                            style={{
-                              ...btnSecondary,
-                              flex: 1,
-                              fontSize: 12,
-                              padding: "8px 12px"
-                            }}
-                          >
-                            ✏️ Edit
-                          </button>
-                          <button 
-                            onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} 
-                            style={{
-                              ...dangerBtn,
-                              flex: 1,
-                              fontSize: 12,
-                              padding: "8px 12px"
-                            }}
-                          >
-                            🗑️ Delete
-                          </button>
-                        </>
-                      )}
-                    </div>
+                    {(role==="editor" || role==="admin") && (
+                      <div style={{ 
+                        display: "flex", 
+                        gap: 8, 
+                        marginTop: "auto",
+                        paddingTop: 16,
+                        borderTop: `1px solid ${colors.border}`
+                      }}>
+                        <button 
+                          onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} 
+                          style={{
+                            ...btnSecondary,
+                            flex: 1,
+                            fontSize: 12,
+                            padding: "8px 12px"
+                          }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button 
+                          onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} 
+                          style={{
+                            ...dangerBtn,
+                            flex: 1,
+                            fontSize: 12,
+                            padding: "8px 12px"
+                          }}
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2378,7 +2222,6 @@ export default function App() {
                     color: colors.text
                   }}>
                     <tr>
-                      {multiPrintMode && <th style={th}>☑️</th>}
                       <th style={th}>🍸 Name</th>
                       <th style={th}>🔄 Method</th>
                       <th style={th}>🥃 Glass</th>
@@ -2396,14 +2239,12 @@ export default function App() {
                           borderTop: `1px solid ${colors.border}`,
                           cursor: "pointer",
                           transition: "all 0.2s ease",
-                          background: selectedCocktails.has(c.id) ? 
-                            `linear-gradient(135deg, ${colors.panel} 0%, rgba(102, 126, 234, 0.1) 100%)` : 
-                            c.last_special_on ? 
-                              `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.05) 100%)` : 
-                              "transparent"
+                          background: c.last_special_on ? 
+                            `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.05) 100%)` : 
+                            "transparent"
                         }} 
-                        onClick={() => multiPrintMode ? toggleCocktailSelection(c.id) : startEdit(c)} 
-                        title={multiPrintMode ? "Click to select" : "Click to edit"}
+                        onClick={() => startEdit(c)} 
+                        title="Click to edit"
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = c.last_special_on ? 
                             `linear-gradient(135deg, ${colors.panelHover} 0%, rgba(167, 243, 208, 0.1) 100%)` : 
@@ -2415,21 +2256,6 @@ export default function App() {
                             "transparent"
                         }}
                       >
-                        {multiPrintMode && (
-                          <td style={td}>
-                            <input
-                              type="checkbox"
-                              checked={selectedCocktails.has(c.id)}
-                              onChange={() => toggleCocktailSelection(c.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                width: 16,
-                                height: 16,
-                                accentColor: colors.accent
-                              }}
-                            />
-                          </td>
-                        )}
                         <td style={td}>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             {c.last_special_on && <span style={{ color: colors.specialSolid }}>⭐</span>}
@@ -2493,43 +2319,30 @@ export default function App() {
                           ) : "—"}
                         </td>
                         <td style={{ ...td, textAlign: "right", whiteSpace: "nowrap" }}>
-                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                            <button
-                              onClick={(e)=>{ e.stopPropagation(); printOnePager(supabase, c, { page: "HalfLetter", orientation: "landscape" }) }}
-                              style={{
-                                ...btnSecondary,
-                                fontSize: 11,
-                                padding: "6px 10px"
-                              }}
-                              className="print-button"
-                            >
-                              🖨️
-                            </button>
-                            {(role==="editor" || role==="admin") && (
-                              <>
-                                <button 
-                                  onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} 
-                                  style={{
-                                    ...btnSecondary,
-                                    fontSize: 11,
-                                    padding: "6px 10px"
-                                  }}
-                                >
-                                  ✏️
-                                </button>
-                                <button 
-                                  onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} 
-                                  style={{
-                                    ...dangerBtn,
-                                    fontSize: 11,
-                                    padding: "6px 10px"
-                                  }}
-                                >
-                                  🗑️
-                                </button>
-                              </>
-                            )}
-                          </div>
+                          {(role==="editor" || role==="admin") && (
+                            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                              <button 
+                                onClick={(e)=>{ e.stopPropagation(); startEdit(c) }} 
+                                style={{
+                                  ...btnSecondary,
+                                  fontSize: 11,
+                                  padding: "6px 10px"
+                                }}
+                              >
+                                ✏️
+                              </button>
+                              <button 
+                                onClick={(e)=>{ e.stopPropagation(); remove(c.id) }} 
+                                style={{
+                                  ...dangerBtn,
+                                  fontSize: 11,
+                                  padding: "6px 10px"
+                                }}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -2540,15 +2353,6 @@ export default function App() {
           </>
         )}
       </div>
-
-      {/* Print Designer Modal */}
-      {showPrintDesigner && (
-        <PrintDesigner
-          cocktails={rows.filter(c => selectedCocktails.has(c.id))}
-          onClose={() => setShowPrintDesigner(false)}
-          onPrint={handlePrintWithDesign}
-        />
-      )}
     </div>
   )
 }
