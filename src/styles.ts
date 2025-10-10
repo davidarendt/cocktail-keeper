@@ -70,35 +70,34 @@ export const cocktailCard: CSSProperties = {
   }),
 }
 
-// Special cocktail badge
+// Special cocktail badge - gold
 export const specialBadge: CSSProperties = {
-  background: colors.special,
-  color: colors.bgSolid,
+  background: colors.specialSolid,
+  color: "#1a1a1a",
   padding: `${space.xs}px ${space.sm}px`,
-  borderRadius: radii.full,
+  borderRadius: radii.sm,
   fontSize: fonts.caption,
   fontWeight: 600,
   textTransform: "uppercase",
   letterSpacing: "0.05em",
-  boxShadow: shadows.sm,
+  border: `1px solid ${colors.primary}`,
 }
 
-// Ology recipe badge
+// Ology recipe badge - brown
 export const ologyBadge: CSSProperties = {
   background: colors.accent,
-  color: colors.bgSolid,
+  color: "#ffffff",
   padding: `${space.xs}px ${space.sm}px`,
-  borderRadius: radii.full,
+  borderRadius: radii.sm,
   fontSize: fonts.caption,
   fontWeight: 600,
   textTransform: "uppercase",
   letterSpacing: "0.05em",
-  boxShadow: shadows.sm,
 }
 
-// Price display
+// Price display - gold color
 export const priceDisplay: CSSProperties = {
-  ...textGradient(colors.accent),
+  color: colors.primary,
   fontWeight: 700,
   fontSize: fonts.large,
 }

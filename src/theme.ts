@@ -1,53 +1,53 @@
 // src/theme.ts
 import type { CSSProperties } from "react"
 
-/** ---- Modern Design System Tokens ---- */
+/** ---- Ology Brewing Design System ---- */
 export const colors = {
-  // Base colors with sophisticated gradients
-  bg: "linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%)",
-  bgSolid: "#0f0f23",
-  text: "#f8fafc",
-  muted: "#94a3b8",
-  panel: "rgba(255, 255, 255, 0.05)",
-  panelHover: "rgba(255, 255, 255, 0.08)",
-  border: "rgba(255, 255, 255, 0.1)",
-  borderHover: "rgba(255, 255, 255, 0.2)",
+  // Ology brand colors - clean white background with warm accents
+  bg: "#ffffff",
+  bgSolid: "#ffffff",
+  text: "#1a1a1a",
+  muted: "#6b6b6b",
+  panel: "#fafaf9",
+  panelHover: "#f5f5f4",
+  border: "#e5e5e5",
+  borderHover: "#d4d4d4",
 
-  // Glass morphism
-  glass: "rgba(255, 255, 255, 0.1)",
-  glassBorder: "rgba(255, 255, 255, 0.2)",
+  // Subtle glass effect for cards
+  glass: "#fafaf9",
+  glassBorder: "#e5e5e5",
 
   // Input styling
-  inputBg: "rgba(255, 255, 255, 0.05)",
-  inputBorder: "rgba(255, 255, 255, 0.1)",
-  inputFocus: "rgba(99, 102, 241, 0.3)",
+  inputBg: "#ffffff",
+  inputBorder: "#d4d4d4",
+  inputFocus: "rgba(184, 134, 11, 0.3)",
 
-  // Primary colors with gradients
-  primary: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  primarySolid: "#667eea",
-  primaryHover: "linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%)",
-  primaryBorder: "#5a67d8",
+  // Ology gold primary color
+  primary: "#d4a574",
+  primarySolid: "#d4a574",
+  primaryHover: "#c89558",
+  primaryBorder: "#b8860b",
 
-  // Accent colors
-  accent: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-  accentSolid: "#f093fb",
+  // Deep brown accent
+  accent: "#5c4033",
+  accentSolid: "#5c4033",
 
-  // Status colors
-  success: "linear-gradient(135deg, #4ade80 0%, #22c55e 100%)",
-  successSolid: "#4ade80",
-  danger: "linear-gradient(135deg, #f87171 0%, #ef4444 100%)",
-  dangerSolid: "#f87171",
-  dangerBorder: "#dc2626",
-  warning: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
-  warningSolid: "#fbbf24",
+  // Status colors (muted to match Ology aesthetic)
+  success: "#22c55e",
+  successSolid: "#22c55e",
+  danger: "#dc2626",
+  dangerSolid: "#dc2626",
+  dangerBorder: "#b91c1c",
+  warning: "#f59e0b",
+  warningSolid: "#f59e0b",
 
-  // Special cocktail highlighting
-  special: "linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%)",
-  specialSolid: "#a7f3d0",
+  // Special cocktail highlighting - subtle gold
+  special: "#fef3c7",
+  specialSolid: "#fbbf24",
 
-  // Text gradients
-  textGradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  textGradientAccent: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+  // Text gradients (using Ology colors)
+  textGradient: "#5c4033",
+  textGradientAccent: "#d4a574",
 } as const
 
 export const space = {
@@ -88,11 +88,11 @@ export const layout = {
 
 export const shadows = {
   sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-  md: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-  lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-  xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-  glow: "0 0 20px rgba(99, 102, 241, 0.3)",
-  glowAccent: "0 0 20px rgba(240, 147, 251, 0.3)",
+  md: "0 2px 4px 0 rgba(0, 0, 0, 0.08)",
+  lg: "0 4px 8px 0 rgba(0, 0, 0, 0.1)",
+  xl: "0 8px 16px 0 rgba(0, 0, 0, 0.12)",
+  glow: "0 0 15px rgba(212, 165, 116, 0.3)",
+  glowAccent: "0 0 15px rgba(92, 64, 51, 0.2)",
 } as const
 
 export const transitions = {
@@ -102,16 +102,15 @@ export const transitions = {
   bounce: "300ms cubic-bezier(0.68, -0.55, 0.265, 1.55)",
 } as const
 
-/** ---- Modern Component Styles ---- */
+/** ---- Ology Component Styles ---- */
 
-// Glass morphism card with backdrop blur
+// Clean card with subtle shadow
 export const card = (overrides?: CSSProperties): CSSProperties => ({
   background: colors.panel,
-  backdropFilter: "blur(10px)",
   border: `1px solid ${colors.border}`,
-  borderRadius: radii.lg,
+  borderRadius: radii.md,
   padding: space.lg,
-  boxShadow: shadows.md,
+  boxShadow: shadows.sm,
   transition: `all ${transitions.normal}`,
   ...overrides,
 })
@@ -134,11 +133,11 @@ export const inp: CSSProperties = {
   outline: "none",
 }
 
-// Gradient primary button
+// Ology gold primary button
 export const btnPrimary: CSSProperties = {
   background: colors.primary,
   border: "none",
-  color: "white",
+  color: "#ffffff",
   padding: `${space.md}px ${space.xl}px`,
   borderRadius: radii.md,
   fontSize: fonts.base,
@@ -148,10 +147,10 @@ export const btnPrimary: CSSProperties = {
   boxShadow: shadows.sm,
 }
 
-// Glass morphism secondary button
+// Clean secondary button
 export const btnSecondary: CSSProperties = {
-  background: colors.glass,
-  border: `1px solid ${colors.glassBorder}`,
+  background: "#ffffff",
+  border: `1px solid ${colors.border}`,
   color: colors.text,
   padding: `${space.sm}px ${space.lg}px`,
   borderRadius: radii.md,
@@ -159,10 +158,9 @@ export const btnSecondary: CSSProperties = {
   fontWeight: 500,
   cursor: "pointer",
   transition: `all ${transitions.fast}`,
-  backdropFilter: "blur(10px)",
 }
 
-// Gradient danger button
+// Clean danger button
 export const dangerBtn: CSSProperties = {
   background: colors.danger,
   border: "none",

@@ -5,7 +5,7 @@ import { supabase } from "./supabaseClient"
 
 import {
   appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors,
-  cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, textGradient, shadows
+  cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, shadows
 } from "./styles"
 
 import { SettingsBlock } from "./components/SettingsBlock"
@@ -953,25 +953,25 @@ export default function App() {
               fontSize: 36, 
               fontWeight: 800, 
               margin: 0,
-                textShadow: "0 0 20px rgba(102, 126, 234, 0.3)",
+                color: colors.accent,
+                textShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                 cursor: "pointer",
                 transition: "all 0.2s ease"
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.transform = "scale(1.05)"
-                e.currentTarget.style.textShadow = "0 0 25px rgba(102, 126, 234, 0.5)"
+                e.currentTarget.style.color = colors.primary
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "scale(1)"
-                e.currentTarget.style.textShadow = "0 0 20px rgba(102, 126, 234, 0.3)"
+                e.currentTarget.style.color = colors.accent
               }}
             >
-              🍸 Cocktail Keeper
+              🍸 Ology Cocktail Keeper
             </h1>
             {session && (
               <div style={{
                 background: colors.glass,
-                backdropFilter: "blur(10px)",
                 border: `1px solid ${colors.glassBorder}`,
                 borderRadius: 20,
                 padding: "8px 16px",
@@ -1076,8 +1076,7 @@ export default function App() {
               {/* Settings Menu */}
               <div style={{
                 ...card({ marginBottom: 24 }),
-                background: colors.glass,
-                backdropFilter: "blur(10px)"
+                background: colors.glass
               }}>
                 <div style={{
                   display: "grid",
@@ -1471,8 +1470,7 @@ export default function App() {
             {/* COMPACT FILTER CONTROLS */}
             <div className="animate-slide-in-right" style={{
               ...card({ marginBottom: 24 }),
-              background: colors.glass,
-              backdropFilter: "blur(10px)"
+              background: colors.glass
             }}>
               {/* Header */}
               <div style={{
@@ -2022,13 +2020,13 @@ export default function App() {
                       overflow: "hidden",
                       cursor: "pointer",
                       background: c.last_special_on ? 
-                        `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.1) 100%)` : 
+                        colors.special : 
                         colors.panel,
                       border: c.last_special_on ? 
                         `1px solid ${colors.specialSolid}` : 
                         `1px solid ${colors.border}`,
                       boxShadow: c.last_special_on ? 
-                        `0 0 20px rgba(167, 243, 208, 0.2)` : 
+                        shadows.glow : 
                         shadows.md,
                       animationDelay: `${index * 0.1}s`
                     }}
@@ -2041,7 +2039,7 @@ export default function App() {
                           fontWeight: 700, 
                           fontSize: 18, 
                           margin: "0 0 8px 0",
-                          ...textGradient(colors.textGradient)
+                          color: colors.accent
                         }}>
                           {c.name}
                         </h3>
@@ -2214,11 +2212,10 @@ export default function App() {
                   width: "100%", 
                   borderCollapse: "collapse", 
                   ...card({ padding: 0 }),
-                  background: colors.glass,
-                  backdropFilter: "blur(10px)"
+                  background: colors.glass
                 }}>
                   <thead style={{ 
-                    background: `linear-gradient(135deg, ${colors.panel} 0%, ${colors.glass} 100%)`,
+                    background: colors.panel,
                     color: colors.text
                   }}>
                     <tr>
@@ -2240,19 +2237,19 @@ export default function App() {
                           cursor: "pointer",
                           transition: "all 0.2s ease",
                           background: c.last_special_on ? 
-                            `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.05) 100%)` : 
+                            colors.special : 
                             "transparent"
                         }} 
                         onClick={() => startEdit(c)} 
                         title="Click to edit"
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = c.last_special_on ? 
-                            `linear-gradient(135deg, ${colors.panelHover} 0%, rgba(167, 243, 208, 0.1) 100%)` : 
+                            colors.special : 
                             colors.panelHover
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = c.last_special_on ? 
-                            `linear-gradient(135deg, ${colors.panel} 0%, rgba(167, 243, 208, 0.05) 100%)` : 
+                            colors.special : 
                             "transparent"
                         }}
                       >
@@ -2262,7 +2259,7 @@ export default function App() {
                             {c.is_ology_recipe && <span style={{ color: colors.accent }}>🍸</span>}
                             <span style={{ 
                               fontWeight: 600,
-                              ...textGradient(colors.textGradient)
+                              color: colors.accent
                             }}>
                               {c.name}
                             </span>
