@@ -5,9 +5,8 @@
   </text>
   
   <!-- Diacritics for the O's -->
-  <!-- First O - diaeresis/umlaut -->
-  <circle cx="45" cy="22" r="2" fill="#000000"/>
-  <circle cx="52" cy="22" r="2" fill="#000000"/>
+  <!-- First O - single solid circle -->
+  <circle cx="48.5" cy="22" r="2.5" fill="#000000"/>
   
   <!-- Second O - macron -->
   <rect x="120" y="18" width="12" height="3" fill="#000000"/>
