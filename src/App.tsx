@@ -615,6 +615,17 @@ export default function App() {
       setErr(err instanceof Error ? err.message : "Failed to delete tag")
     }
   }
+
+  async function updateTagColor(tag: Tag, newColor: string) {
+    try {
+      const { error } = await supabase.from("tags").update({ color: newColor }).eq("id", tag.id)
+      if (error) throw error
+      await loadTags()
+    } catch (err) {
+      console.error("update tag color error:", err)
+      setErr(err instanceof Error ? err.message : "Failed to update tag color")
+    }
+  }
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
     if (!n || n === item.name) return
@@ -1277,7 +1288,7 @@ export default function App() {
               {/* Settings Content */}
               {settingsTab === "methods" && (
                 <SettingsBlock
-                  catalog={catalog.filter(c => c.kind === "method")}
+                  catalog={catalog}
                   catLoading={catLoading}
                   newName={newName}
                   onNewNameChange={handleNewNameChange}
@@ -1289,12 +1300,13 @@ export default function App() {
                   onDragOver={onDragOver}
                   onDrop={onDrop}
                   draggingId={draggingId}
+                  selectedKind="method"
                 />
               )}
 
               {settingsTab === "glasses" && (
                 <SettingsBlock
-                  catalog={catalog.filter(c => c.kind === "glass")}
+                  catalog={catalog}
                   catLoading={catLoading}
                   newName={newName}
                   onNewNameChange={handleNewNameChange}
@@ -1306,12 +1318,13 @@ export default function App() {
                   onDragOver={onDragOver}
                   onDrop={onDrop}
                   draggingId={draggingId}
+                  selectedKind="glass"
                 />
               )}
 
               {settingsTab === "ices" && (
                 <SettingsBlock
-                  catalog={catalog.filter(c => c.kind === "ice")}
+                  catalog={catalog}
                   catLoading={catLoading}
                   newName={newName}
                   onNewNameChange={handleNewNameChange}
@@ -1323,12 +1336,13 @@ export default function App() {
                   onDragOver={onDragOver}
                   onDrop={onDrop}
                   draggingId={draggingId}
+                  selectedKind="ice"
                 />
               )}
 
               {settingsTab === "garnishes" && (
                 <SettingsBlock
-                  catalog={catalog.filter(c => c.kind === "garnish")}
+                  catalog={catalog}
                   catLoading={catLoading}
                   newName={newName}
                   onNewNameChange={handleNewNameChange}
@@ -1340,6 +1354,7 @@ export default function App() {
                   onDragOver={onDragOver}
                   onDrop={onDrop}
                   draggingId={draggingId}
+                  selectedKind="garnish"
                 />
               )}
 
@@ -1416,6 +1431,20 @@ export default function App() {
                         <span style={{ flex: 1, fontWeight: 500, color: colors.text }}>
                           {tag.name}
                         </span>
+                        <input
+                          type="color"
+                          value={tag.color}
+                          onChange={e => updateTagColor(tag, e.target.value)}
+                          style={{ 
+                            width: 30, 
+                            height: 30, 
+                            border: "none", 
+                            borderRadius: 4, 
+                            cursor: "pointer",
+                            marginRight: 8
+                          }}
+                          title="Change color"
+                        />
                         <button
                           onClick={() => renameTag(tag)}
                           style={{
