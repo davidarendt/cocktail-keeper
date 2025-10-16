@@ -1543,7 +1543,7 @@ export default function App() {
                         type="color"
                         value={newTagColor}
                         onChange={e => setNewTagColor(e.target.value)}
-                        style={{ width: 40, height: 40, border: "none", borderRadius: 6, cursor: "pointer" }}
+                        style={{ width: 50, height: 50, border: "none", borderRadius: 8, cursor: "pointer" }}
                       />
                       <button
                         onClick={() => {
