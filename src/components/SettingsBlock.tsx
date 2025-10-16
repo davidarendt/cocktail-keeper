@@ -100,8 +100,10 @@ export function SettingsBlock({
                     </label>
                   </td>
                   <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                    <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
-                    <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
+                      <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}
