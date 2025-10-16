@@ -604,26 +604,186 @@ export default function App() {
   }
 
   async function editTag(tag: Tag) {
-    const newName = prompt(`Edit tag name:`, tag.name)?.trim()
-    if (!newName) return
+    // Create a modal-like interface for editing
+    const modal = document.createElement('div')
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    `
     
-    const newColor = prompt(`Edit tag color (hex code like #FF0000):`, tag.color)?.trim()
-    if (!newColor) return
+    const content = document.createElement('div')
+    content.style.cssText = `
+      background: ${colors.panel};
+      border: 1px solid ${colors.border};
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 400px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    `
     
-    try {
-      const updates: { name?: string; color?: string } = {}
-      if (newName !== tag.name) updates.name = newName
-      if (newColor !== tag.color) updates.color = newColor
-      
-      if (Object.keys(updates).length > 0) {
-        const { error } = await supabase.from("tags").update(updates).eq("id", tag.id)
-        if (error) throw error
-        await loadTags()
+    content.innerHTML = `
+      <h3 style="margin: 0 0 20px 0; color: ${colors.text}; font-size: 18px; font-weight: 600;">
+        ✏️ Edit Tag
+      </h3>
+      <div style="margin-bottom: 16px;">
+        <label style="display: block; margin-bottom: 8px; color: ${colors.text}; font-weight: 500;">
+          Tag Name:
+        </label>
+        <input 
+          id="tagNameInput" 
+          type="text" 
+          value="${tag.name}" 
+          style="
+            width: 100%; 
+            padding: 8px 12px; 
+            border: 1px solid ${colors.border}; 
+            border-radius: 6px; 
+            background: ${colors.glass}; 
+            color: ${colors.text};
+            font-size: 14px;
+            box-sizing: border-box;
+          "
+        />
+      </div>
+      <div style="margin-bottom: 24px;">
+        <label style="display: block; margin-bottom: 8px; color: ${colors.text}; font-weight: 500;">
+          Tag Color:
+        </label>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <input 
+            id="tagColorInput" 
+            type="color" 
+            value="${tag.color}" 
+            style="
+              width: 50px; 
+              height: 40px; 
+              border: none; 
+              border-radius: 6px; 
+              cursor: pointer;
+            "
+          />
+          <input 
+            id="tagColorHex" 
+            type="text" 
+            value="${tag.color}" 
+            placeholder="#FF0000"
+            style="
+              flex: 1; 
+              padding: 8px 12px; 
+              border: 1px solid ${colors.border}; 
+              border-radius: 6px; 
+              background: ${colors.glass}; 
+              color: ${colors.text};
+              font-size: 14px;
+            "
+          />
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button 
+          id="cancelBtn" 
+          style="
+            padding: 8px 16px; 
+            border: 1px solid ${colors.border}; 
+            border-radius: 6px; 
+            background: ${colors.glass}; 
+            color: ${colors.text}; 
+            cursor: pointer;
+            font-size: 14px;
+          "
+        >
+          Cancel
+        </button>
+        <button 
+          id="saveBtn" 
+          style="
+            padding: 8px 16px; 
+            border: none; 
+            border-radius: 6px; 
+            background: ${colors.accent}; 
+            color: white; 
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+          "
+        >
+          Save Changes
+        </button>
+      </div>
+    `
+    
+    modal.appendChild(content)
+    document.body.appendChild(modal)
+    
+    const nameInput = content.querySelector('#tagNameInput') as HTMLInputElement
+    const colorInput = content.querySelector('#tagColorInput') as HTMLInputElement
+    const colorHex = content.querySelector('#tagColorHex') as HTMLInputElement
+    const cancelBtn = content.querySelector('#cancelBtn') as HTMLButtonElement
+    const saveBtn = content.querySelector('#saveBtn') as HTMLButtonElement
+    
+    // Sync color picker with hex input
+    colorInput.addEventListener('input', () => {
+      colorHex.value = colorInput.value
+    })
+    
+    colorHex.addEventListener('input', () => {
+      if (/^#[0-9A-Fa-f]{6}$/.test(colorHex.value)) {
+        colorInput.value = colorHex.value
       }
-    } catch (err) {
-      console.error("edit tag error:", err)
-      setErr(err instanceof Error ? err.message : "Failed to edit tag")
+    })
+    
+    // Handle cancel
+    const cleanup = () => {
+      document.body.removeChild(modal)
     }
+    
+    cancelBtn.addEventListener('click', cleanup)
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) cleanup()
+    })
+    
+    // Handle save
+    saveBtn.addEventListener('click', async () => {
+      const newName = nameInput.value.trim()
+      const newColor = colorHex.value.trim()
+      
+      if (!newName) {
+        alert('Tag name cannot be empty')
+        return
+      }
+      
+      if (!/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
+        alert('Please enter a valid hex color (e.g., #FF0000)')
+        return
+      }
+      
+      try {
+        const updates: { name?: string; color?: string } = {}
+        if (newName !== tag.name) updates.name = newName
+        if (newColor !== tag.color) updates.color = newColor
+        
+        if (Object.keys(updates).length > 0) {
+          const { error } = await supabase.from("tags").update(updates).eq("id", tag.id)
+          if (error) throw error
+          await loadTags()
+        }
+        cleanup()
+      } catch (err) {
+        console.error("edit tag error:", err)
+        setErr(err instanceof Error ? err.message : "Failed to edit tag")
+      }
+    })
+    
+    // Focus the name input
+    setTimeout(() => nameInput.focus(), 100)
   }
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
