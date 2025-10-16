@@ -591,19 +591,6 @@ export default function App() {
     }
   }
 
-  async function renameTag(tag: Tag) {
-    const newName = prompt(`Rename tag "${tag.name}":`, tag.name)?.trim()
-    if (!newName || newName === tag.name) return
-    try {
-      const { error } = await supabase.from("tags").update({ name: newName }).eq("id", tag.id)
-      if (error) throw error
-      await loadTags()
-    } catch (err) {
-      console.error("rename tag error:", err)
-      setErr(err instanceof Error ? err.message : "Failed to rename tag")
-    }
-  }
-
   async function deleteTag(tag: Tag) {
     if (!confirm(`Delete tag "${tag.name}"? This will remove it from all cocktails.`)) return
     try {
@@ -616,14 +603,26 @@ export default function App() {
     }
   }
 
-  async function updateTagColor(tag: Tag, newColor: string) {
+  async function editTag(tag: Tag) {
+    const newName = prompt(`Edit tag name:`, tag.name)?.trim()
+    if (!newName) return
+    
+    const newColor = prompt(`Edit tag color (hex code like #FF0000):`, tag.color)?.trim()
+    if (!newColor) return
+    
     try {
-      const { error } = await supabase.from("tags").update({ color: newColor }).eq("id", tag.id)
-      if (error) throw error
-      await loadTags()
+      const updates: { name?: string; color?: string } = {}
+      if (newName !== tag.name) updates.name = newName
+      if (newColor !== tag.color) updates.color = newColor
+      
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase.from("tags").update(updates).eq("id", tag.id)
+        if (error) throw error
+        await loadTags()
+      }
     } catch (err) {
-      console.error("update tag color error:", err)
-      setErr(err instanceof Error ? err.message : "Failed to update tag color")
+      console.error("edit tag error:", err)
+      setErr(err instanceof Error ? err.message : "Failed to edit tag")
     }
   }
   async function renameCatalog(item: CatalogItem) {
@@ -1431,29 +1430,15 @@ export default function App() {
                         <span style={{ flex: 1, fontWeight: 500, color: colors.text }}>
                           {tag.name}
                         </span>
-                        <input
-                          type="color"
-                          value={tag.color}
-                          onChange={e => updateTagColor(tag, e.target.value)}
-                          style={{ 
-                            width: 30, 
-                            height: 30, 
-                            border: "none", 
-                            borderRadius: 4, 
-                            cursor: "pointer",
-                            marginRight: 8
-                          }}
-                          title="Change color"
-                        />
                         <button
-                          onClick={() => renameTag(tag)}
+                          onClick={() => editTag(tag)}
                           style={{
                             ...btnSecondary,
                             fontSize: 12,
                             padding: "4px 8px"
                           }}
                         >
-                          Rename
+                          Edit
                         </button>
                         <button
                           onClick={() => deleteTag(tag)}
