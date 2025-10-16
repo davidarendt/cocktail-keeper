@@ -965,7 +965,7 @@ export default function App() {
               }}
             >
               <img 
-                src="/ology-logo.svg" 
+                src="/Ology B+D Black on White v01.png" 
                 alt="Ology Brewing + Distilling" 
                 style={{
                   height: "60px",
