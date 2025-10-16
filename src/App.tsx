@@ -946,29 +946,42 @@ export default function App() {
           position: "relative"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <h1 
-              className="gradient-text" 
+            <div 
               onClick={() => setRoute("main")}
               style={{ 
-              fontSize: 36, 
-              fontWeight: 800, 
-              margin: 0,
-                color: colors.accent,
-                textShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
                 cursor: "pointer",
-                transition: "all 0.2s ease"
+                transition: "all 0.2s ease",
+                display: "flex",
+                alignItems: "center",
+                gap: 16
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "scale(1.05)"
-                e.currentTarget.style.color = colors.primary
+                e.currentTarget.style.transform = "scale(1.02)"
+                e.currentTarget.style.opacity = "0.8"
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = "scale(1)"
-                e.currentTarget.style.color = colors.accent
+                e.currentTarget.style.opacity = "1"
               }}
             >
-              🍸 Ology Cocktail Keeper
-            </h1>
+              <img 
+                src="/ology-logo.svg" 
+                alt="Ology Brewing + Distilling" 
+                style={{
+                  height: "60px",
+                  width: "auto"
+                }}
+              />
+              <div style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: colors.muted,
+                letterSpacing: "0.5px",
+                textTransform: "uppercase"
+              }}>
+                Cocktail Keeper
+              </div>
+            </div>
             {session && (
               <div style={{
                 background: colors.glass,

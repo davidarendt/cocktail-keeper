@@ -70,36 +70,38 @@ export const cocktailCard: CSSProperties = {
   }),
 }
 
-// Special cocktail badge - gold
+// Special cocktail badge - modern blue
 export const specialBadge: CSSProperties = {
   background: colors.specialSolid,
-  color: "#1a1a1a",
-  padding: `${space.xs}px ${space.sm}px`,
-  borderRadius: radii.sm,
-  fontSize: fonts.caption,
-  fontWeight: 600,
-  textTransform: "uppercase",
-  letterSpacing: "0.05em",
-  border: `1px solid ${colors.primary}`,
-}
-
-// Ology recipe badge - brown
-export const ologyBadge: CSSProperties = {
-  background: colors.accent,
   color: "#ffffff",
   padding: `${space.xs}px ${space.sm}px`,
   borderRadius: radii.sm,
   fontSize: fonts.caption,
-  fontWeight: 600,
+  fontWeight: 700,
   textTransform: "uppercase",
-  letterSpacing: "0.05em",
+  letterSpacing: "0.1em",
+  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
 }
 
-// Price display - gold color
+// Ology recipe badge - black
+export const ologyBadge: CSSProperties = {
+  background: colors.primary,
+  color: "#ffffff",
+  padding: `${space.xs}px ${space.sm}px`,
+  borderRadius: radii.sm,
+  fontSize: fonts.caption,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.1em",
+  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+}
+
+// Price display - black
 export const priceDisplay: CSSProperties = {
   color: colors.primary,
-  fontWeight: 700,
+  fontWeight: 800,
   fontSize: fonts.large,
+  letterSpacing: "0.5px",
 }
 
 // Ingredient list styling

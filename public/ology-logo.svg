@@ -1,0 +1,20 @@
+<svg width="200" height="80" viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- ÖLOGY Text -->
+  <text x="100" y="35" font-family="Arial, sans-serif" font-size="32" font-weight="900" text-anchor="middle" fill="#000000" text-transform="uppercase">
+    ÖLOGY
+  </text>
+  
+  <!-- Diacritics for the O's -->
+  <!-- First O - diaeresis/umlaut -->
+  <circle cx="45" cy="22" r="2" fill="#000000"/>
+  <circle cx="52" cy="22" r="2" fill="#000000"/>
+  
+  <!-- Second O - macron -->
+  <rect x="120" y="18" width="12" height="3" fill="#000000"/>
+  
+  <!-- BREWING+DISTILLING Text -->
+  <text x="100" y="60" font-family="Arial, sans-serif" font-size="12" font-weight="900" text-anchor="middle" fill="#000000" text-transform="uppercase">
+    BREWING+DISTILLING
+  </text>
+</svg>
+

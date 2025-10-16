@@ -1,53 +1,53 @@
 // src/theme.ts
 import type { CSSProperties } from "react"
 
-/** ---- Ology Brewing Design System ---- */
+/** ---- Ology Modern Design System ---- */
 export const colors = {
-  // Ology brand colors - clean white background with warm accents
+  // Ultra-modern Ology palette - inspired by the logo's stark contrast
   bg: "#ffffff",
   bgSolid: "#ffffff",
-  text: "#1a1a1a",
-  muted: "#6b6b6b",
-  panel: "#fafaf9",
-  panelHover: "#f5f5f4",
-  border: "#e5e5e5",
-  borderHover: "#d4d4d4",
+  text: "#000000",
+  muted: "#4a4a4a",
+  panel: "#f8f9fa",
+  panelHover: "#f1f3f4",
+  border: "#e1e5e9",
+  borderHover: "#c7d2da",
 
-  // Subtle glass effect for cards
-  glass: "#fafaf9",
-  glassBorder: "#e5e5e5",
+  // Clean glass effect
+  glass: "#f8f9fa",
+  glassBorder: "#e1e5e9",
 
   // Input styling
   inputBg: "#ffffff",
-  inputBorder: "#d4d4d4",
-  inputFocus: "rgba(184, 134, 11, 0.3)",
+  inputBorder: "#c7d2da",
+  inputFocus: "rgba(0, 0, 0, 0.1)",
 
-  // Ology gold primary color
-  primary: "#d4a574",
-  primarySolid: "#d4a574",
-  primaryHover: "#c89558",
-  primaryBorder: "#b8860b",
+  // Modern black primary (matching logo)
+  primary: "#000000",
+  primarySolid: "#000000",
+  primaryHover: "#333333",
+  primaryBorder: "#000000",
 
-  // Deep brown accent
-  accent: "#5c4033",
-  accentSolid: "#5c4033",
+  // Sophisticated accent - deep charcoal
+  accent: "#1a1a1a",
+  accentSolid: "#1a1a1a",
 
-  // Status colors (muted to match Ology aesthetic)
-  success: "#22c55e",
-  successSolid: "#22c55e",
+  // Status colors (refined)
+  success: "#16a34a",
+  successSolid: "#16a34a",
   danger: "#dc2626",
   dangerSolid: "#dc2626",
   dangerBorder: "#b91c1c",
-  warning: "#f59e0b",
-  warningSolid: "#f59e0b",
+  warning: "#d97706",
+  warningSolid: "#d97706",
 
-  // Special cocktail highlighting - subtle gold
-  special: "#fef3c7",
-  specialSolid: "#fbbf24",
+  // Special cocktail highlighting - subtle modern accent
+  special: "#f0f9ff",
+  specialSolid: "#0ea5e9",
 
-  // Text gradients (using Ology colors)
-  textGradient: "#5c4033",
-  textGradientAccent: "#d4a574",
+  // Text gradients (modern black)
+  textGradient: "#000000",
+  textGradientAccent: "#1a1a1a",
 } as const
 
 export const space = {
@@ -87,12 +87,12 @@ export const layout = {
 } as const
 
 export const shadows = {
-  sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
-  md: "0 2px 4px 0 rgba(0, 0, 0, 0.08)",
-  lg: "0 4px 8px 0 rgba(0, 0, 0, 0.1)",
-  xl: "0 8px 16px 0 rgba(0, 0, 0, 0.12)",
-  glow: "0 0 15px rgba(212, 165, 116, 0.3)",
-  glowAccent: "0 0 15px rgba(92, 64, 51, 0.2)",
+  sm: "0 1px 3px 0 rgba(0, 0, 0, 0.1)",
+  md: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+  lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+  xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1)",
+  glow: "0 0 20px rgba(0, 0, 0, 0.15)",
+  glowAccent: "0 0 15px rgba(26, 26, 26, 0.2)",
 } as const
 
 export const transitions = {
@@ -133,31 +133,35 @@ export const inp: CSSProperties = {
   outline: "none",
 }
 
-// Ology gold primary button
+// Modern black primary button (matching logo)
 export const btnPrimary: CSSProperties = {
   background: colors.primary,
   border: "none",
   color: "#ffffff",
   padding: `${space.md}px ${space.xl}px`,
-  borderRadius: radii.md,
+  borderRadius: radii.sm,
   fontSize: fonts.base,
+  fontWeight: 700,
+  cursor: "pointer",
+  transition: `all ${transitions.fast}`,
+  boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)",
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
+}
+
+// Modern secondary button
+export const btnSecondary: CSSProperties = {
+  background: "#ffffff",
+  border: `2px solid ${colors.primary}`,
+  color: colors.primary,
+  padding: `${space.sm}px ${space.lg}px`,
+  borderRadius: radii.sm,
+  fontSize: fonts.label,
   fontWeight: 600,
   cursor: "pointer",
   transition: `all ${transitions.fast}`,
-  boxShadow: shadows.sm,
-}
-
-// Clean secondary button
-export const btnSecondary: CSSProperties = {
-  background: "#ffffff",
-  border: `1px solid ${colors.border}`,
-  color: colors.text,
-  padding: `${space.sm}px ${space.lg}px`,
-  borderRadius: radii.md,
-  fontSize: fonts.label,
-  fontWeight: 500,
-  cursor: "pointer",
-  transition: `all ${transitions.fast}`,
+  textTransform: "uppercase",
+  letterSpacing: "0.5px",
 }
 
 // Clean danger button
@@ -178,13 +182,13 @@ export const dangerBtn: CSSProperties = {
 export const th: CSSProperties = {
   textAlign: "left",
   padding: `${space.lg}px ${space.lg}px`,
-  fontWeight: 600,
+  fontWeight: 800,
   fontSize: fonts.small,
-  color: colors.muted,
+  color: colors.primary,
   textTransform: "uppercase",
-  letterSpacing: "0.05em",
+  letterSpacing: "0.1em",
   verticalAlign: "top",
-  borderBottom: `1px solid ${colors.border}`,
+  borderBottom: `2px solid ${colors.primary}`,
 }
 
 // Enhanced table cells
