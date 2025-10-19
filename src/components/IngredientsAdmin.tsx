@@ -1,5 +1,4 @@
 // src/components/IngredientsAdmin.tsx
-import React from "react"
 import { inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors } from "../styles"
 import type { Ingredient } from "../types"
 
@@ -12,9 +11,7 @@ type Props = {
   q: string
   setQ: (v: string) => void
 
-  // add box
-  newName: string
-  setNewName: (v: string) => void
+  // add function
   onAdd: (name: string) => void
 
   // item actions
@@ -35,7 +32,7 @@ export function IngredientsAdmin({
   items,
   loading,
   q, setQ,
-  newName, setNewName, onAdd,
+  onAdd,
   onRename, onDelete,
   mergeFrom, setMergeFrom,
   mergeTo, setMergeTo,
@@ -54,12 +51,6 @@ export function IngredientsAdmin({
       onAdd(n)
       setQ("") // Clear search after adding
     }
-  }
-
-  function submitAdd(e: React.FormEvent) {
-    e.preventDefault()
-    const n = newName.trim()
-    if (n) onAdd(n)
   }
 
   return (
@@ -116,16 +107,6 @@ export function IngredientsAdmin({
           )}
         </div>
 
-        {/* Legacy add form - keep for backward compatibility */}
-        <form onSubmit={submitAdd} style={{ display: "flex", gap: 8, marginBottom: 12, padding: 12, background: colors.glass, borderRadius: 8, border: `1px solid ${colors.glassBorder}` }}>
-          <input
-            value={newName}
-            onChange={e => setNewName(e.target.value)}
-            placeholder="Or add ingredient manually..."
-            style={inp}
-          />
-          <button type="submit" style={btnSecondary}>Add Manually</button>
-        </form>
 
         {loading ? (
           <div>Loading…</div>

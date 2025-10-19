@@ -833,7 +833,6 @@ export default function App() {
   const [ingAdmin, setIngAdmin] = useState<Ingredient[]>([])
   const [ingAdminLoading, setIngAdminLoading] = useState(false)
   const [ingAdminQ, setIngAdminQ] = useState("")
-  const [ingAdminNew, setIngAdminNew] = useState("")
   const [mergeFrom, setMergeFrom] = useState("")
   const [mergeTo, setMergeTo] = useState("")
   const [mergeBusy, setMergeBusy] = useState(false)
@@ -873,7 +872,6 @@ export default function App() {
       }
       
       console.log(`Successfully added ingredient: "${name}"`)
-      setIngAdminNew("")
       await loadIngredients()
     } catch (err) {
       console.error("Unexpected error adding ingredient:", err)
@@ -1667,8 +1665,6 @@ export default function App() {
                   loading={ingAdminLoading}
                   q={ingAdminQ}
                   setQ={setIngAdminQ}
-                  newName={ingAdminNew}
-                  setNewName={setIngAdminNew}
                   onAdd={addIngredient}
                   onRename={renameIngredient}
                   onDelete={deleteIngredient}
