@@ -662,15 +662,11 @@ export function CocktailForm(props: Props) {
       {/* Bottom action bar */}
       <div style={{ 
         display: "flex", 
-        justifyContent: "flex-end", 
+        justifyContent: "center", 
         alignItems: "center", 
-        gap: 12,
         paddingTop: 16,
         borderTop: `1px solid ${colors.border}`
       }}>
-        <button type="button" onClick={onClose} style={btnSecondary}>
-          ❌ Close
-        </button>
         <button type="submit" style={{
           ...btnPrimary,
           background: colors.accent,
@@ -679,72 +675,6 @@ export function CocktailForm(props: Props) {
           {editingId ? "💾 Save Changes" : "✨ Create Cocktail"}
         </button>
       </div>
-
-      {/* Tags Section */}
-      {availableTags.length > 0 && (
-        <div style={{ 
-          marginTop: 20,
-          padding: 16,
-          background: colors.panel,
-          borderRadius: 12,
-          border: `1px solid ${colors.glassBorder}`
-        }}>
-          <label style={{ 
-            display: "block", 
-            fontSize: 14, 
-            fontWeight: 600, 
-            color: colors.text, 
-            marginBottom: 12,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em"
-          }}>
-            🏷️ Tags
-          </label>
-          <div style={{ 
-            display: "flex", 
-            gap: 8, 
-            flexWrap: "wrap" 
-          }}>
-            {availableTags.map(tag => (
-              <button
-                key={tag.id}
-                type="button"
-                onClick={() => toggleTag(tag.id)}
-                style={{
-                  ...btnSecondary,
-                  fontSize: 12,
-                  padding: "6px 12px",
-                  background: selectedTags.includes(tag.id) ? colors.accent : colors.glass,
-                  color: selectedTags.includes(tag.id) ? "white" : colors.text,
-                  border: `1px solid ${selectedTags.includes(tag.id) ? colors.accent : colors.glassBorder}`,
-                  borderRadius: 8,
-                  minWidth: "auto",
-                  transition: "all 0.2s ease"
-                }}
-              >
-                🏷️ {tag.name}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={handleAddNewTag}
-              style={{
-                ...btnSecondary,
-                fontSize: 12,
-                padding: "6px 12px",
-                background: colors.glass,
-                color: colors.accent,
-                border: `1px dashed ${colors.accent}`,
-                borderRadius: 8,
-                minWidth: "auto",
-                transition: "all 0.2s ease"
-              }}
-            >
-              ➕ Add New Tag
-            </button>
-          </div>
-        </div>
-      )}
 
     </form>
   )
