@@ -319,6 +319,174 @@ export function CocktailForm(props: Props) {
         </div>
       </div>
 
+      {/* Ingredients Section - Moved to be first after basic fields */}
+      <div style={{ 
+        marginTop: 24,
+        padding: 20,
+        background: colors.panel,
+        borderRadius: 12,
+        border: `1px solid ${colors.border}`,
+        marginBottom: 24
+      }}>
+        <h3 style={{ 
+          margin: "0 0 16px 0", 
+          fontSize: 18,
+          fontWeight: 700,
+          ...textGradient(colors.textGradient)
+        }}>
+          🧪 Ingredients
+        </h3>
+        
+        <div style={{ display: "grid", gap: 16 }}>
+        {lines.map((ln, i) => (
+            <div key={i} style={{ 
+              display: "grid", 
+              gridTemplateColumns: "2fr 1fr 1fr auto", 
+              gap: 12,
+              alignItems: "end",
+              padding: 16,
+              background: colors.glass,
+              borderRadius: 8,
+              border: `1px solid ${colors.glassBorder}`
+            }}>
+              <div style={{ position: "relative" }}>
+                <label style={{ 
+                  display: "block", 
+                  fontSize: 11, 
+                  color: colors.muted, 
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}>
+                  Ingredient
+                </label>
+              <input
+                value={ln.ingredientName}
+                onChange={async (e) => {
+                  const v = e.target.value
+                  setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
+                  await fetchSuggest(v, i)
+                }}
+                onFocus={() => fetchSuggest(ln.ingredientName, i)}
+                onKeyDown={(e)=>handleIngKeyDown(e, i)}
+                  placeholder="e.g., Fresh Lemon Juice" 
+                  style={inp}
+              />
+              {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
+                <div style={{
+                    position: "absolute", 
+                    zIndex: 10, 
+                    top: "100%", 
+                    left: 0, 
+                    right: 0,
+                    background: colors.panel, 
+                    border: `1px solid ${colors.border}`, 
+                    borderRadius: 8,
+                    padding: 8, 
+                    maxHeight: 200, 
+                    overflowY: "auto",
+                    boxShadow: shadows.lg
+                }}>
+                  {ingSuggest.map((s, idx) => (
+                    <div key={s}
+                      onMouseDown={()=>{ applySuggestion(idx) }}
+                      onMouseEnter={()=> setIngIndex(idx)}
+                      style={{
+                          padding: "8px 12px",
+                          cursor: "pointer",
+                          background: idx===ingIndex ? colors.primarySolid : "transparent",
+                          color: idx===ingIndex ? "white" : colors.text,
+                          borderRadius: 6,
+                          fontSize: 13,
+                          transition: "all 0.2s ease"
+                      }}>
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+              <div>
+                <label style={{ 
+                  display: "block", 
+                  fontSize: 11, 
+                  color: colors.muted, 
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}>
+                  Amount
+                </label>
+            <input
+              value={ln.amount}
+              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))}
+                  placeholder="1.5" 
+                  type="number" 
+                  step="0.01" 
+                  min="0"
+                  style={inp}
+                />
+              </div>
+              
+              <div>
+                <label style={{ 
+                  display: "block", 
+                  fontSize: 11, 
+                  color: colors.muted, 
+                  marginBottom: 6,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.05em"
+                }}>
+                  Unit
+                </label>
+            <select
+              value={ln.unit}
+              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
+              style={inp}
+            >
+              {units.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+              </div>
+
+              <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
+                <button 
+                  type="button" 
+                  onClick={()=>{
+                setLines(prev => prev.filter((_,idx)=> idx!==i).map((x,idx)=> ({...x, position: idx+1})))
+                  }} 
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 11,
+                    padding: "8px 12px"
+                  }}
+                >
+                  🗑️
+                </button>
+              {i===lines.length-1 && (
+                  <button 
+                    type="button" 
+                    onClick={()=>{
+                  setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
+                    }} 
+                    style={{
+                      ...btnPrimary,
+                      fontSize: 11,
+                      padding: "8px 12px"
+                    }}
+                  >
+                    ➕
+                  </button>
+              )}
+            </div>
+          </div>
+        ))}
+        </div>
+      </div>
+
       {/* Notes Section - Full Width */}
       <div style={{ marginBottom: 24 }}>
         <label style={{ 
@@ -348,17 +516,14 @@ export function CocktailForm(props: Props) {
         />
       </div>
 
-      {/* Ingredients (moved above) stays here; below we place Tags, then Price/Date/Menu */}
-
-      {/* Tags Section (moved above price) */}
+      {/* Tags Section */}
       {availableTags.length > 0 && (
         <div style={{ 
-          marginTop: 20,
+          marginBottom: 24,
           padding: 16,
           background: colors.panel,
           borderRadius: 12,
-          border: `1px solid ${colors.glassBorder}`,
-          marginBottom: 24
+          border: `1px solid ${colors.glassBorder}`
         }}>
           <label style={{ 
             display: "block", 
@@ -581,172 +746,6 @@ export function CocktailForm(props: Props) {
         </div>
       )}
 
-      {/* Enhanced Ingredients Section */}
-      <div style={{ 
-        marginTop: 24,
-        padding: 20,
-        background: colors.panel,
-        borderRadius: 12,
-        border: `1px solid ${colors.border}`
-      }}>
-        <h3 style={{ 
-          margin: "0 0 16px 0", 
-          fontSize: 18,
-          fontWeight: 700,
-          ...textGradient(colors.textGradient)
-        }}>
-          🧪 Ingredients
-        </h3>
-        
-        <div style={{ display: "grid", gap: 16 }}>
-        {lines.map((ln, i) => (
-            <div key={i} style={{ 
-              display: "grid", 
-              gridTemplateColumns: "2fr 1fr 1fr auto", 
-              gap: 12,
-              alignItems: "end",
-              padding: 16,
-              background: colors.glass,
-              borderRadius: 8,
-              border: `1px solid ${colors.glassBorder}`
-            }}>
-              <div style={{ position: "relative" }}>
-                <label style={{ 
-                  display: "block", 
-                  fontSize: 11, 
-                  color: colors.muted, 
-                  marginBottom: 6,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em"
-                }}>
-                  Ingredient
-                </label>
-              <input
-                value={ln.ingredientName}
-                onChange={async (e) => {
-                  const v = e.target.value
-                  setLines(prev => prev.map((x,idx)=> idx===i ? { ...x, ingredientName:v } : x))
-                  await fetchSuggest(v, i)
-                }}
-                onFocus={() => fetchSuggest(ln.ingredientName, i)}
-                onKeyDown={(e)=>handleIngKeyDown(e, i)}
-                  placeholder="e.g., Fresh Lemon Juice" 
-                  style={inp}
-              />
-              {(suggestFor===i && ingOpen && ingSuggest.length>0) && (
-                <div style={{
-                    position: "absolute", 
-                    zIndex: 10, 
-                    top: "100%", 
-                    left: 0, 
-                    right: 0,
-                    background: colors.panel, 
-                    border: `1px solid ${colors.border}`, 
-                    borderRadius: 8,
-                    padding: 8, 
-                    maxHeight: 200, 
-                    overflowY: "auto",
-                    boxShadow: shadows.lg
-                }}>
-                  {ingSuggest.map((s, idx) => (
-                    <div key={s}
-                      onMouseDown={()=>{ applySuggestion(idx) }}
-                      onMouseEnter={()=> setIngIndex(idx)}
-                      style={{
-                          padding: "8px 12px",
-                          cursor: "pointer",
-                          background: idx===ingIndex ? colors.primarySolid : "transparent",
-                          color: idx===ingIndex ? "white" : colors.text,
-                          borderRadius: 6,
-                          fontSize: 13,
-                          transition: "all 0.2s ease"
-                      }}>
-                      {s}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-              <div>
-                <label style={{ 
-                  display: "block", 
-                  fontSize: 11, 
-                  color: colors.muted, 
-                  marginBottom: 6,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em"
-                }}>
-                  Amount
-                </label>
-            <input
-              value={ln.amount}
-              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, amount:e.target.value } : x))}
-                  placeholder="1.5" 
-                  type="number" 
-                  step="0.01" 
-                  min="0"
-                  style={inp}
-                />
-              </div>
-              
-              <div>
-                <label style={{ 
-                  display: "block", 
-                  fontSize: 11, 
-                  color: colors.muted, 
-                  marginBottom: 6,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em"
-                }}>
-                  Unit
-                </label>
-            <select
-              value={ln.unit}
-              onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
-              style={inp}
-            >
-              {units.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-              </div>
-
-              <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
-                <button 
-                  type="button" 
-                  onClick={()=>{
-                setLines(prev => prev.filter((_,idx)=> idx!==i).map((x,idx)=> ({...x, position: idx+1})))
-                  }} 
-                  style={{
-                    ...btnSecondary,
-                    fontSize: 11,
-                    padding: "8px 12px"
-                  }}
-                >
-                  🗑️
-                </button>
-              {i===lines.length-1 && (
-                  <button 
-                    type="button" 
-                    onClick={()=>{
-                  setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
-                    }} 
-                    style={{
-                      ...btnPrimary,
-                      fontSize: 11,
-                      padding: "8px 12px"
-                    }}
-                  >
-                    ➕
-                  </button>
-              )}
-            </div>
-          </div>
-        ))}
-        </div>
-      </div>
     </form>
   )
 }

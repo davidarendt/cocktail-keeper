@@ -1295,31 +1295,6 @@ export default function App() {
                   </button>
 
                   <button
-                    onClick={() => setSettingsTab("units")}
-                    style={{
-                      ...btnSecondary,
-                      padding: "16px 20px",
-                      background: settingsTab === "units" ? colors.accent : colors.glass,
-                      color: settingsTab === "units" ? "white" : colors.text,
-                      border: `2px solid ${settingsTab === "units" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 8
-                    }}
-                  >
-                    <span style={{ fontSize: 24 }}>📏</span>
-                    <span>Units</span>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      oz, ml, dash, etc.
-                    </span>
-                  </button>
-
-                  <button
                     onClick={() => setSettingsTab("glasses")}
                     style={{
                       ...btnSecondary,
@@ -1441,6 +1416,31 @@ export default function App() {
                     <span>Ingredients</span>
                     <span style={{ fontSize: 12, opacity: 0.8 }}>
                       Manage Ingredient Database
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("units")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "units" ? colors.accent : colors.glass,
+                      color: settingsTab === "units" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "units" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>📏</span>
+                    <span>Units</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      oz, ml, dash, etc.
                     </span>
                   </button>
 
