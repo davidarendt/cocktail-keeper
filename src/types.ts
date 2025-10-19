@@ -7,8 +7,9 @@ export type TimestampISO = string   // full ISO timestamp
 
 /** Roles & enums */
 export type Role = "viewer" | "editor" | "admin"
-export type Kind = "method" | "glass" | "ice" | "garnish"
-export type Unit = "oz" | "barspoon" | "dash" | "drop" | "ml"
+export type Kind = "method" | "glass" | "ice" | "garnish" | "unit"
+// Allow admin-managed unit strings (configured in Settings → Units)
+export type Unit = string
 
 /** ---------- Database row shapes (match Supabase tables) ---------- */
 export type CocktailRow = {

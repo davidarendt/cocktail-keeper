@@ -13,6 +13,7 @@ type Props = {
   ices: string[]
   garnishes: string[]
   availableTags: Tag[]
+  units: string[]
   // form values
   name: string;          setName: (v: string) => void
   method: string;        setMethod: (v: string) => void
@@ -35,12 +36,12 @@ type Props = {
   onAddTag: (name: string, color: string) => Promise<void>
 }
 
-const unitOptions: Unit[] = ["oz","barspoon","dash","drop","ml"]
+// Units are supplied from App (admin-manageable)
 
 export function CocktailForm(props: Props) {
   const {
     editingId,
-    methods, glasses, ices, garnishes, availableTags,
+    methods, glasses, ices, garnishes, availableTags, units,
     name, setName, method, setMethod, glass, setGlass, ice, setIce, garnish, setGarnish,
     notes, setNotes, price, setPrice, specialDate, setSpecialDate, isOlogyRecipe, setOlogyRecipe,
     lines, setLines, selectedTags, setSelectedTags,
@@ -347,7 +348,76 @@ export function CocktailForm(props: Props) {
         />
       </div>
 
-      {/* Price, Special Date, and Ology Recipe */}
+      {/* Ingredients (moved above) stays here; below we place Tags, then Price/Date/Menu */}
+
+      {/* Tags Section (moved above price) */}
+      {availableTags.length > 0 && (
+        <div style={{ 
+          marginTop: 20,
+          padding: 16,
+          background: colors.panel,
+          borderRadius: 12,
+          border: `1px solid ${colors.glassBorder}`,
+          marginBottom: 24
+        }}>
+          <label style={{ 
+            display: "block", 
+            fontSize: 14, 
+            fontWeight: 600, 
+            color: colors.text, 
+            marginBottom: 12,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🏷️ Tags
+          </label>
+          <div style={{ 
+            display: "flex", 
+            gap: 8, 
+            flexWrap: "wrap" 
+          }}>
+            {availableTags.map(tag => (
+              <button
+                key={tag.id}
+                type="button"
+                onClick={() => toggleTag(tag.id)}
+                style={{
+                  ...btnSecondary,
+                  fontSize: 12,
+                  padding: "6px 12px",
+                  background: selectedTags.includes(tag.id) ? colors.accent : colors.glass,
+                  color: selectedTags.includes(tag.id) ? "white" : colors.text,
+                  border: `1px solid ${selectedTags.includes(tag.id) ? colors.accent : colors.glassBorder}`,
+                  borderRadius: 8,
+                  minWidth: "auto",
+                  transition: "all 0.2s ease"
+                }}
+              >
+                🏷️ {tag.name}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={handleAddNewTag}
+              style={{
+                ...btnSecondary,
+                fontSize: 12,
+                padding: "6px 12px",
+                background: colors.glass,
+                color: colors.accent,
+                border: `1px dashed ${colors.accent}`,
+                borderRadius: 8,
+                minWidth: "auto",
+                transition: "all 0.2s ease"
+              }}
+            >
+              ➕ Add New Tag
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Price, Special Date, and Ology Recipe (now below Tags) */}
       <div style={{ 
         display: "grid", 
         gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
@@ -422,6 +492,27 @@ export function CocktailForm(props: Props) {
             🍸 Ology Menu Item
           </label>
         </div>
+      </div>
+
+      {/* Bottom action bar */}
+      <div style={{ 
+        display: "flex", 
+        justifyContent: "flex-end", 
+        alignItems: "center", 
+        gap: 12,
+        paddingTop: 16,
+        borderTop: `1px solid ${colors.border}`
+      }}>
+        <button type="button" onClick={onClose} style={btnSecondary}>
+          ❌ Close
+        </button>
+        <button type="submit" style={{
+          ...btnPrimary,
+          background: colors.accent,
+          boxShadow: shadows.lg
+        }}>
+          {editingId ? "💾 Save Changes" : "✨ Create Cocktail"}
+        </button>
       </div>
 
       {/* Tags Section */}
@@ -618,7 +709,7 @@ export function CocktailForm(props: Props) {
               onChange={(e)=>setLines(prev=> prev.map((x,idx)=> idx===i ? { ...x, unit:e.target.value as Unit } : x))}
               style={inp}
             >
-              {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
+              {units.map(u => <option key={u} value={u}>{u}</option>)}
             </select>
               </div>
 
