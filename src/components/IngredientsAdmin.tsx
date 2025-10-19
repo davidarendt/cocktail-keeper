@@ -42,6 +42,20 @@ export function IngredientsAdmin({
   onMerge, mergeBusy = false, mergeMsg = ""
 }: Props) {
 
+  // Check if search term exists in current results
+  const searchTerm = q.trim().toLowerCase()
+  const exactMatch = items.find(item => item.name.toLowerCase() === searchTerm)
+  const hasExactMatch = exactMatch !== undefined
+  const canAddNew = searchTerm.length > 0 && !hasExactMatch
+
+  function handleAddFromSearch() {
+    const n = q.trim()
+    if (n && !hasExactMatch) {
+      onAdd(n)
+      setQ("") // Clear search after adding
+    }
+  }
+
   function submitAdd(e: React.FormEvent) {
     e.preventDefault()
     const n = newName.trim()
@@ -52,20 +66,65 @@ export function IngredientsAdmin({
     <div style={{ display:"grid", gap:12 }}>
       {/* Manage list */}
       <div style={card()}>
-        <form onSubmit={submitAdd} style={{ display:"flex", gap:8, marginBottom:12 }}>
-          <input
-            value={q}
-            onChange={e=>setQ(e.target.value)}
-            placeholder="Search ingredients…"
-            style={{ ...inp, flex:1 }}
-          />
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            <input
+              value={q}
+              onChange={e => setQ(e.target.value)}
+              placeholder="Search ingredients or type new ingredient name..."
+              style={{ ...inp, flex: 1 }}
+            />
+            {canAddNew && (
+              <button 
+                type="button"
+                onClick={handleAddFromSearch}
+                style={{
+                  ...btnPrimary,
+                  background: colors.accent,
+                  whiteSpace: "nowrap"
+                }}
+              >
+                ➕ Add "{q.trim()}"
+              </button>
+            )}
+          </div>
+          
+          {canAddNew && (
+            <div style={{ 
+              padding: 8, 
+              background: colors.glass, 
+              borderRadius: 6, 
+              border: `1px solid ${colors.glassBorder}`,
+              fontSize: 12,
+              color: colors.muted
+            }}>
+              💡 "{q.trim()}" not found. Click "Add" to create it.
+            </div>
+          )}
+          
+          {hasExactMatch && searchTerm.length > 0 && (
+            <div style={{ 
+              padding: 8, 
+              background: colors.panel, 
+              borderRadius: 6, 
+              border: `1px solid ${colors.border}`,
+              fontSize: 12,
+              color: colors.text
+            }}>
+              ✅ "{exactMatch.name}" already exists
+            </div>
+          )}
+        </div>
+
+        {/* Legacy add form - keep for backward compatibility */}
+        <form onSubmit={submitAdd} style={{ display: "flex", gap: 8, marginBottom: 12, padding: 12, background: colors.glass, borderRadius: 8, border: `1px solid ${colors.glassBorder}` }}>
           <input
             value={newName}
-            onChange={e=>setNewName(e.target.value)}
-            placeholder="New ingredient"
+            onChange={e => setNewName(e.target.value)}
+            placeholder="Or add ingredient manually..."
             style={inp}
           />
-          <button type="submit" style={btnPrimary}>Add</button>
+          <button type="submit" style={btnSecondary}>Add Manually</button>
         </form>
 
         {loading ? (
