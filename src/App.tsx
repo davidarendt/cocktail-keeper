@@ -114,7 +114,15 @@ export default function App() {
     setGlasses(rows.filter(r=>r.kind==="glass").map(r=>r.name))
     setIces(rows.filter(r=>r.kind==="ice").map(r=>r.name))
     setGarnishes(rows.filter(r=>r.kind==="garnish").map(r=>r.name))
-    setUnits(rows.filter(r=>r.kind==="unit").map(r=>r.name))
+    
+    // Load units with fallback to defaults
+    const unitNames = rows.filter(r=>r.kind==="unit").map(r=>r.name)
+    if (unitNames.length > 0) {
+      setUnits(unitNames)
+    } else {
+      // Keep default units if none in database
+      setUnits(["oz","barspoon","dash","drop","ml"])
+    }
   }
 
   async function loadTags() {
@@ -346,12 +354,20 @@ export default function App() {
       .eq("cocktail_id", c.id)
       .order("position", { ascending: true })
 
-    const mapped: IngredientLine[] = (data||[]).map((r:any,i:number)=>({
-      ingredientName: r.ingredient?.name || "",
-      amount: String(r.amount ?? ""),
-      unit: (r.unit || "oz"),
-      position: typeof r.position === "number" ? r.position : (i + 1)
-    }))
+    const mapped: IngredientLine[] = (data||[]).map((r:any,i:number)=>{
+      // Ensure unit is valid - use first available unit or "oz" as fallback
+      let unitValue = r.unit?.trim()
+      if (!unitValue || unitValue === "" || unitValue === "-1" || !units.includes(unitValue)) {
+        unitValue = units.length > 0 ? units[0] : "oz"
+      }
+      
+      return {
+        ingredientName: r.ingredient?.name || "",
+        amount: String(r.amount ?? ""),
+        unit: unitValue,
+        position: typeof r.position === "number" ? r.position : (i + 1)
+      }
+    })
     setLines(mapped.length ? mapped : [{ ingredientName:"", amount:"", unit:"oz", position:1 }])
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -432,6 +448,14 @@ export default function App() {
       const amtNum = ln.amount === "" ? NaN : Number(ln.amount)
       if (!ng(ingName) || !Number.isFinite(amtNum)) continue
       
+      // Validate unit - ensure it's not empty or invalid
+      const unitValue = ln.unit?.trim()
+      if (!unitValue || unitValue === "" || unitValue === "-1") {
+        console.error("Invalid unit value:", unitValue);
+        setErr(`Invalid unit for ingredient "${ingName}". Please select a valid unit.`);
+        return;
+      }
+      
       // Insert ingredient with error handling
       const { error: ingError } = await supabase.from("ingredients").upsert({ name: ingName }, { onConflict: "name" })
       if (ingError) {
@@ -452,7 +476,7 @@ export default function App() {
         cocktail_id: cocktailId,
         ingredient_id: (ingRow as any).id as string,
         amount: amtNum,
-        unit: ln.unit,
+        unit: unitValue,
         position: pos
       })
       

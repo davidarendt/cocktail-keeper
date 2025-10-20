@@ -470,7 +470,8 @@ export function CocktailForm(props: Props) {
                   <button 
                     type="button" 
                     onClick={()=>{
-                  setLines(prev => [...prev, { ingredientName:"", amount:"", unit:"oz", position: prev.length+1 }])
+                      const defaultUnit = units.length > 0 ? units[0] : "oz"
+                      setLines(prev => [...prev, { ingredientName:"", amount:"", unit: defaultUnit, position: prev.length+1 }])
                     }} 
                     style={{
                       ...btnPrimary,
