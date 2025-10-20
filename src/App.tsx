@@ -144,6 +144,7 @@ export default function App() {
   const [availableTags, setAvailableTags] = useState<Tag[]>([])
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
 
   useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters, selectedTags])
   async function load() {
@@ -1724,45 +1725,25 @@ export default function App() {
                   {rows.length} cocktail{rows.length !== 1 ? 's' : ''}
                 </div>
               </div>
+              {/* Compact Search Bar */}
               <div style={{ 
-                display: "grid", 
-                gridTemplateColumns: "auto auto auto auto auto auto auto auto auto", 
+                display: "flex", 
                 gap: 8, 
-                alignItems: "center" 
+                alignItems: "center",
+                marginBottom: 8
               }}>
-                {/* View Toggle */}
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 11, color: colors.muted }}>View:</span>
-                  <button 
-                    onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
-                    style={{
-                      ...btnSecondary,
-                      fontSize: 11,
-                      padding: "4px 6px",
-                      background: view === "cards" ? colors.accent : colors.glass,
-                      color: view === "cards" ? "white" : colors.text,
-                      border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 4,
-                      minWidth: 32
-                    }}
-                  >
-                    {view==="cards" ? "📋" : "🎴"}
-                  </button>
-                </div>
-
-
-                {/* Cocktail Name Search */}
-                <div style={{ position: "relative" }}>
+                {/* Main Search Input */}
+                <div style={{ position: "relative", flex: 1 }}>
                   <input 
                     value={nameSearch} 
                     onChange={e=>setNameSearch(e.target.value)} 
-                    placeholder="🍸 Name..." 
+                    placeholder="🔍 Search cocktails by name..." 
                     style={{ 
                       ...inp, 
-                      paddingLeft: 8,
-                      paddingRight: nameSearch ? 24 : 8,
-                      fontSize: 12,
-                      minWidth: 100
+                      paddingLeft: 12,
+                      paddingRight: nameSearch ? 32 : 12,
+                      fontSize: 14,
+                      width: "100%"
                     }}
                   />
                   {nameSearch && (
@@ -1770,15 +1751,15 @@ export default function App() {
                       onClick={() => setNameSearch("")}
                       style={{
                         position: "absolute",
-                        right: 6,
+                        right: 8,
                         top: "50%",
                         transform: "translateY(-50%)",
                         background: "none",
                         border: "none",
                         color: colors.muted,
                         cursor: "pointer",
-                        fontSize: 10,
-                        padding: 1
+                        fontSize: 12,
+                        padding: 2
                       }}
                     >
                       ✕
@@ -1786,128 +1767,201 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Ingredients Search */}
-                <div style={{ position: "relative" }}>
-                  <input 
-                    value={q} 
-                    onChange={e=>setQ(e.target.value)} 
-                    onKeyDown={e => {
-                      if (e.key === "Enter" && q.trim()) {
-                        addIngredientFilter(q.trim())
-                        setQ("")
-                      }
-                    }}
-                    placeholder="🔍 Ingredient..." 
-                    style={{ 
-                      ...inp, 
-                      paddingLeft: 8,
-                      paddingRight: q ? 24 : 8,
-                      fontSize: 12,
-                      minWidth: 100
-                    }}
-                  />
-                  {q && (
-                    <button
-                      onClick={() => {
-                        if (q.trim()) {
+                {/* View Toggle */}
+                <button 
+                  onClick={()=>setView(v=> v==="cards" ? "list" : "cards")} 
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 12,
+                    padding: "6px 8px",
+                    background: view === "cards" ? colors.accent : colors.glass,
+                    color: view === "cards" ? "white" : colors.text,
+                    border: `1px solid ${view === "cards" ? colors.accent : colors.glassBorder}`,
+                    borderRadius: 6,
+                    minWidth: 40
+                  }}
+                >
+                  {view==="cards" ? "📋" : "🎴"}
+                </button>
+
+                {/* Advanced Search Toggle */}
+                <button
+                  onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+                  style={{
+                    ...btnSecondary,
+                    fontSize: 12,
+                    padding: "6px 12px",
+                    background: showAdvancedSearch ? colors.primarySolid : colors.glass,
+                    color: showAdvancedSearch ? "white" : colors.text,
+                    border: `1px solid ${showAdvancedSearch ? colors.primarySolid : colors.glassBorder}`,
+                    borderRadius: 6,
+                    minWidth: 60
+                  }}
+                >
+                  {showAdvancedSearch ? "🔽 Hide" : "🔍 Filters"}
+                </button>
+              </div>
+
+              {/* Advanced Search Panel */}
+              {showAdvancedSearch && (
+                <div style={{ 
+                  display: "grid", 
+                  gridTemplateColumns: "auto auto auto auto auto auto auto auto", 
+                  gap: 8, 
+                  alignItems: "center",
+                  padding: 12,
+                  background: colors.glass,
+                  borderRadius: 8,
+                  border: `1px solid ${colors.glassBorder}`
+                }}>
+                  {/* Ingredients Search */}
+                  <div style={{ position: "relative" }}>
+                    <input 
+                      value={q} 
+                      onChange={e=>setQ(e.target.value)} 
+                      onKeyDown={e => {
+                        if (e.key === "Enter" && q.trim()) {
                           addIngredientFilter(q.trim())
-                          setQ("")
-                        } else {
                           setQ("")
                         }
                       }}
-                      style={{
-                        position: "absolute",
-                        right: 6,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: colors.muted,
-                        cursor: "pointer",
-                        fontSize: 10,
-                        padding: 1
+                      placeholder="🔍 Ingredient..." 
+                      style={{ 
+                        ...inp, 
+                        paddingLeft: 8,
+                        paddingRight: q ? 24 : 8,
+                        fontSize: 12,
+                        minWidth: 100
                       }}
-                    >
-                      {q.trim() ? "➕" : "✕"}
-                    </button>
-                  )}
+                    />
+                    {q && (
+                      <button
+                        onClick={() => {
+                          if (q.trim()) {
+                            addIngredientFilter(q.trim())
+                            setQ("")
+                          } else {
+                            setQ("")
+                          }
+                        }}
+                        style={{
+                          position: "absolute",
+                          right: 6,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          background: "none",
+                          border: "none",
+                          color: colors.muted,
+                          cursor: "pointer",
+                          fontSize: 10,
+                          padding: 1
+                        }}
+                      >
+                        {q.trim() ? "➕" : "✕"}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Method Filter */}
+                  <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
+                    <option value="">Method</option>
+                    {methods.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  
+                  {/* Glass Filter */}
+                  <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
+                    <option value="">Glass</option>
+                    {glasses.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  
+                  {/* Tags Filter */}
+                  <select 
+                    value="" 
+                    onChange={e => {
+                      if (e.target.value) {
+                        toggleTag(e.target.value)
+                        e.target.value = ""
+                      }
+                    }}
+                    style={{...inp, fontSize: 12, minWidth: 80}}
+                  >
+                    <option value="">🏷️ Tags</option>
+                    {availableTags.map(tag => (
+                      <option key={tag.id} value={tag.id}>
+                        {tag.name}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {/* Sort */}
+                  <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={{...inp, fontSize: 12, minWidth: 100}}>
+                    <option value="special_desc">📅 Special</option>
+                    <option value="special_asc">📅 Old Special</option>
+                    <option value="name_asc">🔤 A-Z</option>
+                    <option value="name_desc">🔤 Z-A</option>
+                  </select>
+                  
+                  {/* Special Toggle */}
+                  <button
+                    onClick={() => setSpecialOnly(!specialOnly)}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 11,
+                      padding: "4px 8px",
+                      background: specialOnly ? colors.primarySolid : colors.glass,
+                      color: specialOnly ? "white" : colors.text,
+                      border: `1px solid ${specialOnly ? colors.primarySolid : colors.glassBorder}`,
+                      borderRadius: 4,
+                      minWidth: 50
+                    }}
+                  >
+                    ⭐ Special
+                  </button>
+
+                  {/* Menu Items Toggle */}
+                  <button
+                    onClick={() => setOlogyOnly(!ologyOnly)}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 11,
+                      padding: "4px 8px",
+                      background: ologyOnly ? colors.accent : colors.glass,
+                      color: ologyOnly ? "white" : colors.text,
+                      border: `1px solid ${ologyOnly ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 4,
+                      minWidth: 50
+                    }}
+                  >
+                    🍸 Menu
+                  </button>
+
+                  {/* Clear All Filters */}
+                  <button
+                    onClick={() => {
+                      setQ("")
+                      setNameSearch("")
+                      setFMethod("")
+                      setFGlass("")
+                      setSpecialOnly(false)
+                      setOlogyOnly(false)
+                      setIngredientFilters([])
+                      setSelectedTags([])
+                    }}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 11,
+                      padding: "4px 8px",
+                      background: colors.glass,
+                      color: colors.muted,
+                      border: `1px solid ${colors.glassBorder}`,
+                      borderRadius: 4,
+                      minWidth: 60
+                    }}
+                  >
+                    🗑️ Clear
+                  </button>
                 </div>
-                
-                {/* Method Filter */}
-                <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
-                  <option value="">Method</option>
-                  {methods.map(m => <option key={m} value={m}>{m}</option>)}
-                </select>
-                
-                {/* Glass Filter */}
-                <select value={fGlass} onChange={e=>setFGlass(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
-                  <option value="">Glass</option>
-                  {glasses.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-                
-                {/* Tags Filter */}
-                <select 
-                  value="" 
-                  onChange={e => {
-                    if (e.target.value) {
-                      toggleTag(e.target.value)
-                      e.target.value = ""
-                    }
-                  }}
-                  style={{...inp, fontSize: 12, minWidth: 80}}
-                >
-                  <option value="">🏷️ Tags</option>
-                  {availableTags.map(tag => (
-                    <option key={tag.id} value={tag.id}>
-                      {tag.name}
-                    </option>
-                  ))}
-                </select>
-                
-                {/* Sort */}
-                <select value={sortBy} onChange={e=>setSortBy(e.target.value as any)} style={{...inp, fontSize: 12, minWidth: 100}}>
-                  <option value="special_desc">📅 Special</option>
-                  <option value="special_asc">📅 Old Special</option>
-                  <option value="name_asc">🔤 A-Z</option>
-                  <option value="name_desc">🔤 Z-A</option>
-                </select>
-                
-                {/* Special Toggle */}
-                <button
-                  onClick={() => setSpecialOnly(!specialOnly)}
-                  style={{
-                    ...btnSecondary,
-                    fontSize: 11,
-                    padding: "4px 8px",
-                    background: specialOnly ? colors.primarySolid : colors.glass,
-                    color: specialOnly ? "white" : colors.text,
-                    border: `1px solid ${specialOnly ? colors.primarySolid : colors.glassBorder}`,
-                    borderRadius: 4,
-                    minWidth: 50
-                  }}
-                >
-                  ⭐ Special
-                </button>
-
-                {/* Menu Items Toggle */}
-                <button
-                  onClick={() => setOlogyOnly(!ologyOnly)}
-                  style={{
-                    ...btnSecondary,
-                    fontSize: 11,
-                    padding: "4px 8px",
-                    background: ologyOnly ? colors.accent : colors.glass,
-                    color: ologyOnly ? "white" : colors.text,
-                    border: `1px solid ${ologyOnly ? colors.accent : colors.glassBorder}`,
-                    borderRadius: 4,
-                    minWidth: 50
-                  }}
-                >
-                  🍸 Menu
-                </button>
-
-              </div>
+              )}
 
 
               {/* Active Filters Row */}
