@@ -567,7 +567,15 @@ export default function App() {
 
   async function addCatalog(kind: "method"|"glass"|"ice"|"garnish"|"unit") {
     const n = (newName[kind] || "").trim()
-    console.log("Adding catalog item:", { kind, name: n, newName, role, session: !!session })
+    console.log("Adding catalog item:", { 
+      kind, 
+      name: n, 
+      newName, 
+      role, 
+      session: !!session,
+      userId: session?.user?.id,
+      userEmail: session?.user?.email
+    })
     if (!n) {
       console.log("No name provided for", kind)
       return
@@ -576,7 +584,7 @@ export default function App() {
     // Check if user has permission
     if (role !== "admin") {
       console.log("User doesn't have admin role:", role)
-      setErr("Only admins can add catalog items")
+      setErr(`Permission denied: Your role is "${role}". You need admin access to add ${kind}s. Please check your user profile in the database.`)
       return
     }
     
