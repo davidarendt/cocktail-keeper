@@ -590,7 +590,11 @@ export default function App() {
     
     if (error) {
       console.error("Error adding catalog item:", error)
-      setErr(`Failed to add ${kind}: ${error.message}`)
+      if (error.message.includes("row-level security")) {
+        setErr(`Permission denied: You need admin access to add ${kind}s. Please check your user role and database policies.`)
+      } else {
+        setErr(`Failed to add ${kind}: ${error.message}`)
+      }
       return
     }
     
