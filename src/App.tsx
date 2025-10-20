@@ -117,10 +117,12 @@ export default function App() {
     
     // Load units with fallback to defaults
     const unitNames = rows.filter(r=>r.kind==="unit").map(r=>r.name)
+    console.log("Loading units:", { unitNames, totalRows: rows.length, unitRows: rows.filter(r=>r.kind==="unit") })
     if (unitNames.length > 0) {
       setUnits(unitNames)
     } else {
       // Keep default units if none in database
+      console.log("No units in database, using defaults")
       setUnits(["oz","barspoon","dash","drop","ml"])
     }
   }
@@ -549,8 +551,15 @@ export default function App() {
   useEffect(() => { if (route==="settings" && role==="admin") reloadSettings() }, [route, role])
   async function reloadSettings() {
     setCatLoading(true)
-    const { data } = await supabase.from("catalog_items").select("*").order("kind").order("position")
-    setCatalog((data || []) as CatalogItem[])
+    console.log("Reloading settings...")
+    const { data, error } = await supabase.from("catalog_items").select("*").order("kind").order("position")
+    if (error) {
+      console.error("Error loading catalog:", error)
+      setErr(`Failed to load catalog: ${error.message}`)
+    } else {
+      console.log("Loaded catalog items:", data)
+      setCatalog((data || []) as CatalogItem[])
+    }
     setCatLoading(false)
   }
   const handleNewNameChange = (k: "method"|"glass"|"ice"|"garnish"|"unit", v: string) =>
@@ -558,10 +567,37 @@ export default function App() {
 
   async function addCatalog(kind: "method"|"glass"|"ice"|"garnish"|"unit") {
     const n = (newName[kind] || "").trim()
-    if (!n) return
+    console.log("Adding catalog item:", { kind, name: n, newName, role, session: !!session })
+    if (!n) {
+      console.log("No name provided for", kind)
+      return
+    }
+    
+    // Check if user has permission
+    if (role !== "admin") {
+      console.log("User doesn't have admin role:", role)
+      setErr("Only admins can add catalog items")
+      return
+    }
+    
     const maxPos = Math.max(0, ...catalog.filter(c=>c.kind===kind).map(c=>c.position))
-    const { error } = await supabase.from("catalog_items").insert({ kind, name: n, position: maxPos + 1, active: true })
-    if (!error) { setNewName(p => ({ ...p, [kind]: "" })); await reloadSettings(); await loadCatalog() }
+    console.log("Max position for", kind, ":", maxPos)
+    
+    const insertData = { kind, name: n, position: maxPos + 1, active: true }
+    console.log("Inserting data:", insertData)
+    
+    const { error } = await supabase.from("catalog_items").insert(insertData)
+    
+    if (error) {
+      console.error("Error adding catalog item:", error)
+      setErr(`Failed to add ${kind}: ${error.message}`)
+      return
+    }
+    
+    console.log("Successfully added", kind, ":", n)
+    setNewName(p => ({ ...p, [kind]: "" }))
+    await reloadSettings()
+    await loadCatalog()
   }
 
   async function addCatalogItem(kind: "method" | "glass" | "ice" | "garnish" | "unit", name: string) {
