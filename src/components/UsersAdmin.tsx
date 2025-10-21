@@ -1,5 +1,6 @@
 // src/components/UsersAdmin.tsx
 import React from "react"
+import { supabase } from "../supabaseClient"
 import { inp, btnPrimary, btnSecondary, th, td, card, colors, textGradient, shadows } from "../styles"
 import type { Role } from "../types"
 
@@ -22,11 +23,67 @@ type Props = {
 
 export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRename }: Props) {
   const [filter, setFilter] = React.useState("")
+  const [inviteEmail, setInviteEmail] = React.useState("")
+  const [inviteRole, setInviteRole] = React.useState<Role>("viewer")
+  const [inviteLoading, setInviteLoading] = React.useState(false)
+  const [error, setError] = React.useState("")
+  
   const filtered = users.filter(u =>
     !filter.trim() ? true :
     (u.email || "").toLowerCase().includes(filter.toLowerCase()) ||
     (u.display_name || "").toLowerCase().includes(filter.toLowerCase())
   )
+
+  async function createUser() {
+    if (!inviteEmail.trim()) {
+      setError("Please enter an email address")
+      return
+    }
+
+    setInviteLoading(true)
+    setError("")
+
+    try {
+      // Create user account directly with email/password
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: inviteEmail,
+        password: 'temp_password_123', // They'll need to change this
+        email_confirm: true, // Auto-confirm the email
+        user_metadata: {
+          role: inviteRole,
+          invited_by: meEmail
+        }
+      })
+
+      if (error) {
+        setError(`Failed to create user: ${error.message}`)
+      } else if (data.user) {
+        // Create profile for the new user
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: data.user.id,
+            email: inviteEmail,
+            role: inviteRole
+          })
+
+        if (profileError) {
+          setError(`User created but profile failed: ${profileError.message}`)
+        } else {
+          setError("")
+          setInviteEmail("")
+          setInviteRole("viewer")
+          // Refresh the user list
+          await reload()
+          alert(`User account created for ${inviteEmail}! They can now sign in with their email and the temporary password: temp_password_123`)
+        }
+      }
+    } catch (err) {
+      setError("Failed to create user account")
+    } finally {
+      setInviteLoading(false)
+    }
+  }
 
   return (
     <div style={{
@@ -77,6 +134,80 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
           placeholder="Search by email or name…"
           style={{ ...inp, paddingLeft: 40 }}
         />
+      </div>
+
+      {/* Error Display */}
+      {error && (
+        <div style={{ 
+          padding: 12, 
+          background: "#FEE2E2", 
+          color: "#DC2626", 
+          borderRadius: 6,
+          marginBottom: 16,
+          fontSize: 14
+        }}>
+          {error}
+        </div>
+      )}
+
+      {/* Create New User Section */}
+      <div style={{ 
+        background: colors.panel, 
+        padding: 16, 
+        borderRadius: 8, 
+        marginBottom: 20,
+        border: `1px solid ${colors.border}`
+      }}>
+        <h4 style={{ margin: "0 0 12px 0", color: colors.text, fontSize: 16 }}>
+          👤 Create New User
+        </h4>
+        <div style={{ display: "flex", gap: 12, alignItems: "end" }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: colors.text }}>
+              Email Address
+            </label>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="user@example.com"
+              style={inp}
+            />
+          </div>
+          <div style={{ minWidth: 120 }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: colors.text }}>
+              Role
+            </label>
+            <select
+              value={inviteRole}
+              onChange={(e) => setInviteRole(e.target.value as Role)}
+              style={inp}
+            >
+              <option value="viewer">👁️ Viewer</option>
+              <option value="editor">✏️ Editor</option>
+              <option value="admin">👑 Admin</option>
+            </select>
+          </div>
+          <button
+            onClick={createUser}
+            disabled={inviteLoading || !inviteEmail.trim()}
+            style={{
+              ...btnPrimary,
+              opacity: inviteLoading || !inviteEmail.trim() ? 0.6 : 1,
+              padding: "8px 16px"
+            }}
+          >
+            {inviteLoading ? "⏳ Creating..." : "👤 Create User"}
+          </button>
+        </div>
+        <div style={{ 
+          marginTop: 8, 
+          fontSize: 11, 
+          color: colors.muted,
+          fontStyle: "italic"
+        }}>
+          User will be created with temporary password: <strong>temp_password_123</strong>
+        </div>
       </div>
 
       {loading ? (
@@ -165,10 +296,10 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
           lineHeight: 1.4
         }}>
           <strong>📋 User Management Guide:</strong><br/>
-          • <strong>Viewers:</strong> Can read and print cocktails<br/>
-          • <strong>Editors:</strong> Can add, edit, and delete cocktails<br/>
-          • <strong>Admins:</strong> Can manage users and settings<br/><br/>
-          <strong>🔄 Invite Flow:</strong> New users visit the site and request a magic link. Once they appear here, set their role.
+          • <strong>👁️ Viewers:</strong> Can read and print cocktail recipes<br/>
+          • <strong>✏️ Editors:</strong> Can add, edit, and delete cocktails and ingredients<br/>
+          • <strong>👑 Admins:</strong> Can manage users, settings, and have full access<br/><br/>
+          <strong>👤 User Creation:</strong> Create user accounts above with email and role. Users will be created with a temporary password (temp_password_123) that they should change on first login.
         </p>
       </div>
     </div>
