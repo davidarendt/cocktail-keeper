@@ -148,27 +148,47 @@ export default function App() {
 
   useEffect(() => { loadCatalog(); loadTags() }, [])
   async function loadCatalog() {
+    console.log("Loading catalog data...")
     const { data } = await supabase
       .from("catalog_items")
       .select("*")
       .eq("active", true)
       .order("kind")
       .order("position")
-    const rows = (data || []) as CatalogItem[]
-    setMethods(rows.filter(r=>r.kind==="method").map(r=>r.name))
-    setGlasses(rows.filter(r=>r.kind==="glass").map(r=>r.name))
-    setIces(rows.filter(r=>r.kind==="ice").map(r=>r.name))
-    setGarnishes(rows.filter(r=>r.kind==="garnish").map(r=>r.name))
     
-    // Load units with fallback to defaults
-    const unitNames = rows.filter(r=>r.kind==="unit").map(r=>r.name)
-    console.log("Loading units:", { unitNames, totalRows: rows.length, unitRows: rows.filter(r=>r.kind==="unit") })
-    if (unitNames.length > 0) {
-      setUnits(unitNames)
+    if (data) {
+      const rows = data as CatalogItem[]
+      console.log("Loaded catalog items:", rows.length)
+      
+      const newMethods = rows.filter(r=>r.kind==="method").map(r=>r.name)
+      const newGlasses = rows.filter(r=>r.kind==="glass").map(r=>r.name)
+      const newIces = rows.filter(r=>r.kind==="ice").map(r=>r.name)
+      const newGarnishes = rows.filter(r=>r.kind==="garnish").map(r=>r.name)
+      
+      console.log("Updating catalog state:", { 
+        methods: newMethods.length, 
+        glasses: newGlasses.length, 
+        ices: newIces.length, 
+        garnishes: newGarnishes.length 
+      })
+      
+      setMethods(newMethods)
+      setGlasses(newGlasses)
+      setIces(newIces)
+      setGarnishes(newGarnishes)
+      
+      // Load units with fallback to defaults
+      const unitNames = rows.filter(r=>r.kind==="unit").map(r=>r.name)
+      console.log("Loading units:", { unitNames, totalRows: rows.length, unitRows: rows.filter(r=>r.kind==="unit") })
+      if (unitNames.length > 0) {
+        setUnits(unitNames)
+      } else {
+        // Keep default units if none in database
+        console.log("No units in database, using defaults")
+        setUnits(["oz","barspoon","dash","drop","ml"])
+      }
     } else {
-      // Keep default units if none in database
-      console.log("No units in database, using defaults")
-      setUnits(["oz","barspoon","dash","drop","ml"])
+      console.error("Failed to load catalog data")
     }
   }
 
@@ -607,6 +627,16 @@ export default function App() {
     }
     setCatLoading(false)
   }
+
+  // Force refresh all catalog data
+  async function forceRefreshCatalog() {
+    console.log("Force refreshing all catalog data...")
+    await Promise.all([
+      reloadSettings(),
+      loadCatalog()
+    ])
+    console.log("Catalog refresh complete")
+  }
   const handleNewNameChange = (k: "method"|"glass"|"ice"|"garnish"|"unit", v: string) =>
     setNewName(prev => ({ ...prev, [k]: v }))
 
@@ -912,8 +942,10 @@ export default function App() {
     await reloadSettings(); await loadCatalog()
   }
   async function toggleCatalog(item: CatalogItem) {
+    console.log(`Toggling ${item.kind} "${item.name}" to ${!item.active ? 'active' : 'inactive'}`)
     await supabase.from("catalog_items").update({ active: !item.active }).eq("id", item.id)
-    await reloadSettings(); await loadCatalog()
+    await forceRefreshCatalog()
+    console.log("Catalog data reloaded after toggle")
   }
   async function deleteCatalog(item: CatalogItem) {
     if (!confirm(`Delete "${item.name}" from ${item.kind}?`)) return
