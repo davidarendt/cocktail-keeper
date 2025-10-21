@@ -134,7 +134,7 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings">("main")
-  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"garnishes"|"units"|"tags"|"ingredients"|"users">("methods")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users">("methods")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -143,7 +143,6 @@ export default function App() {
   const [methods, setMethods] = useState<string[]>([])
   const [glasses, setGlasses] = useState<string[]>([])
   const [ices, setIces] = useState<string[]>([])
-  const [garnishes, setGarnishes] = useState<string[]>([])
   const [units, setUnits] = useState<string[]>(["oz","barspoon","dash","drop","ml"]) // default fallback
 
   useEffect(() => { loadCatalog(); loadTags() }, [])
@@ -163,19 +162,16 @@ export default function App() {
       const newMethods = rows.filter(r=>r.kind==="method").map(r=>r.name)
       const newGlasses = rows.filter(r=>r.kind==="glass").map(r=>r.name)
       const newIces = rows.filter(r=>r.kind==="ice").map(r=>r.name)
-      const newGarnishes = rows.filter(r=>r.kind==="garnish").map(r=>r.name)
       
       console.log("Updating catalog state:", { 
         methods: newMethods.length, 
         glasses: newGlasses.length, 
-        ices: newIces.length, 
-        garnishes: newGarnishes.length 
+        ices: newIces.length
       })
       
       setMethods(newMethods)
       setGlasses(newGlasses)
       setIces(newIces)
-      setGarnishes(newGarnishes)
       
       // Load units with fallback to defaults
       const unitNames = rows.filter(r=>r.kind==="unit").map(r=>r.name)
@@ -378,7 +374,6 @@ export default function App() {
   const [method, setMethod] = useState("")
   const [glass, setGlass] = useState("")
   const [ice, setIce] = useState("")
-  const [garnish, setGarnish] = useState("")
   const [notes, setNotes] = useState("")
   const [price, setPrice] = useState("")
   const [specialDate, setSpecialDate] = useState("") // YYYY-MM-DD
@@ -390,7 +385,7 @@ export default function App() {
   function resetForm() {
     setEditingId(null)
     setName(""); setMethod("")
-    setGlass(""); setIce(""); setGarnish(""); setNotes("")
+    setGlass(""); setIce(""); setNotes("")
     setPrice(""); setSpecialDate(""); setOlogyRecipe(false)
     setLines([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
     setSelectedTags([])
@@ -403,7 +398,7 @@ export default function App() {
     setFormOpen(true)
     setName(c.name)
     setMethod(c.method || "")
-    setGlass(c.glass || ""); setIce(c.ice || ""); setGarnish(c.garnish || ""); setNotes(c.notes || "")
+    setGlass(c.glass || ""); setIce(c.ice || ""); setNotes(c.notes || "")
     setPrice(c.price == null ? "" : String(c.price))
     setSpecialDate(c.last_special_on || "")
     setOlogyRecipe(c.is_ology_recipe || false)
@@ -478,7 +473,6 @@ export default function App() {
       method: method.trim(),
       glass: glass.trim() || null,
       ice: ice.trim() || null,
-      garnish: garnish.trim() || null,
       notes: notes.trim() || null,
       price: price === "" ? null : Number(price),
       last_special_on: specialDate || null,
@@ -610,7 +604,7 @@ export default function App() {
   // ---------- SETTINGS (catalogs) ----------
   const [catalog, setCatalog] = useState<CatalogItem[]>([])
   const [catLoading, setCatLoading] = useState(false)
-  const [newName, setNewName] = useState<Partial<Record<"method"|"glass"|"ice"|"garnish"|"unit", string>>>({})
+  const [newName, setNewName] = useState<Partial<Record<"method"|"glass"|"ice"|"unit", string>>>({})
   const [draggingId, setDraggingId] = useState<string | null>(null)
 
   useEffect(() => { if (route==="settings" && role==="admin") reloadSettings() }, [route, role])
@@ -637,10 +631,10 @@ export default function App() {
     ])
     console.log("Catalog refresh complete")
   }
-  const handleNewNameChange = (k: "method"|"glass"|"ice"|"garnish"|"unit", v: string) =>
+  const handleNewNameChange = (k: "method"|"glass"|"ice"|"unit", v: string) =>
     setNewName(prev => ({ ...prev, [k]: v }))
 
-  async function addCatalog(kind: "method"|"glass"|"ice"|"garnish"|"unit") {
+  async function addCatalog(kind: "method"|"glass"|"ice"|"unit") {
     const n = (newName[kind] || "").trim()
     console.log("Adding catalog item:", { 
       kind, 
@@ -687,7 +681,7 @@ export default function App() {
     await loadCatalog()
   }
 
-  async function addCatalogItem(kind: "method" | "glass" | "ice" | "garnish" | "unit", name: string) {
+  async function addCatalogItem(kind: "method" | "glass" | "ice" | "unit", name: string) {
     try {
       const maxPos = Math.max(0, ...catalog.filter(c=>c.kind===kind).map(c=>c.position))
       const { error } = await supabase.from("catalog_items").insert({ kind, name, position: maxPos + 1, active: true })
@@ -966,8 +960,7 @@ export default function App() {
       // Update all cocktails that use the source item
       const updateField = sourceItem.kind === 'method' ? 'method' :
                          sourceItem.kind === 'glass' ? 'glass' :
-                         sourceItem.kind === 'ice' ? 'ice' :
-                         sourceItem.kind === 'garnish' ? 'garnish' : null
+                         sourceItem.kind === 'ice' ? 'ice' : null
 
       if (updateField) {
         console.log('Updating cocktails field:', updateField, 'from', sourceItem.name, 'to', targetItem.name)
@@ -1032,7 +1025,7 @@ export default function App() {
     e.preventDefault()
     e.dataTransfer.dropEffect = "move"
   }
-  async function onDrop(kind: "method"|"glass"|"ice"|"garnish"|"unit", targetId: string) {
+  async function onDrop(kind: "method"|"glass"|"ice"|"unit", targetId: string) {
     if (!draggingId || draggingId === targetId) return
     const list = catalog.filter(c=>c.kind===kind).sort((a,b)=> a.position-b.position)
     const from = list.findIndex(x=>x.id===draggingId)
@@ -1691,30 +1684,6 @@ export default function App() {
                     </span>
                   </button>
 
-                  <button
-                    onClick={() => setSettingsTab("garnishes")}
-                    style={{
-                      ...btnSecondary,
-                      padding: "16px 20px",
-                      background: settingsTab === "garnishes" ? colors.accent : colors.glass,
-                      color: settingsTab === "garnishes" ? "white" : colors.text,
-                      border: `2px solid ${settingsTab === "garnishes" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 8
-                    }}
-                  >
-                    <span style={{ fontSize: 24 }}>🌿</span>
-                    <span>Garnishes</span>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      Lime, Cherry, etc.
-                    </span>
-                  </button>
 
                   <button
                     onClick={() => setSettingsTab("tags")}
@@ -1876,24 +1845,6 @@ export default function App() {
                 />
               )}
 
-              {settingsTab === "garnishes" && (
-                <SettingsBlock
-                  catalog={catalog}
-                  catLoading={catLoading}
-                  newName={newName}
-                  onNewNameChange={handleNewNameChange}
-                  addCatalog={addCatalog}
-                  renameCatalog={renameCatalog}
-                  toggleCatalog={toggleCatalog}
-                  deleteCatalog={deleteCatalog}
-                  mergeCatalog={mergeCatalog}
-                  onDragStart={onDragStart}
-                  onDragOver={onDragOver}
-                  onDrop={onDrop}
-                  draggingId={draggingId}
-                  selectedKind="garnish"
-                />
-              )}
 
               {settingsTab === "units" && (
                 <SettingsBlock
@@ -2609,14 +2560,12 @@ export default function App() {
                 methods={methods}
                 glasses={glasses}
                 ices={ices}
-                garnishes={garnishes}
                 availableTags={availableTags}
                 units={units}
                 name={name} setName={setName}
                 method={method} setMethod={setMethod}
                 glass={glass} setGlass={setGlass}
                 ice={ice} setIce={setIce}
-                garnish={garnish} setGarnish={setGarnish}
                 notes={notes} setNotes={setNotes}
                 price={price} setPrice={setPrice}
                 specialDate={specialDate} setSpecialDate={setSpecialDate}

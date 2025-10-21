@@ -11,7 +11,6 @@ type Props = {
   methods: string[]
   glasses: string[]
   ices: string[]
-  garnishes: string[]
   availableTags: Tag[]
   units: string[]
   // form values
@@ -19,7 +18,6 @@ type Props = {
   method: string;        setMethod: (v: string) => void
   glass: string;         setGlass: (v: string) => void
   ice: string;           setIce: (v: string) => void
-  garnish: string;       setGarnish: (v: string) => void
   notes: string;         setNotes: (v: string) => void
   price: string;         setPrice: (v: string) => void
   specialDate: string;   setSpecialDate: (v: string) => void
@@ -32,7 +30,7 @@ type Props = {
   // ingredient suggestions (App will supply the query function; this component manages UI + keyboard)
   onQueryIngredients: (term: string) => Promise<string[]>
   // catalog management
-  onAddCatalogItem: (kind: "method" | "glass" | "ice" | "garnish", name: string) => Promise<void>
+  onAddCatalogItem: (kind: "method" | "glass" | "ice", name: string) => Promise<void>
   onAddTag: (name: string, color: string) => Promise<void>
 }
 
@@ -41,8 +39,8 @@ type Props = {
 export function CocktailForm(props: Props) {
   const {
     editingId,
-    methods, glasses, ices, garnishes, availableTags, units,
-    name, setName, method, setMethod, glass, setGlass, ice, setIce, garnish, setGarnish,
+    methods, glasses, ices, availableTags, units,
+    name, setName, method, setMethod, glass, setGlass, ice, setIce,
     notes, setNotes, price, setPrice, specialDate, setSpecialDate, isOlogyRecipe, setOlogyRecipe,
     lines, setLines, selectedTags, setSelectedTags,
     onClose, onSubmit,
@@ -94,7 +92,7 @@ export function CocktailForm(props: Props) {
   }
 
   // Handle adding new catalog items
-  async function handleAddNew(kind: "method" | "glass" | "ice" | "garnish") {
+  async function handleAddNew(kind: "method" | "glass" | "ice") {
     const name = prompt(`Add new ${kind}:`)
     if (!name?.trim()) return
     
@@ -111,9 +109,6 @@ export function CocktailForm(props: Props) {
           break
         case "ice":
           setIce(name.trim())
-          break
-        case "garnish":
-          setGarnish(name.trim())
           break
       }
     } catch (error) {
@@ -291,32 +286,6 @@ export function CocktailForm(props: Props) {
         </select>
         </div>
         
-        <div>
-          <label style={{ 
-            display: "block", 
-            fontSize: 12, 
-            color: colors.muted, 
-            marginBottom: 8,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em"
-          }}>
-            🌿 Garnish
-          </label>
-        <select value={garnish} onChange={e=>{
-            if (e.target.value === "__add_new__") {
-              handleAddNew("garnish")
-            } else {
-              setGarnish(e.target.value)
-            }
-          }} style={inp}>
-            <option value="">Choose garnish...</option>
-          {garnishes.map(g => <option key={g} value={g}>{g}</option>)}
-          <option value="__add_new__" style={{ color: colors.accent, fontWeight: 600 }}>
-            ➕ Add New Garnish...
-          </option>
-        </select>
-        </div>
       </div>
 
       {/* Ingredients Section - Moved to be first after basic fields */}
