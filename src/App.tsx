@@ -940,39 +940,73 @@ export default function App() {
       await supabase.from("catalog_items").update({ name: n }).eq("id", item.id)
       
       // Update all cocktails that use this item
-      const updateField = item.kind === 'method' ? 'method' :
-                         item.kind === 'glass' ? 'glass' :
-                         item.kind === 'ice' ? 'ice' : null
-
-      if (updateField) {
-        console.log(`Updating cocktails field: ${updateField} from "${item.name}" to "${n}"`)
+      if (item.kind === 'unit') {
+        // Units are stored in recipe_ingredients table
+        console.log(`Updating recipe ingredients unit from "${item.name}" to "${n}"`)
         
-        const { data: cocktailsToUpdate, error: fetchError } = await supabase
-          .from('cocktails')
-          .select('id, name')
-          .eq(updateField, item.name)
+        const { data: ingredientsToUpdate, error: fetchError } = await supabase
+          .from('recipe_ingredients')
+          .select('id, cocktail_id')
+          .eq('unit', item.name)
 
         if (fetchError) {
-          console.error('Error fetching cocktails to update:', fetchError)
-          alert(`Error fetching cocktails: ${fetchError.message}`)
+          console.error('Error fetching recipe ingredients to update:', fetchError)
+          alert(`Error fetching recipe ingredients: ${fetchError.message}`)
           return
         }
 
-        console.log(`Found ${cocktailsToUpdate?.length || 0} cocktails to update`)
+        console.log(`Found ${ingredientsToUpdate?.length || 0} recipe ingredients to update`)
 
-        if (cocktailsToUpdate && cocktailsToUpdate.length > 0) {
+        if (ingredientsToUpdate && ingredientsToUpdate.length > 0) {
           const { error: updateError } = await supabase
-            .from('cocktails')
-            .update({ [updateField]: n })
-            .eq(updateField, item.name)
+            .from('recipe_ingredients')
+            .update({ unit: n })
+            .eq('unit', item.name)
 
           if (updateError) {
-            console.error('Error updating cocktails:', updateError)
-            alert(`Error updating cocktails: ${updateError.message}`)
+            console.error('Error updating recipe ingredients:', updateError)
+            alert(`Error updating recipe ingredients: ${updateError.message}`)
             return
           }
           
-          console.log(`Updated ${cocktailsToUpdate.length} cocktails`)
+          console.log(`Updated ${ingredientsToUpdate.length} recipe ingredients`)
+        }
+      } else {
+        // Methods, glasses, and ice are stored directly in cocktails table
+        const updateField = item.kind === 'method' ? 'method' :
+                           item.kind === 'glass' ? 'glass' :
+                           item.kind === 'ice' ? 'ice' : null
+
+        if (updateField) {
+          console.log(`Updating cocktails field: ${updateField} from "${item.name}" to "${n}"`)
+          
+          const { data: cocktailsToUpdate, error: fetchError } = await supabase
+            .from('cocktails')
+            .select('id, name')
+            .eq(updateField, item.name)
+
+          if (fetchError) {
+            console.error('Error fetching cocktails to update:', fetchError)
+            alert(`Error fetching cocktails: ${fetchError.message}`)
+            return
+          }
+
+          console.log(`Found ${cocktailsToUpdate?.length || 0} cocktails to update`)
+
+          if (cocktailsToUpdate && cocktailsToUpdate.length > 0) {
+            const { error: updateError } = await supabase
+              .from('cocktails')
+              .update({ [updateField]: n })
+              .eq(updateField, item.name)
+
+            if (updateError) {
+              console.error('Error updating cocktails:', updateError)
+              alert(`Error updating cocktails: ${updateError.message}`)
+              return
+            }
+            
+            console.log(`Updated ${cocktailsToUpdate.length} cocktails`)
+          }
         }
       }
       
