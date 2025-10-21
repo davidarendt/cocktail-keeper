@@ -1,7 +1,7 @@
 // src/components/UserManagement.tsx
 import { useState, useEffect } from "react"
 import { supabase } from "../supabaseClient"
-import { inp, btnPrimary, btnSecondary, dangerBtn, colors, card, th, td } from "../styles"
+import { inp, btnSecondary, colors, card, th, td } from "../styles"
 
 type User = {
   user_id: string

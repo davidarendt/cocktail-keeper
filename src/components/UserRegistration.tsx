@@ -33,7 +33,7 @@ export function UserRegistration({ onSuccess, onCancel }: Props) {
     }
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: email.trim(),
         password: password,
       })
