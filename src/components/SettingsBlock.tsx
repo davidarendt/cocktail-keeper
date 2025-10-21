@@ -12,6 +12,7 @@ type Props = {
   renameCatalog: (i: CatalogItem) => void
   toggleCatalog: (i: CatalogItem) => void
   deleteCatalog: (i: CatalogItem) => void
+  mergeCatalog: (source: CatalogItem, target: CatalogItem) => void
   onDragStart: (e: React.DragEvent<HTMLTableRowElement>, id: string) => void
   onDragOver: (e: React.DragEvent<HTMLTableRowElement>) => void
   onDrop: (k: Kind, id: string) => void
@@ -28,19 +29,81 @@ export function SettingsBlock({
   renameCatalog,
   toggleCatalog,
   deleteCatalog,
+  mergeCatalog,
   onDragStart,
   onDragOver,
   onDrop,
   draggingId,
   selectedKind
 }: Props) {
+  const [mergeMode, setMergeMode] = React.useState(false)
+  const [selectedForMerge, setSelectedForMerge] = React.useState<CatalogItem | null>(null)
+  
   const list = [...catalog.filter(c => c.kind === selectedKind)].sort((a,b)=> a.position - b.position)
+
+  const handleMergeClick = (item: CatalogItem) => {
+    if (!selectedForMerge) {
+      setSelectedForMerge(item)
+    } else if (selectedForMerge.id === item.id) {
+      setSelectedForMerge(null)
+    } else {
+      mergeCatalog(selectedForMerge, item)
+      setSelectedForMerge(null)
+      setMergeMode(false)
+    }
+  }
+
+  const cancelMerge = () => {
+    setSelectedForMerge(null)
+    setMergeMode(false)
+  }
 
   return (
     <div>
       <p style={{ color: colors.muted, marginBottom: 12 }}>
         Drag to reorder. Add/Rename/Activate items below. Disabled items won't appear in forms/filters.
       </p>
+
+      {/* Merge Mode Controls */}
+      <div style={{ 
+        background: colors.panel, 
+        padding: 12, 
+        borderRadius: 8, 
+        marginBottom: 16,
+        border: `1px solid ${colors.border}`
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <strong style={{ color: colors.text }}>🔄 Merge Items</strong>
+            <p style={{ margin: "4px 0 0 0", fontSize: 12, color: colors.muted }}>
+              {mergeMode ? 
+                (selectedForMerge ? 
+                  `Select target item to merge "${selectedForMerge.name}" into:` :
+                  "Select source item to merge:") :
+                "Combine similar items without breaking cocktails"
+              }
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {mergeMode ? (
+              <>
+                <button onClick={cancelMerge} style={btnSecondary}>
+                  Cancel
+                </button>
+                {selectedForMerge && (
+                  <button onClick={cancelMerge} style={btnPrimary}>
+                    Clear Selection
+                  </button>
+                )}
+              </>
+            ) : (
+              <button onClick={() => setMergeMode(true)} style={btnPrimary}>
+                Start Merge
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div
         style={{
@@ -100,10 +163,27 @@ export function SettingsBlock({
                     </label>
                   </td>
                   <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                      <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
-                      <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
-                    </div>
+                    {mergeMode ? (
+                      <button 
+                        onClick={() => handleMergeClick(item)}
+                        style={{
+                          ...btnPrimary,
+                          background: selectedForMerge?.id === item.id ? colors.accent : 
+                                     selectedForMerge && selectedForMerge.id !== item.id ? colors.primarySolid : 
+                                     colors.glass,
+                          color: selectedForMerge?.id === item.id || (selectedForMerge && selectedForMerge.id !== item.id) ? "white" : colors.text,
+                          border: `2px solid ${selectedForMerge?.id === item.id ? colors.accent : colors.border}`
+                        }}
+                      >
+                        {selectedForMerge?.id === item.id ? "Selected" : 
+                         selectedForMerge ? "Merge Into" : "Select"}
+                      </button>
+                    ) : (
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button onClick={()=>renameCatalog(item)} style={btnSecondary}>Rename</button>
+                        <button onClick={()=>deleteCatalog(item)} style={dangerBtn}>Delete</button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))}

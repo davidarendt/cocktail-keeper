@@ -920,6 +920,56 @@ export default function App() {
     await supabase.from("catalog_items").delete().eq("id", item.id)
     await reloadSettings(); await loadCatalog()
   }
+
+  async function mergeCatalog(sourceItem: CatalogItem, targetItem: CatalogItem) {
+    if (sourceItem.id === targetItem.id) return
+    
+    const confirmMessage = `Merge "${sourceItem.name}" into "${targetItem.name}"?\n\nThis will:\n- Update all cocktails using "${sourceItem.name}" to use "${targetItem.name}"\n- Delete "${sourceItem.name}" from the catalog\n\nThis action cannot be undone.`
+    
+    if (!confirm(confirmMessage)) return
+
+    try {
+      // Update all cocktails that use the source item
+      const updateField = sourceItem.kind === 'method' ? 'method' :
+                         sourceItem.kind === 'glass' ? 'glass' :
+                         sourceItem.kind === 'ice' ? 'ice' :
+                         sourceItem.kind === 'garnish' ? 'garnish' : null
+
+      if (updateField) {
+        const { error: updateError } = await supabase
+          .from('cocktails')
+          .update({ [updateField]: targetItem.name })
+          .eq(updateField, sourceItem.name)
+
+        if (updateError) {
+          console.error('Error updating cocktails:', updateError)
+          alert(`Error updating cocktails: ${updateError.message}`)
+          return
+        }
+      }
+
+      // Delete the source item
+      const { error: deleteError } = await supabase
+        .from('catalog_items')
+        .delete()
+        .eq('id', sourceItem.id)
+
+      if (deleteError) {
+        console.error('Error deleting source item:', deleteError)
+        alert(`Error deleting source item: ${deleteError.message}`)
+        return
+      }
+
+      // Reload data
+      await reloadSettings()
+      await loadCatalog()
+      
+      alert(`Successfully merged "${sourceItem.name}" into "${targetItem.name}"`)
+    } catch (error) {
+      console.error('Merge error:', error)
+      alert(`Error during merge: ${error}`)
+    }
+  }
   function onDragStart(e: React.DragEvent<HTMLTableRowElement>, id: string) {
     setDraggingId(id)
     e.dataTransfer.effectAllowed = "move"
@@ -1725,6 +1775,7 @@ export default function App() {
                   renameCatalog={renameCatalog}
                   toggleCatalog={toggleCatalog}
                   deleteCatalog={deleteCatalog}
+                  mergeCatalog={mergeCatalog}
                   onDragStart={onDragStart}
                   onDragOver={onDragOver}
                   onDrop={onDrop}
@@ -1743,6 +1794,7 @@ export default function App() {
                   renameCatalog={renameCatalog}
                   toggleCatalog={toggleCatalog}
                   deleteCatalog={deleteCatalog}
+                  mergeCatalog={mergeCatalog}
                   onDragStart={onDragStart}
                   onDragOver={onDragOver}
                   onDrop={onDrop}
@@ -1761,6 +1813,7 @@ export default function App() {
                   renameCatalog={renameCatalog}
                   toggleCatalog={toggleCatalog}
                   deleteCatalog={deleteCatalog}
+                  mergeCatalog={mergeCatalog}
                   onDragStart={onDragStart}
                   onDragOver={onDragOver}
                   onDrop={onDrop}
@@ -1779,6 +1832,7 @@ export default function App() {
                   renameCatalog={renameCatalog}
                   toggleCatalog={toggleCatalog}
                   deleteCatalog={deleteCatalog}
+                  mergeCatalog={mergeCatalog}
                   onDragStart={onDragStart}
                   onDragOver={onDragOver}
                   onDrop={onDrop}
@@ -1797,6 +1851,7 @@ export default function App() {
                   renameCatalog={renameCatalog}
                   toggleCatalog={toggleCatalog}
                   deleteCatalog={deleteCatalog}
+                  mergeCatalog={mergeCatalog}
                   onDragStart={onDragStart}
                   onDragOver={onDragOver}
                   onDrop={onDrop}
