@@ -134,7 +134,7 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings">("main")
-  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users">("methods")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -1753,6 +1753,31 @@ export default function App() {
                   padding: 20
                 }}>
                   <button
+                    onClick={() => setSettingsTab("ingredients")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "ingredients" ? colors.accent : colors.glass,
+                      color: settingsTab === "ingredients" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "ingredients" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🧪</span>
+                    <span>Ingredients</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Manage Ingredient Database
+                    </span>
+                  </button>
+
+                  <button
                     onClick={() => setSettingsTab("methods")}
                     style={{
                       ...btnSecondary,
@@ -1850,31 +1875,6 @@ export default function App() {
                     <span>Tags</span>
                     <span style={{ fontSize: 12, opacity: 0.8 }}>
                       Cocktail Categories & Labels
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setSettingsTab("ingredients")}
-                    style={{
-                      ...btnSecondary,
-                      padding: "16px 20px",
-                      background: settingsTab === "ingredients" ? colors.accent : colors.glass,
-                      color: settingsTab === "ingredients" ? "white" : colors.text,
-                      border: `2px solid ${settingsTab === "ingredients" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 8
-                    }}
-                  >
-                    <span style={{ fontSize: 24 }}>🧪</span>
-                    <span>Ingredients</span>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      Manage Ingredient Database
                     </span>
                   </button>
 
