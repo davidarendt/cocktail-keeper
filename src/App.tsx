@@ -1013,6 +1013,7 @@ export default function App() {
       // Reload data
       await reloadSettings()
       await loadCatalog()
+      await load() // Reload cocktails to show updated values
       
       console.log(`Successfully renamed "${item.name}" to "${n}"`)
     } catch (error) {
@@ -1043,39 +1044,73 @@ export default function App() {
       console.log('Starting merge:', { sourceItem, targetItem })
       
       // Update all cocktails that use the source item
-      const updateField = sourceItem.kind === 'method' ? 'method' :
-                         sourceItem.kind === 'glass' ? 'glass' :
-                         sourceItem.kind === 'ice' ? 'ice' : null
-
-      if (updateField) {
-        console.log('Updating cocktails field:', updateField, 'from', sourceItem.name, 'to', targetItem.name)
+      if (sourceItem.kind === 'unit') {
+        // Units are stored in recipe_ingredients table
+        console.log('Updating recipe ingredients unit from', sourceItem.name, 'to', targetItem.name)
         
-        const { data: cocktailsToUpdate, error: fetchError } = await supabase
-          .from('cocktails')
-          .select('id, name')
-          .eq(updateField, sourceItem.name)
+        const { data: ingredientsToUpdate, error: fetchError } = await supabase
+          .from('recipe_ingredients')
+          .select('id, cocktail_id')
+          .eq('unit', sourceItem.name)
 
         if (fetchError) {
-          console.error('Error fetching cocktails to update:', fetchError)
-          alert(`Error fetching cocktails: ${fetchError.message}`)
+          console.error('Error fetching recipe ingredients to update:', fetchError)
+          alert(`Error fetching recipe ingredients: ${fetchError.message}`)
           return
         }
 
-        console.log('Found cocktails to update:', cocktailsToUpdate)
+        console.log(`Found ${ingredientsToUpdate?.length || 0} recipe ingredients to update`)
 
-        if (cocktailsToUpdate && cocktailsToUpdate.length > 0) {
+        if (ingredientsToUpdate && ingredientsToUpdate.length > 0) {
           const { error: updateError } = await supabase
-            .from('cocktails')
-            .update({ [updateField]: targetItem.name })
-            .eq(updateField, sourceItem.name)
+            .from('recipe_ingredients')
+            .update({ unit: targetItem.name })
+            .eq('unit', sourceItem.name)
 
           if (updateError) {
-            console.error('Error updating cocktails:', updateError)
-            alert(`Error updating cocktails: ${updateError.message}`)
+            console.error('Error updating recipe ingredients:', updateError)
+            alert(`Error updating recipe ingredients: ${updateError.message}`)
             return
           }
           
-          console.log(`Updated ${cocktailsToUpdate.length} cocktails`)
+          console.log(`Updated ${ingredientsToUpdate.length} recipe ingredients`)
+        }
+      } else {
+        // Methods, glasses, and ice are stored directly in cocktails table
+        const updateField = sourceItem.kind === 'method' ? 'method' :
+                           sourceItem.kind === 'glass' ? 'glass' :
+                           sourceItem.kind === 'ice' ? 'ice' : null
+
+        if (updateField) {
+          console.log('Updating cocktails field:', updateField, 'from', sourceItem.name, 'to', targetItem.name)
+          
+          const { data: cocktailsToUpdate, error: fetchError } = await supabase
+            .from('cocktails')
+            .select('id, name')
+            .eq(updateField, sourceItem.name)
+
+          if (fetchError) {
+            console.error('Error fetching cocktails to update:', fetchError)
+            alert(`Error fetching cocktails: ${fetchError.message}`)
+            return
+          }
+
+          console.log(`Found ${cocktailsToUpdate?.length || 0} cocktails to update`)
+
+          if (cocktailsToUpdate && cocktailsToUpdate.length > 0) {
+            const { error: updateError } = await supabase
+              .from('cocktails')
+              .update({ [updateField]: targetItem.name })
+              .eq(updateField, sourceItem.name)
+
+            if (updateError) {
+              console.error('Error updating cocktails:', updateError)
+              alert(`Error updating cocktails: ${updateError.message}`)
+              return
+            }
+            
+            console.log(`Updated ${cocktailsToUpdate.length} cocktails`)
+          }
         }
       }
 
@@ -1095,6 +1130,7 @@ export default function App() {
       // Reload data
       await reloadSettings()
       await loadCatalog()
+      await load() // Reload cocktails to show updated values
       
       alert(`Successfully merged "${sourceItem.name}" into "${targetItem.name}"`)
     } catch (error) {
