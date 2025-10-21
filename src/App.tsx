@@ -932,8 +932,59 @@ export default function App() {
   async function renameCatalog(item: CatalogItem) {
     const n = prompt(`Rename ${item.kind}`, item.name)?.trim()
     if (!n || n === item.name) return
-    await supabase.from("catalog_items").update({ name: n }).eq("id", item.id)
-    await reloadSettings(); await loadCatalog()
+    
+    try {
+      console.log(`Renaming ${item.kind} "${item.name}" to "${n}"`)
+      
+      // Update the catalog item name
+      await supabase.from("catalog_items").update({ name: n }).eq("id", item.id)
+      
+      // Update all cocktails that use this item
+      const updateField = item.kind === 'method' ? 'method' :
+                         item.kind === 'glass' ? 'glass' :
+                         item.kind === 'ice' ? 'ice' : null
+
+      if (updateField) {
+        console.log(`Updating cocktails field: ${updateField} from "${item.name}" to "${n}"`)
+        
+        const { data: cocktailsToUpdate, error: fetchError } = await supabase
+          .from('cocktails')
+          .select('id, name')
+          .eq(updateField, item.name)
+
+        if (fetchError) {
+          console.error('Error fetching cocktails to update:', fetchError)
+          alert(`Error fetching cocktails: ${fetchError.message}`)
+          return
+        }
+
+        console.log(`Found ${cocktailsToUpdate?.length || 0} cocktails to update`)
+
+        if (cocktailsToUpdate && cocktailsToUpdate.length > 0) {
+          const { error: updateError } = await supabase
+            .from('cocktails')
+            .update({ [updateField]: n })
+            .eq(updateField, item.name)
+
+          if (updateError) {
+            console.error('Error updating cocktails:', updateError)
+            alert(`Error updating cocktails: ${updateError.message}`)
+            return
+          }
+          
+          console.log(`Updated ${cocktailsToUpdate.length} cocktails`)
+        }
+      }
+      
+      // Reload data
+      await reloadSettings()
+      await loadCatalog()
+      
+      console.log(`Successfully renamed "${item.name}" to "${n}"`)
+    } catch (error) {
+      console.error('Rename error:', error)
+      alert(`Error during rename: ${error}`)
+    }
   }
   async function toggleCatalog(item: CatalogItem) {
     console.log(`Toggling ${item.kind} "${item.name}" to ${!item.active ? 'active' : 'inactive'}`)
