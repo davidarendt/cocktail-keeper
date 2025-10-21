@@ -340,6 +340,12 @@ export default function App() {
       .select("cocktail_id, amount, unit, position, ingredient:ingredients(name)")
       .in("cocktail_id", ids)
       .order("position", { ascending: true })
+    
+    console.log('Loading specs for cocktails:', ids.length, 'ingredients found:', data?.length)
+    if (data && data.length > 0) {
+      console.log('Sample ingredient data:', data.slice(0, 3))
+    }
+    
     const map: Record<string, string[]> = {}
     for (const r of (data || []) as any[]) {
       const k = r.cocktail_id as string
@@ -970,6 +976,14 @@ export default function App() {
           }
           
           console.log(`Updated ${ingredientsToUpdate.length} recipe ingredients`)
+          
+          // Verify the update worked
+          const { data: verifyData } = await supabase
+            .from('recipe_ingredients')
+            .select('id, unit')
+            .eq('unit', n)
+            .limit(5)
+          console.log('Verification - ingredients now using new unit:', verifyData)
         }
       } else {
         // Methods, glasses, and ice are stored directly in cocktails table
@@ -1013,6 +1027,10 @@ export default function App() {
       // Reload data
       await reloadSettings()
       await loadCatalog()
+      
+      // Small delay to ensure database updates have propagated
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       await load() // Reload cocktails to show updated values
       
       console.log(`Successfully renamed "${item.name}" to "${n}"`)
@@ -1130,6 +1148,10 @@ export default function App() {
       // Reload data
       await reloadSettings()
       await loadCatalog()
+      
+      // Small delay to ensure database updates have propagated
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       await load() // Reload cocktails to show updated values
       
       alert(`Successfully merged "${sourceItem.name}" into "${targetItem.name}"`)
