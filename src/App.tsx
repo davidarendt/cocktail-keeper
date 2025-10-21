@@ -929,6 +929,8 @@ export default function App() {
     if (!confirm(confirmMessage)) return
 
     try {
+      console.log('Starting merge:', { sourceItem, targetItem })
+      
       // Update all cocktails that use the source item
       const updateField = sourceItem.kind === 'method' ? 'method' :
                          sourceItem.kind === 'glass' ? 'glass' :
@@ -936,19 +938,39 @@ export default function App() {
                          sourceItem.kind === 'garnish' ? 'garnish' : null
 
       if (updateField) {
-        const { error: updateError } = await supabase
+        console.log('Updating cocktails field:', updateField, 'from', sourceItem.name, 'to', targetItem.name)
+        
+        const { data: cocktailsToUpdate, error: fetchError } = await supabase
           .from('cocktails')
-          .update({ [updateField]: targetItem.name })
+          .select('id, name')
           .eq(updateField, sourceItem.name)
 
-        if (updateError) {
-          console.error('Error updating cocktails:', updateError)
-          alert(`Error updating cocktails: ${updateError.message}`)
+        if (fetchError) {
+          console.error('Error fetching cocktails to update:', fetchError)
+          alert(`Error fetching cocktails: ${fetchError.message}`)
           return
+        }
+
+        console.log('Found cocktails to update:', cocktailsToUpdate)
+
+        if (cocktailsToUpdate && cocktailsToUpdate.length > 0) {
+          const { error: updateError } = await supabase
+            .from('cocktails')
+            .update({ [updateField]: targetItem.name })
+            .eq(updateField, sourceItem.name)
+
+          if (updateError) {
+            console.error('Error updating cocktails:', updateError)
+            alert(`Error updating cocktails: ${updateError.message}`)
+            return
+          }
+          
+          console.log(`Updated ${cocktailsToUpdate.length} cocktails`)
         }
       }
 
       // Delete the source item
+      console.log('Deleting source item:', sourceItem.id)
       const { error: deleteError } = await supabase
         .from('catalog_items')
         .delete()
