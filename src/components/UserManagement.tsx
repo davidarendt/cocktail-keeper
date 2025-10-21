@@ -28,7 +28,11 @@ export function UserManagement({ currentUserEmail }: Props) {
     setError("")
     
     try {
-      const { data, error } = await supabase.rpc('get_all_users')
+      // Use direct table query instead of RPC function to avoid schema cache issues
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_id, email, role, created_at')
+        .order('created_at', { ascending: false })
       
       if (error) {
         setError(error.message)
