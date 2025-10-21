@@ -23,7 +23,7 @@ export default function App() {
   // ---------- AUTH ----------
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<Role>("viewer")
-  const [email, setEmail] = useState("")
+  const [showRegister, setShowRegister] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
@@ -73,17 +73,6 @@ export default function App() {
     })()
   }, [session])
 
-  async function signIn(e: React.FormEvent) {
-    e.preventDefault()
-    if (!email) return
-    setErr("")
-    const { error } = await supabase.auth.signInWithOtp({ email })
-    if (error) {
-      setErr(error.message)
-    } else {
-      setErr("✅ Check your email for the magic link!")
-    }
-  }
   async function signOut() { await supabase.auth.signOut() }
 
 
@@ -1278,19 +1267,22 @@ export default function App() {
               <button onClick={signOut} style={btnSecondary}>
                 🚪 Sign out
               </button>
-            ) : (
-              <form onSubmit={signIn} style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <input 
-                  value={email} 
-                  onChange={e=>setEmail(e.target.value)} 
-                  placeholder="your@email.com" 
-                  style={{ ...inp, minWidth: 200 }}
-                  type="email"
-                />
-                <button type="submit" style={btnPrimary}>
-                  ✨ Magic link
+            ) : showRegister ? (
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <button onClick={() => setShowRegister(false)} style={btnSecondary}>
+                  ← Back to Sign In
                 </button>
-              </form>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <button onClick={() => setShowRegister(true)} style={btnPrimary}>
+                  🚀 Create Account
+                </button>
+                <span style={{ color: colors.muted }}>or</span>
+                <button onClick={() => setShowRegister(false)} style={btnSecondary}>
+                  🔐 Sign In
+                </button>
+              </div>
             )}
           </nav>
         </header>
@@ -1310,6 +1302,55 @@ export default function App() {
               <span style={{ fontSize: 20 }}>⚠️</span>
               <span style={{ fontWeight: 500 }}>{err}</span>
             </div>
+          </div>
+        )}
+
+        {/* AUTHENTICATION FORMS */}
+        {!session && (
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
+            {showRegister ? (
+              <div style={{ maxWidth: 400, width: "100%" }}>
+                <h2 style={{ textAlign: "center", marginBottom: 24, color: colors.text }}>
+                  🚀 Create Account
+                </h2>
+                <div style={{ 
+                  ...card(), 
+                  padding: 24,
+                  background: colors.glass,
+                  border: `1px solid ${colors.glassBorder}`
+                }}>
+                  <p style={{ textAlign: "center", color: colors.muted, marginBottom: 20 }}>
+                    Create an account to access the cocktail database
+                  </p>
+                  <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                    <button onClick={() => setShowRegister(false)} style={btnSecondary}>
+                      ← Back to Sign In
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div style={{ maxWidth: 400, width: "100%" }}>
+                <h2 style={{ textAlign: "center", marginBottom: 24, color: colors.text }}>
+                  🔐 Sign In
+                </h2>
+                <div style={{ 
+                  ...card(), 
+                  padding: 24,
+                  background: colors.glass,
+                  border: `1px solid ${colors.glassBorder}`
+                }}>
+                  <p style={{ textAlign: "center", color: colors.muted, marginBottom: 20 }}>
+                    Sign in to access your cocktail database
+                  </p>
+                  <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+                    <button onClick={() => setShowRegister(true)} style={btnPrimary}>
+                      🚀 Create Account
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
