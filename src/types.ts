@@ -7,7 +7,7 @@ export type TimestampISO = string   // full ISO timestamp
 
 /** Roles & enums */
 export type Role = "viewer" | "editor" | "admin"
-export type Kind = "method" | "glass" | "ice" | "garnish" | "unit"
+export type Kind = "method" | "glass" | "ice" | "unit"
 // Allow admin-managed unit strings (configured in Settings → Units)
 export type Unit = string
 
@@ -18,7 +18,6 @@ export type CocktailRow = {
   method: string | null
   glass: string | null
   ice: string | null
-  garnish: string | null
   notes: string | null
   price: number | null
   last_special_on: IsoDate | null
@@ -91,7 +90,6 @@ export type PrintCocktail = {
   name: string
   method?: string | null
   glass?: string | null
-  garnish?: string | null
   notes?: string | null
   price?: number | null
   last_special_on?: IsoDate | null
