@@ -1031,12 +1031,24 @@ export default function App() {
     { ingredientName:"", amount:"", unit:"oz", position:1 }
   ])
 
+  // Update ingredient lines when units change to ensure valid units
+  useEffect(() => {
+    if (formOpen && units.length > 0) {
+      setLines(prevLines => 
+        prevLines.map(line => ({
+          ...line,
+          unit: units.includes(line.unit) ? line.unit : units[0]
+        }))
+      )
+    }
+  }, [units, formOpen])
+
   function resetForm() {
     setEditingId(null)
     setName(""); setMethod("")
     setGlass(""); setIce(""); setNotes("")
     setPrice(""); setSpecialDate(""); setOlogyRecipe(false)
-    setLines([{ ingredientName:"", amount:"", unit:"oz", position:1 }])
+    setLines([{ ingredientName:"", amount:"", unit:units[0] || "oz", position:1 }])
     setSelectedTags([])
   }
   function openAddForm() { resetForm(); setFormOpen(true) }
