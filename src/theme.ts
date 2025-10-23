@@ -3,52 +3,110 @@ import type { CSSProperties } from "react"
 
 /** ---- Ology Modern Design System ---- */
 export const colors = {
-  // Ultra-modern Ology palette - inspired by the logo's stark contrast
-  bg: "#ffffff",
-  bgSolid: "#ffffff",
-  text: "#000000",
-  muted: "#4a4a4a",
-  panel: "#f8f9fa",
-  panelHover: "#f1f3f4",
-  border: "#e1e5e9",
-  borderHover: "#c7d2da",
+  // Light mode colors
+  light: {
+    // Ultra-modern Ology palette - inspired by the logo's stark contrast
+    bg: "#ffffff",
+    bgSolid: "#ffffff",
+    text: "#000000",
+    muted: "#4a4a4a",
+    panel: "#f8f9fa",
+    panelHover: "#f1f3f4",
+    border: "#e1e5e9",
+    borderHover: "#c7d2da",
 
-  // Clean glass effect
-  glass: "#f8f9fa",
-  glassBorder: "#e1e5e9",
+    // Clean glass effect
+    glass: "#f8f9fa",
+    glassBorder: "#e1e5e9",
 
-  // Input styling
-  inputBg: "#ffffff",
-  inputBorder: "#c7d2da",
-  inputFocus: "rgba(0, 0, 0, 0.1)",
+    // Input styling
+    inputBg: "#ffffff",
+    inputBorder: "#c7d2da",
+    inputFocus: "rgba(0, 0, 0, 0.1)",
 
-  // Modern black primary (matching logo)
-  primary: "#000000",
-  primarySolid: "#000000",
-  primaryHover: "#333333",
-  primaryBorder: "#000000",
+    // Modern black primary (matching logo)
+    primary: "#000000",
+    primarySolid: "#000000",
+    primaryHover: "#333333",
+    primaryBorder: "#000000",
 
-  // Sophisticated accent - deep charcoal
-  accent: "#1a1a1a",
-  accentSolid: "#1a1a1a",
+    // Sophisticated accent - deep charcoal
+    accent: "#1a1a1a",
+    accentSolid: "#1a1a1a",
 
-  // Status colors (refined)
-  success: "#16a34a",
-  successSolid: "#16a34a",
-  danger: "#dc2626",
-  dangerSolid: "#dc2626",
-  dangerBorder: "#b91c1c",
-  warning: "#d97706",
-  warningSolid: "#d97706",
+    // Status colors (refined)
+    success: "#16a34a",
+    successSolid: "#16a34a",
+    danger: "#dc2626",
+    dangerSolid: "#dc2626",
+    dangerBorder: "#b91c1c",
+    warning: "#d97706",
+    warningSolid: "#d97706",
 
-  // Special cocktail highlighting - subtle modern accent
-  special: "#f0f9ff",
-  specialSolid: "#0ea5e9",
+    // Special cocktail highlighting - subtle modern accent
+    special: "#f0f9ff",
+    specialSolid: "#0ea5e9",
 
-  // Text gradients (modern black)
-  textGradient: "#000000",
-  textGradientAccent: "#1a1a1a",
-} as const
+    // Text gradients (modern black)
+    textGradient: "#000000",
+    textGradientAccent: "#1a1a1a",
+  },
+  
+  // Dark mode colors
+  dark: {
+    // Dark mode palette
+    bg: "#0a0a0a",
+    bgSolid: "#0a0a0a",
+    text: "#ffffff",
+    muted: "#a0a0a0",
+    panel: "#1a1a1a",
+    panelHover: "#2a2a2a",
+    border: "#333333",
+    borderHover: "#4a4a4a",
+
+    // Clean glass effect
+    glass: "#1a1a1a",
+    glassBorder: "#333333",
+
+    // Input styling
+    inputBg: "#1a1a1a",
+    inputBorder: "#4a4a4a",
+    inputFocus: "rgba(255, 255, 255, 0.1)",
+
+    // Modern white primary (inverted from logo)
+    primary: "#ffffff",
+    primarySolid: "#ffffff",
+    primaryHover: "#e0e0e0",
+    primaryBorder: "#ffffff",
+
+    // Sophisticated accent - light gray
+    accent: "#e0e0e0",
+    accentSolid: "#e0e0e0",
+
+    // Status colors (refined)
+    success: "#22c55e",
+    successSolid: "#22c55e",
+    danger: "#ef4444",
+    dangerSolid: "#ef4444",
+    dangerBorder: "#dc2626",
+    warning: "#f59e0b",
+    warningSolid: "#f59e0b",
+
+    // Special cocktail highlighting - subtle modern accent
+    special: "#1e3a8a",
+    specialSolid: "#3b82f6",
+
+    // Text gradients (modern white)
+    textGradient: "#ffffff",
+    textGradientAccent: "#e0e0e0",
+  }
+}
+
+// Export current colors (will be updated by theme toggle)
+export const currentColors = colors.light
+
+// Export the main colors object for backward compatibility
+export { colors as colorThemes }
 
 export const space = {
   xs: 4,
@@ -106,8 +164,8 @@ export const transitions = {
 
 // Clean card with subtle shadow
 export const card = (overrides?: CSSProperties): CSSProperties => ({
-  background: colors.panel,
-  border: `1px solid ${colors.border}`,
+  background: colors.light.panel,
+  border: `1px solid ${colors.light.border}`,
   borderRadius: radii.md,
   padding: space.lg,
   boxShadow: shadows.sm,
@@ -123,9 +181,9 @@ export const cardHover = (overrides?: CSSProperties): CSSProperties => ({
 
 // Modern input with focus states
 export const inp: CSSProperties = {
-  background: colors.inputBg,
-  border: `1px solid ${colors.inputBorder}`,
-  color: colors.text,
+  background: colors.light.inputBg,
+  border: `1px solid ${colors.light.inputBorder}`,
+  color: colors.light.text,
   padding: `${space.md}px ${space.lg}px`,
   borderRadius: radii.md,
   fontSize: fonts.base,
@@ -135,7 +193,7 @@ export const inp: CSSProperties = {
 
 // Modern black primary button (matching logo)
 export const btnPrimary: CSSProperties = {
-  background: colors.primary,
+  background: colors.light.primary,
   border: "none",
   color: "#ffffff",
   padding: `${space.md}px ${space.xl}px`,
@@ -152,8 +210,8 @@ export const btnPrimary: CSSProperties = {
 // Modern secondary button
 export const btnSecondary: CSSProperties = {
   background: "#ffffff",
-  border: `2px solid ${colors.primary}`,
-  color: colors.primary,
+  border: `2px solid ${colors.light.primary}`,
+  color: colors.light.primary,
   padding: `${space.sm}px ${space.lg}px`,
   borderRadius: radii.sm,
   fontSize: fonts.label,
@@ -166,7 +224,7 @@ export const btnSecondary: CSSProperties = {
 
 // Clean danger button
 export const dangerBtn: CSSProperties = {
-  background: colors.danger,
+  background: colors.light.danger,
   border: "none",
   color: "white",
   padding: `${space.sm}px ${space.lg}px`,
@@ -184,24 +242,24 @@ export const th: CSSProperties = {
   padding: `${space.lg}px ${space.lg}px`,
   fontWeight: 800,
   fontSize: fonts.small,
-  color: colors.primary,
+  color: colors.light.primary,
   textTransform: "uppercase",
   letterSpacing: "0.1em",
   verticalAlign: "top",
-  borderBottom: `2px solid ${colors.primary}`,
+  borderBottom: `2px solid ${colors.light.primary}`,
 }
 
 // Enhanced table cells
 export const td: CSSProperties = {
   padding: `${space.lg}px ${space.lg}px`,
   fontSize: fonts.base,
-  color: colors.text,
+  color: colors.light.text,
   verticalAlign: "top",
-  borderBottom: `1px solid ${colors.border}`,
+  borderBottom: `1px solid ${colors.light.border}`,
 }
 
 // Text gradient helper
-export const textGradient = (gradient: string = colors.textGradient): CSSProperties => ({
+export const textGradient = (gradient: string = colors.light.textGradient): CSSProperties => ({
   background: gradient,
   WebkitBackgroundClip: "text",
   WebkitTextFillColor: "transparent",
@@ -210,20 +268,20 @@ export const textGradient = (gradient: string = colors.textGradient): CSSPropert
 
 // Muted text helper
 export const mutedText: CSSProperties = { 
-  color: colors.muted,
+  color: colors.light.muted,
   fontSize: fonts.small,
 }
 
 // Glow effect helper
-export const glow = (color: string = colors.primarySolid): CSSProperties => ({
+export const glow = (color: string = colors.light.primarySolid): CSSProperties => ({
   boxShadow: `0 0 20px ${color}40`,
 })
 
 // Top-level page wrapper with gradient background
 export const appWrap: CSSProperties = {
   minHeight: "100vh",
-  background: colors.bg,
-  color: colors.text,
+  background: colors.light.bg,
+  color: colors.light.text,
   fontFamily: "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
   lineHeight: 1.6,
 }

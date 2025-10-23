@@ -24,6 +24,7 @@ export type CocktailRow = {
   is_ology_recipe: boolean | null
   created_at?: TimestampISO
   tags?: TagRow[]
+  photo_url?: string | null
 }
 
 export type TagRow = {

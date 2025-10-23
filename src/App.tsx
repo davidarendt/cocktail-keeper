@@ -4,14 +4,18 @@ import type { Session } from "@supabase/supabase-js"
 import { supabase } from "./supabaseClient"
 
 import {
-  appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card, colors,
+  appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card,
   cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, shadows
 } from "./styles"
+import { colors } from "./styles"
 
 import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
 import { IngredientsAdmin } from "./components/IngredientsAdmin"
 import { UsersAdmin, type UserRow } from "./components/UsersAdmin"
+import { LoadingSpinner } from "./components/LoadingSpinner"
+import { CocktailCardSkeleton } from "./components/SkeletonLoader"
+import { TouchGestures } from "./components/TouchGestures"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
 
@@ -27,6 +31,14 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState("")
   const [authPassword, setAuthPassword] = useState("")
   const [authLoading, setAuthLoading] = useState(false)
+  
+  // Move these state declarations to the top to avoid hoisting issues
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('cocktail-keeper-theme')
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  })
+  const [formOpen, setFormOpen] = useState(false)
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
@@ -77,6 +89,610 @@ export default function App() {
   }, [session])
 
   async function signOut() { await supabase.auth.signOut() }
+
+  // ---------- THEME ----------
+  function toggleTheme() {
+    const newTheme = !isDarkMode
+    setIsDarkMode(newTheme)
+    localStorage.setItem('cocktail-keeper-theme', newTheme ? 'dark' : 'light')
+    document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light')
+  }
+
+  // Apply theme on mount
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
+  }, [isDarkMode])
+
+  // ---------- KEYBOARD SHORTCUTS ----------
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Only handle shortcuts when not in input fields
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+        return
+      }
+
+      // Ctrl/Cmd + N: New cocktail
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        if (role === 'editor' || role === 'admin') {
+          openAddForm()
+        }
+      }
+
+      // Ctrl/Cmd + F: Focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault()
+        const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement
+        if (searchInput) {
+          searchInput.focus()
+          searchInput.select()
+        }
+      }
+
+      // Ctrl/Cmd + K: Focus name search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        const nameSearchInput = document.querySelector('input[placeholder*="Name"]') as HTMLInputElement
+        if (nameSearchInput) {
+          nameSearchInput.focus()
+          nameSearchInput.select()
+        }
+      }
+
+      // Escape: Close forms
+      if (e.key === 'Escape') {
+        if (formOpen) {
+          setFormOpen(false)
+        }
+        if (showAdvancedSearch) {
+          setShowAdvancedSearch(false)
+        }
+      }
+
+      // Arrow keys for navigation (when not in forms)
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault()
+        const cocktailCards = document.querySelectorAll('.cocktail-card')
+        if (cocktailCards.length > 0) {
+          const currentIndex = Array.from(cocktailCards).findIndex(card => 
+            card === document.activeElement || card.contains(document.activeElement)
+          )
+          const nextIndex = e.key === 'ArrowDown' 
+            ? Math.min(currentIndex + 1, cocktailCards.length - 1)
+            : Math.max(currentIndex - 1, 0)
+          
+          if (nextIndex >= 0 && nextIndex < cocktailCards.length) {
+            (cocktailCards[nextIndex] as HTMLElement).focus()
+          }
+        }
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [role, formOpen, showAdvancedSearch])
+
+
+  // ---------- AUDIT LOGGING ----------
+  async function logAudit(action: string, details: any, resourceType: string, resourceId?: string) {
+    if (!session?.user?.id) return
+    
+    try {
+      await supabase.from('audit_logs').insert({
+        user_id: session.user.id,
+        user_email: session.user.email,
+        action,
+        details,
+        resource_type: resourceType,
+        resource_id: resourceId,
+        timestamp: new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('Failed to log audit:', error)
+    }
+  }
+
+  // ---------- BACKUP/RESTORE ----------
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [restoreLoading, setRestoreLoading] = useState(false)
+  const [backupData, setBackupData] = useState<any>(null)
+
+  async function createBackup() {
+    setBackupLoading(true)
+    setErr("")
+    
+    try {
+      console.log("Creating backup...")
+      
+      // Get all data from all tables
+      const [cocktailsResult, ingredientsResult, tagsResult, catalogResult, profilesResult] = await Promise.all([
+        supabase.from("cocktails").select("*"),
+        supabase.from("ingredients").select("*"),
+        supabase.from("tags").select("*"),
+        supabase.from("catalog_items").select("*"),
+        supabase.from("profiles").select("*")
+      ])
+      
+      // Get recipe ingredients and cocktail tags
+      const [recipeIngredientsResult, cocktailTagsResult] = await Promise.all([
+        supabase.from("recipe_ingredients").select("*"),
+        supabase.from("cocktail_tags").select("*")
+      ])
+      
+      const backup = {
+        timestamp: new Date().toISOString(),
+        version: "1.0",
+        data: {
+          cocktails: cocktailsResult.data || [],
+          ingredients: ingredientsResult.data || [],
+          tags: tagsResult.data || [],
+          catalog_items: catalogResult.data || [],
+          profiles: profilesResult.data || [],
+          recipe_ingredients: recipeIngredientsResult.data || [],
+          cocktail_tags: cocktailTagsResult.data || []
+        }
+      }
+      
+      setBackupData(backup)
+      console.log("Backup created successfully")
+      setErr("✅ Backup created successfully! You can download it below.")
+      
+    } catch (error) {
+      console.error("Backup error:", error)
+      setErr(`Backup failed: ${error}`)
+    } finally {
+      setBackupLoading(false)
+    }
+  }
+
+  async function downloadBackup() {
+    if (!backupData) {
+      setErr("No backup data available. Please create a backup first.")
+      return
+    }
+    
+    try {
+      const dataStr = JSON.stringify(backupData, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `cocktail-keeper-backup-${new Date().toISOString().split('T')[0]}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      
+      setErr("✅ Backup downloaded successfully!")
+    } catch (error) {
+      console.error("Download error:", error)
+      setErr(`Download failed: ${error}`)
+    }
+  }
+
+  async function restoreFromFile() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.json'
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      
+      setRestoreLoading(true)
+      setErr("")
+      
+      try {
+        const text = await file.text()
+        const backup = JSON.parse(text)
+        
+        if (!backup.data || !backup.timestamp) {
+          setErr("Invalid backup file format.")
+          return
+        }
+        
+        if (!confirm(`This will replace ALL current data with the backup from ${new Date(backup.timestamp).toLocaleString()}. This action cannot be undone. Continue?`)) {
+          return
+        }
+        
+        console.log("Starting restore...")
+        
+        // Clear existing data (in reverse order of dependencies)
+        await Promise.all([
+          supabase.from("cocktail_tags").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+          supabase.from("recipe_ingredients").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+          supabase.from("cocktails").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+          supabase.from("tags").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+          supabase.from("ingredients").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+          supabase.from("catalog_items").delete().neq("id", "00000000-0000-0000-0000-000000000000")
+        ])
+        
+        // Restore data (in order of dependencies)
+        await supabase.from("catalog_items").insert(backup.data.catalog_items).select()
+        const { data: restoredIngredients } = await supabase.from("ingredients").insert(backup.data.ingredients).select()
+        await supabase.from("tags").insert(backup.data.tags).select()
+        const { data: restoredCocktails } = await supabase.from("cocktails").insert(backup.data.cocktails).select()
+        
+        if (restoredCocktails && restoredIngredients) {
+          // Map old IDs to new IDs for relationships
+          const cocktailIdMap = new Map()
+          const ingredientIdMap = new Map()
+          
+          backup.data.cocktails.forEach((oldCocktail: any, index: number) => {
+            if (restoredCocktails[index]) {
+              cocktailIdMap.set(oldCocktail.id, restoredCocktails[index].id)
+            }
+          })
+          
+          backup.data.ingredients.forEach((oldIngredient: any, index: number) => {
+            if (restoredIngredients[index]) {
+              ingredientIdMap.set(oldIngredient.id, restoredIngredients[index].id)
+            }
+          })
+          
+          // Restore relationships with new IDs
+          const recipeIngredients = backup.data.recipe_ingredients.map((ri: { cocktail_id: string, ingredient_id: string, amount: number, unit: string, position: number }) => ({
+            ...ri,
+            cocktail_id: cocktailIdMap.get(ri.cocktail_id),
+            ingredient_id: ingredientIdMap.get(ri.ingredient_id)
+          })).filter((ri: any) => ri.cocktail_id && ri.ingredient_id)
+          
+          const cocktailTags = backup.data.cocktail_tags.map((ct: { cocktail_id: string, tag_id: string }) => ({
+            ...ct,
+            cocktail_id: cocktailIdMap.get(ct.cocktail_id)
+          })).filter((ct: any) => ct.cocktail_id)
+          
+          await Promise.all([
+            supabase.from("recipe_ingredients").insert(recipeIngredients),
+            supabase.from("cocktail_tags").insert(cocktailTags)
+          ])
+        }
+        
+        console.log("Restore completed successfully")
+        setErr("✅ Data restored successfully! Please refresh the page.")
+        
+        // Reload all data
+        await Promise.all([
+          loadCatalog(),
+          loadTags(),
+          loadIngredients()
+        ])
+        
+      } catch (error) {
+        console.error("Restore error:", error)
+        setErr(`Restore failed: ${error}`)
+      } finally {
+        setRestoreLoading(false)
+      }
+    }
+    
+    input.click()
+  }
+
+  // ---------- INGREDIENT SUBSTITUTIONS ----------
+  
+  // Common ingredient substitutions
+  const ingredientSubstitutions: { [key: string]: string[] } = {
+    'vodka': ['gin', 'white rum', 'tequila blanco'],
+    'gin': ['vodka', 'white rum', 'tequila blanco'],
+    'rum': ['bourbon', 'whiskey', 'brandy'],
+    'bourbon': ['whiskey', 'rum', 'brandy'],
+    'whiskey': ['bourbon', 'rum', 'brandy'],
+    'tequila': ['mezcal', 'vodka', 'gin'],
+    'mezcal': ['tequila', 'vodka', 'gin'],
+    'brandy': ['cognac', 'whiskey', 'rum'],
+    'cognac': ['brandy', 'whiskey', 'rum'],
+    'triple sec': ['cointreau', 'grand marnier', 'orange liqueur'],
+    'cointreau': ['triple sec', 'grand marnier', 'orange liqueur'],
+    'grand marnier': ['cointreau', 'triple sec', 'orange liqueur'],
+    'simple syrup': ['agave syrup', 'honey syrup', 'maple syrup'],
+    'agave syrup': ['simple syrup', 'honey syrup', 'maple syrup'],
+    'honey syrup': ['simple syrup', 'agave syrup', 'maple syrup'],
+    'lime juice': ['lemon juice', 'citrus juice'],
+    'lemon juice': ['lime juice', 'citrus juice'],
+    'orange juice': ['grapefruit juice', 'pineapple juice'],
+    'cranberry juice': ['pomegranate juice', 'cherry juice'],
+    'club soda': ['tonic water', 'seltzer water'],
+    'tonic water': ['club soda', 'seltzer water'],
+    'ginger beer': ['ginger ale', 'ginger syrup + soda'],
+    'ginger ale': ['ginger beer', 'ginger syrup + soda'],
+    'angostura bitters': ['orange bitters', 'aromatic bitters'],
+    'orange bitters': ['angostura bitters', 'aromatic bitters'],
+    'mint': ['basil', 'cilantro', 'thyme'],
+    'basil': ['mint', 'cilantro', 'thyme'],
+    'cilantro': ['mint', 'basil', 'parsley'],
+    'sugar': ['honey', 'agave', 'maple syrup'],
+    'honey': ['sugar', 'agave', 'maple syrup'],
+    'agave': ['honey', 'sugar', 'maple syrup']
+  }
+
+  function getSubstitutionSuggestions(ingredientName: string): string[] {
+    const normalizedName = ingredientName.toLowerCase().trim()
+    return ingredientSubstitutions[normalizedName] || []
+  }
+
+  // ---------- PHOTO MANAGEMENT ----------
+  const [cocktailPhotos, setCocktailPhotos] = useState<{ [key: string]: string }>({})
+
+  async function uploadPhoto(cocktailId: string, file: File) {
+    setErr("")
+    
+    try {
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${cocktailId}-${Date.now()}.${fileExt}`
+      
+      // Upload to Supabase Storage
+      const { error } = await supabase.storage
+        .from('cocktail-photos')
+        .upload(fileName, file)
+      
+      if (error) {
+        setErr(`Upload failed: ${error.message}`)
+        return
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('cocktail-photos')
+        .getPublicUrl(fileName)
+      
+      if (urlData?.publicUrl) {
+        // Update cocktail with photo URL
+        const { error: updateError } = await supabase
+          .from('cocktails')
+          .update({ photo_url: urlData.publicUrl })
+          .eq('id', cocktailId)
+        
+        if (updateError) {
+          setErr(`Failed to save photo URL: ${updateError.message}`)
+          return
+        }
+        
+        // Update local state
+        setCocktailPhotos(prev => ({
+          ...prev,
+          [cocktailId]: urlData.publicUrl
+        }))
+        
+        setErr("✅ Photo uploaded successfully!")
+        
+        // Log audit
+        await logAudit(
+          'UPLOAD_PHOTO',
+          { cocktail_id: cocktailId, photo_url: urlData.publicUrl },
+          'cocktail',
+          cocktailId
+        )
+      }
+    } catch (error) {
+      setErr(`Upload error: ${error}`)
+    } finally {
+    }
+  }
+
+  async function deletePhoto(cocktailId: string) {
+    if (!confirm('Delete this photo?')) return
+    
+    setErr("")
+    
+    try {
+      // Get current photo URL
+      const { data: cocktail } = await supabase
+        .from('cocktails')
+        .select('photo_url')
+        .eq('id', cocktailId)
+        .single()
+      
+      if (cocktail?.photo_url) {
+        // Extract filename from URL
+        const fileName = cocktail.photo_url.split('/').pop()
+        
+        // Delete from storage
+        const { error: deleteError } = await supabase.storage
+          .from('cocktail-photos')
+          .remove([fileName])
+        
+        if (deleteError) {
+          console.error('Storage delete error:', deleteError)
+        }
+      }
+      
+      // Remove photo URL from cocktail
+      const { error: updateError } = await supabase
+        .from('cocktails')
+        .update({ photo_url: null })
+        .eq('id', cocktailId)
+      
+      if (updateError) {
+        setErr(`Failed to remove photo: ${updateError.message}`)
+        return
+      }
+      
+      // Update local state
+      setCocktailPhotos(prev => {
+        const newState = { ...prev }
+        delete newState[cocktailId]
+        return newState
+      })
+      
+      setErr("✅ Photo deleted successfully!")
+      
+      // Log audit
+      await logAudit(
+        'DELETE_PHOTO',
+        { cocktail_id: cocktailId },
+        'cocktail',
+        cocktailId
+      )
+    } catch (error) {
+      setErr(`Delete error: ${error}`)
+    } finally {
+    }
+  }
+
+  // ---------- DATA MIGRATION ----------
+  const [migrationLoading, setMigrationLoading] = useState(false)
+  const [migrationResults, setMigrationResults] = useState<any>(null)
+
+  async function findDuplicateIngredients() {
+    setMigrationLoading(true)
+    setErr("")
+    
+    try {
+      const { data: ingredients } = await supabase
+        .from('ingredients')
+        .select('name')
+        .order('name')
+      
+      if (!ingredients) return
+      
+      const duplicates: { [key: string]: string[] } = {}
+      const normalized: { [key: string]: string } = {}
+      
+      ingredients.forEach(ing => {
+        const normalizedName = ing.name.toLowerCase().trim()
+        if (normalizedName in normalized) {
+          if (!duplicates[normalizedName]) {
+            duplicates[normalizedName] = [normalized[normalizedName]]
+          }
+          duplicates[normalizedName].push(ing.name)
+        } else {
+          normalized[normalizedName] = ing.name
+        }
+      })
+      
+      setMigrationResults({
+        type: 'duplicate_ingredients',
+        data: Object.entries(duplicates).map(([key, names]) => ({
+          normalized: key,
+          duplicates: names
+        }))
+      })
+      
+      setErr(`Found ${Object.keys(duplicates).length} sets of duplicate ingredients`)
+    } catch (error) {
+      setErr(`Migration error: ${error}`)
+    } finally {
+      setMigrationLoading(false)
+    }
+  }
+
+  async function findInconsistentUnits() {
+    setMigrationLoading(true)
+    setErr("")
+    
+    try {
+      const { data: recipeIngredients } = await supabase
+        .from('recipe_ingredients')
+        .select('unit')
+        .not('unit', 'is', null)
+      
+      const { data: catalogUnits } = await supabase
+        .from('catalog_items')
+        .select('name')
+        .eq('kind', 'unit')
+        .eq('active', true)
+      
+      if (!recipeIngredients || !catalogUnits) return
+      
+      const activeUnits = new Set(catalogUnits.map(u => u.name))
+      const inconsistentUnits = recipeIngredients
+        .map(ri => ri.unit)
+        .filter(unit => !activeUnits.has(unit))
+        .filter((unit, index, arr) => arr.indexOf(unit) === index) // unique
+      
+      setMigrationResults({
+        type: 'inconsistent_units',
+        data: inconsistentUnits.map(unit => ({
+          unit,
+          count: recipeIngredients.filter(ri => ri.unit === unit).length
+        }))
+      })
+      
+      setErr(`Found ${inconsistentUnits.length} inconsistent units`)
+    } catch (error) {
+      setErr(`Migration error: ${error}`)
+    } finally {
+      setMigrationLoading(false)
+    }
+  }
+
+  async function findOrphanedData() {
+    setMigrationLoading(true)
+    setErr("")
+    
+    try {
+      const [cocktailsResult, ingredientsResult, recipeIngredientsResult] = await Promise.all([
+        supabase.from('cocktails').select('id'),
+        supabase.from('ingredients').select('id'),
+        supabase.from('recipe_ingredients').select('cocktail_id, ingredient_id')
+      ])
+      
+      if (!cocktailsResult.data || !ingredientsResult.data || !recipeIngredientsResult.data) return
+      
+      const cocktailIds = new Set(cocktailsResult.data.map(c => c.id))
+      const ingredientIds = new Set(ingredientsResult.data.map(i => i.id))
+      
+      const orphanedRecipeIngredients = recipeIngredientsResult.data.filter(ri => 
+        !cocktailIds.has(ri.cocktail_id) || !ingredientIds.has(ri.ingredient_id)
+      )
+      
+      setMigrationResults({
+        type: 'orphaned_data',
+        data: {
+          orphaned_recipe_ingredients: orphanedRecipeIngredients.length,
+          total_cocktails: cocktailIds.size,
+          total_ingredients: ingredientIds.size
+        }
+      })
+      
+      setErr(`Found ${orphanedRecipeIngredients.length} orphaned recipe ingredients`)
+    } catch (error) {
+      setErr(`Migration error: ${error}`)
+    } finally {
+      setMigrationLoading(false)
+    }
+  }
+
+  async function cleanOrphanedData() {
+    if (!confirm('This will delete orphaned recipe ingredients. Continue?')) return
+    
+    setMigrationLoading(true)
+    setErr("")
+    
+    try {
+      const [cocktailsResult, ingredientsResult] = await Promise.all([
+        supabase.from('cocktails').select('id'),
+        supabase.from('ingredients').select('id')
+      ])
+      
+      if (!cocktailsResult.data || !ingredientsResult.data) return
+      
+      const cocktailIds = new Set(cocktailsResult.data.map(c => c.id))
+      const ingredientIds = new Set(ingredientsResult.data.map(i => i.id))
+      
+      // Delete orphaned recipe ingredients
+      const { error } = await supabase
+        .from('recipe_ingredients')
+        .delete()
+        .not('cocktail_id', 'in', `(${Array.from(cocktailIds).join(',')})`)
+        .or(`ingredient_id.not.in.(${Array.from(ingredientIds).join(',')})`)
+      
+      if (error) {
+        setErr(`Cleanup error: ${error.message}`)
+        return
+      }
+      
+      setErr('✅ Orphaned data cleaned successfully')
+      await findOrphanedData() // Refresh results
+    } catch (error) {
+      setErr(`Cleanup error: ${error}`)
+    } finally {
+      setMigrationLoading(false)
+    }
+  }
 
   async function handleSignIn(e: React.FormEvent) {
     e.preventDefault()
@@ -134,7 +750,7 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings">("main")
-  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users">("ingredients")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users"|"backup"|"migration">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -211,13 +827,14 @@ export default function App() {
   const [fGlass, setFGlass] = useState("")
   const [specialOnly, setSpecialOnly] = useState(false)
   const [ologyOnly, setOlogyOnly] = useState(false)
+  const [priceMin, setPriceMin] = useState("")
+  const [priceMax, setPriceMax] = useState("")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<Tag[]>([])
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
 
-  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters, selectedTags])
+  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters, selectedTags, priceMin, priceMax])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
@@ -226,7 +843,32 @@ export default function App() {
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
     if (specialOnly) query = query.not("last_special_on","is",null)
     if (ologyOnly) query = query.eq("is_ology_recipe", true)
-    if (nameSearch.trim()) query = query.ilike("name", `%${nameSearch.trim()}%`)
+    if (priceMin.trim()) query = query.gte("price", parseFloat(priceMin))
+    if (priceMax.trim()) query = query.lte("price", parseFloat(priceMax))
+    if (nameSearch.trim()) {
+      // Use fuzzy search for cocktail names
+      const { fuzzySearch } = await import('./utils/fuzzySearch')
+      const allCocktails = await supabase.from("cocktails").select("*").limit(1000)
+      
+      if (allCocktails.data && allCocktails.data.length > 0) {
+        const fuzzyResults = fuzzySearch(
+          allCocktails.data,
+          nameSearch.trim(),
+          (cocktail: any) => cocktail.name,
+          { threshold: 0.4, caseSensitive: false, normalize: true }
+        )
+        
+        const fuzzyIds = fuzzyResults.map(r => r.item.id)
+        if (fuzzyIds.length > 0) {
+          query = query.in("id", fuzzyIds)
+        } else {
+          // Fallback to exact match if no fuzzy results
+          query = query.ilike("name", `%${nameSearch.trim()}%`)
+        }
+      } else {
+        query = query.ilike("name", `%${nameSearch.trim()}%`)
+      }
+    }
     
     // Tag filtering - cocktails must have ALL selected tags
     if (selectedTags.length > 0) {
@@ -282,15 +924,15 @@ export default function App() {
         .in("cocktail_id", ids)
       if (rerr) { setErr(rerr.message); setLoading(false); return }
       
-      // Group by cocktail_id and count matching ingredients
+      // Group by cocktail_id and count matching ingredients using fuzzy search
+      const { isFuzzyMatch } = await import('./utils/fuzzySearch')
       const cocktailIngredientCounts = (rec || []).reduce((acc: Record<string, number>, r: any) => {
         const ingredientName = (r.ingredient?.name || "").toLowerCase()
         const matches = ingredientFilters.some(filter => {
-          const filterLower = filter.toLowerCase()
-          const words = ingredientName.split(/\s+/)
-          const wordStart = words.some((w: string) => w.startsWith(filterLower))
-          const contains = ingredientName.includes(filterLower) || ingredientName.replace(/\s+/g,"").includes(normalizeSearchTerm(filter))
-          return wordStart || contains
+          // Use fuzzy search for better typo tolerance
+          return isFuzzyMatch(filter, ingredientName, 0.6) || 
+                 ingredientName.includes(filter.toLowerCase()) ||
+                 ingredientName.replace(/\s+/g,"").includes(normalizeSearchTerm(filter))
         })
         
         if (matches) {
@@ -315,13 +957,15 @@ export default function App() {
       if (rerr) { setErr(rerr.message); setLoading(false); return }
       const typed = q.trim().toLowerCase()
       const typedC = normalizeSearchTerm(q.trim())
+      const { isFuzzyMatch } = await import('./utils/fuzzySearch')
       const matchIds = new Set(
         (rec || []).filter((r:any) => {
           const n = (r.ingredient?.name || "").toLowerCase()
           const words = n.split(/\s+/)
           const wordStart = words.some((w: string) => w.startsWith(typed))
           const contains = n.includes(typed) || n.replace(/\s+/g,"").includes(typedC)
-          return wordStart || contains
+          const fuzzyMatch = isFuzzyMatch(q.trim(), r.ingredient?.name || "", 0.6)
+          return wordStart || contains || fuzzyMatch
         }).map((r:any)=> r.cocktail_id)
       )
       finalRows = finalRows.filter(c => matchIds.has(c.id))
@@ -374,7 +1018,6 @@ export default function App() {
   }
 
   // ---------- FORM ----------
-  const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState("")
   const [method, setMethod] = useState("")
@@ -442,8 +1085,24 @@ export default function App() {
 
   async function remove(cId: string) {
     if (!confirm("Delete this cocktail?")) return
+    
+    // Get cocktail details for audit log
+    const { data: cocktail } = await supabase.from("cocktails").select("name").eq("id", cId).single()
+    
     const { error } = await supabase.from("cocktails").delete().eq("id", cId)
     if (error) { setErr(error.message); return }
+    
+    // Log audit
+    await logAudit(
+      'DELETE_COCKTAIL',
+      {
+        cocktail_name: cocktail?.name || 'Unknown',
+        cocktail_id: cId
+      },
+      'cocktail',
+      cId
+    )
+    
     setRows(prev=> prev.filter(r=> r.id !== cId))
     if (editingId === cId) { resetForm(); setFormOpen(false) }
   }
@@ -453,6 +1112,30 @@ export default function App() {
     setErr("")
     if (!name.trim()) { setErr("Name required"); return }
     if (!method.trim()) { setErr("Choose a method"); return }
+    
+    // Validate cocktail name length
+    if (name.trim().length < 2) {
+      setErr("Cocktail name must be at least 2 characters long.");
+      return;
+    }
+    
+    if (name.trim().length > 100) {
+      setErr("Cocktail name must be less than 100 characters.");
+      return;
+    }
+    
+    // Check for duplicate cocktail names (case-insensitive)
+    if (!editingId) { // Only check for duplicates when creating new cocktails
+      const { data: existingCocktails } = await supabase
+        .from("cocktails")
+        .select("name")
+        .ilike("name", name.trim())
+      
+      if (existingCocktails && existingCocktails.length > 0) {
+        setErr(`Cocktail "${name}" already exists. Please use a different name.`);
+        return;
+      }
+    }
 
     // Check if user is authenticated
     if (!session) {
@@ -509,6 +1192,20 @@ export default function App() {
 
     await supabase.from("recipe_ingredients").delete().eq("cocktail_id", cocktailId)
 
+    // Check for duplicate ingredients in the same cocktail
+    const ingredientNames = lines
+      .map(ln => ln.ingredientName.trim().toLowerCase())
+      .filter(name => name.length > 0)
+    
+    const duplicates = ingredientNames.filter((name, index) => 
+      ingredientNames.indexOf(name) !== index
+    )
+    
+    if (duplicates.length > 0) {
+      setErr(`Duplicate ingredients found: ${[...new Set(duplicates)].join(", ")}. Please remove duplicates.`);
+      return;
+    }
+    
     let pos: number = 1
     for (const ln of lines) {
       const ingName = ln.ingredientName.trim()
@@ -520,6 +1217,25 @@ export default function App() {
       if (!unitValue || unitValue === "" || unitValue === "-1") {
         console.error("Invalid unit value:", unitValue);
         setErr(`Invalid unit for ingredient "${ingName}". Please select a valid unit.`);
+        return;
+      }
+      
+      // Validate unit is in the allowed units list
+      if (!units.includes(unitValue)) {
+        console.error("Unit not in allowed list:", unitValue, "Allowed:", units);
+        setErr(`Unit "${unitValue}" is not valid. Please select from: ${units.join(", ")}`);
+        return;
+      }
+      
+      // Validate amount is positive
+      if (amtNum <= 0) {
+        setErr(`Amount for ingredient "${ingName}" must be greater than 0.`);
+        return;
+      }
+      
+      // Validate amount is reasonable (not too large)
+      if (amtNum > 1000) {
+        setErr(`Amount for ingredient "${ingName}" seems too large (${amtNum}). Please check the value.`);
         return;
       }
       
@@ -571,6 +1287,22 @@ export default function App() {
       }
     }
 
+    // Log audit
+    await logAudit(
+      editingId ? 'UPDATE_COCKTAIL' : 'CREATE_COCKTAIL',
+      {
+        cocktail_name: cocktail.name,
+        method: cocktail.method,
+        glass: cocktail.glass,
+        ice: cocktail.ice,
+        price: cocktail.price,
+        is_ology_recipe: cocktail.is_ology_recipe,
+        ingredient_count: lines.length
+      },
+      'cocktail',
+      cocktailId
+    )
+
     await load()
     resetForm()
     setFormOpen(false)
@@ -580,31 +1312,37 @@ export default function App() {
   async function queryIngredients(term: string): Promise<string[]> {
     const t = term.trim()
     if (!t) return []
+    
+    // Get all ingredients for fuzzy search
     const { data } = await supabase
       .from("ingredients")
       .select("name")
-      .ilike("name", `%${t}%`)
-      .limit(50)
+      .limit(200) // Get more ingredients for better fuzzy matching
 
-    const tl = t.toLowerCase()
-    const tC = normalizeSearchTerm(t)
+    if (!data || data.length === 0) return []
 
-    const scored: { name: string; score: number }[] = (data || [])
-      .map((d:any)=> d.name as string)
-      .map((name: string) => {
-        const lower = name.toLowerCase()
-        const words = lower.split(/\s+/)
-        const score: number =
-          (lower.startsWith(tl) ? 0 : 100) +
-          (words.some((w:string)=> w.startsWith(tl)) ? 0 : 50) +
-          ((lower.includes(tl) || lower.replace(/\s+/g,"").includes(tC)) ? 1 : 200)
-        return { name, score }
-      })
+    const ingredientNames = data.map((d: any) => d.name as string)
+    
+    // Use fuzzy search for better typo tolerance
+    const { fuzzySearchStrings } = await import('./utils/fuzzySearch')
+    const fuzzyResults = fuzzySearchStrings(ingredientNames, t, {
+      threshold: 0.3, // Lower threshold for more results
+      caseSensitive: false,
+      normalize: true
+    })
 
-    return scored
-      .sort((a,b)=> a.score - b.score)
-      .slice(0, 10)
-      .map(x => x.name)
+    // Also include exact matches for immediate results
+    const exactMatches = ingredientNames.filter(name => 
+      name.toLowerCase().includes(t.toLowerCase())
+    )
+
+    // Combine and deduplicate results
+    const allResults = new Set([
+      ...exactMatches,
+      ...fuzzyResults.map(r => r.item)
+    ])
+
+    return Array.from(allResults).slice(0, 10)
   }
 
   // ---------- SETTINGS (catalogs) ----------
@@ -1217,12 +1955,41 @@ export default function App() {
         return
       }
       
-      const { error } = await supabase.from("ingredients").insert({ name })
+      // Check for duplicate ingredients (case-insensitive)
+      const { data: existingIngredients } = await supabase
+        .from("ingredients")
+        .select("name")
+        .ilike("name", name.trim())
+      
+      if (existingIngredients && existingIngredients.length > 0) {
+        setErr(`Ingredient "${name}" already exists. Please use a different name or check for similar ingredients.`)
+        return
+      }
+      
+      // Validate ingredient name
+      if (!name.trim()) {
+        setErr("Ingredient name cannot be empty.")
+        return
+      }
+      
+      if (name.trim().length < 2) {
+        setErr("Ingredient name must be at least 2 characters long.")
+        return
+      }
+      
+      if (name.trim().length > 100) {
+        setErr("Ingredient name must be less than 100 characters.")
+        return
+      }
+      
+      const { error } = await supabase.from("ingredients").insert({ name: name.trim() })
       
       if (error) {
         console.error("Ingredient insert error:", error)
         if (error.message.includes("row-level security")) {
           setErr("Permission denied. You may not have the required privileges to add ingredients.")
+        } else if (error.message.includes("duplicate key")) {
+          setErr(`Ingredient "${name}" already exists. Please use a different name.`)
         } else {
           setErr(`Failed to add ingredient: ${error.message}`)
         }
@@ -1230,6 +1997,15 @@ export default function App() {
       }
       
       console.log(`Successfully added ingredient: "${name}"`)
+      
+      // Log audit
+      await logAudit(
+        'CREATE_INGREDIENT',
+        { ingredient_name: name },
+        'ingredient'
+      )
+      
+      setErr("") // Clear any previous errors
       await loadIngredients()
     } catch (err) {
       console.error("Unexpected error adding ingredient:", err)
@@ -1462,7 +2238,7 @@ export default function App() {
   // ---------- RENDER ----------
   return (
     <div style={appWrap}>
-      <div style={container}>
+        <div style={container} className="responsive-container">
         {/* ENHANCED HEADER */}
         <header className="animate-fade-in-up" style={{ 
           display: "flex", 
@@ -1471,7 +2247,9 @@ export default function App() {
           marginBottom: 32,
           padding: "24px 0",
           borderBottom: `1px solid ${colors.border}`,
-          position: "relative"
+          position: "relative",
+          flexWrap: "wrap",
+          gap: 16
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div 
@@ -1558,6 +2336,40 @@ export default function App() {
               </button>
             )}
 
+
+            {/* Keyboard Shortcuts Help */}
+            <button 
+              onClick={() => alert(`Keyboard Shortcuts:
+• Ctrl/Cmd + N: New cocktail
+• Ctrl/Cmd + F: Focus search
+• Ctrl/Cmd + K: Focus name search
+• ↑/↓ Arrow keys: Navigate cocktails
+• Enter/Space: Edit focused cocktail
+• Escape: Close forms`)}
+              style={{
+                ...btnSecondary,
+                marginRight: 12,
+                minWidth: 40,
+                padding: "8px 12px"
+              }}
+              title="Keyboard shortcuts help"
+            >
+              ⌨️
+            </button>
+
+            {/* Theme Toggle */}
+            <button 
+              onClick={toggleTheme} 
+              style={{
+                ...btnSecondary,
+                marginRight: 12,
+                minWidth: 40,
+                padding: "8px 12px"
+              }}
+              title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
+            </button>
 
             {session ? (
               <button onClick={signOut} style={btnSecondary}>
@@ -1927,6 +2739,56 @@ export default function App() {
                       Manage User Roles & Access
                     </span>
                   </button>
+
+                  <button
+                    onClick={() => setSettingsTab("backup")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "backup" ? colors.accent : colors.glass,
+                      color: settingsTab === "backup" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "backup" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>💾</span>
+                    <span>Backup</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Backup & Restore Data
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => setSettingsTab("migration")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "migration" ? colors.accent : colors.glass,
+                      color: settingsTab === "migration" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "migration" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🧹</span>
+                    <span>Migration</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Clean & Standardize Data
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -2136,6 +2998,387 @@ export default function App() {
                 onRename={renameUser}
               />
               )}
+
+              {settingsTab === "backup" && (
+                <div style={{ ...card(), background: colors.glass }}>
+                  <h3 style={{ 
+                    margin: "0 0 20px 0", 
+                    fontSize: 18, 
+                    fontWeight: 600, 
+                    color: colors.text,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8
+                  }}>
+                    💾 Data Backup & Restore
+                  </h3>
+                  
+                  <div style={{ marginBottom: 24 }}>
+                    <p style={{ color: colors.muted, marginBottom: 16 }}>
+                      Create backups of all your cocktail data and restore from previous backups. 
+                      This is useful for data migration, sharing data between instances, or disaster recovery.
+                    </p>
+                    
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
+                      gap: 16 
+                    }}>
+                      {/* Create Backup */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          📦 Create Backup
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Export all your data to a JSON file
+                        </p>
+                        <button
+                          onClick={createBackup}
+                          disabled={backupLoading}
+                          style={{
+                            ...btnPrimary,
+                            width: "100%",
+                            opacity: backupLoading ? 0.7 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8
+                          }}
+                        >
+                          {backupLoading && <LoadingSpinner size="sm" />}
+                          {backupLoading ? "Creating..." : "Create Backup"}
+                        </button>
+                      </div>
+                      
+                      {/* Download Backup */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          ⬇️ Download Backup
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Download the created backup file
+                        </p>
+                        <button
+                          onClick={downloadBackup}
+                          disabled={!backupData}
+                          style={{
+                            ...btnSecondary,
+                            width: "100%",
+                            opacity: !backupData ? 0.5 : 1
+                          }}
+                        >
+                          Download Backup
+                        </button>
+                      </div>
+                      
+                      {/* Restore Backup */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          ⬆️ Restore Backup
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Restore data from a backup file
+                        </p>
+                        <button
+                          onClick={restoreFromFile}
+                          disabled={restoreLoading}
+                          style={{
+                            ...dangerBtn,
+                            width: "100%",
+                            opacity: restoreLoading ? 0.7 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8
+                          }}
+                        >
+                          {restoreLoading && <LoadingSpinner size="sm" />}
+                          {restoreLoading ? "Restoring..." : "Restore from File"}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {backupData && (
+                      <div style={{ 
+                        marginTop: 20, 
+                        padding: 16, 
+                        background: colors.panel, 
+                        borderRadius: 8,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 8px 0", fontSize: 14, color: colors.text }}>
+                          📊 Backup Information
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 12, margin: 0 }}>
+                          Created: {new Date(backupData.timestamp).toLocaleString()}<br/>
+                          Cocktails: {backupData.data.cocktails.length}<br/>
+                          Ingredients: {backupData.data.ingredients.length}<br/>
+                          Tags: {backupData.data.tags.length}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === "migration" && (
+                <div style={{ ...card(), background: colors.glass }}>
+                  <h3 style={{ 
+                    margin: "0 0 20px 0", 
+                    fontSize: 18, 
+                    fontWeight: 600, 
+                    color: colors.text,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8
+                  }}>
+                    🧹 Data Migration & Cleanup
+                  </h3>
+                  
+                  <div style={{ marginBottom: 24 }}>
+                    <p style={{ color: colors.muted, marginBottom: 16 }}>
+                      Tools to clean up and standardize your cocktail data. Use these tools to find and fix data inconsistencies.
+                    </p>
+                    
+                    <div style={{ 
+                      display: "grid", 
+                      gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+                      gap: 16 
+                    }}>
+                      {/* Find Duplicate Ingredients */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          🔍 Find Duplicate Ingredients
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Find ingredients with similar names that might be duplicates
+                        </p>
+                        <button
+                          onClick={findDuplicateIngredients}
+                          disabled={migrationLoading}
+                          style={{
+                            ...btnSecondary,
+                            width: "100%",
+                            opacity: migrationLoading ? 0.7 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8
+                          }}
+                        >
+                          {migrationLoading && <LoadingSpinner size="sm" />}
+                          {migrationLoading ? "Scanning..." : "Find Duplicates"}
+                        </button>
+                      </div>
+                      
+                      {/* Find Inconsistent Units */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          📏 Find Inconsistent Units
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Find recipe ingredients using units not in the catalog
+                        </p>
+                        <button
+                          onClick={findInconsistentUnits}
+                          disabled={migrationLoading}
+                          style={{
+                            ...btnSecondary,
+                            width: "100%",
+                            opacity: migrationLoading ? 0.7 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8
+                          }}
+                        >
+                          {migrationLoading && <LoadingSpinner size="sm" />}
+                          {migrationLoading ? "Scanning..." : "Find Inconsistent Units"}
+                        </button>
+                      </div>
+                      
+                      {/* Find Orphaned Data */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          🗑️ Find Orphaned Data
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Find recipe ingredients linked to deleted cocktails/ingredients
+                        </p>
+                        <button
+                          onClick={findOrphanedData}
+                          disabled={migrationLoading}
+                          style={{
+                            ...btnSecondary,
+                            width: "100%",
+                            opacity: migrationLoading ? 0.7 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8
+                          }}
+                        >
+                          {migrationLoading && <LoadingSpinner size="sm" />}
+                          {migrationLoading ? "Scanning..." : "Find Orphaned Data"}
+                        </button>
+                      </div>
+                      
+                      {/* Clean Orphaned Data */}
+                      <div style={{ 
+                        ...card(), 
+                        background: colors.panel,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          🧽 Clean Orphaned Data
+                        </h4>
+                        <p style={{ color: colors.muted, fontSize: 14, marginBottom: 16 }}>
+                          Remove orphaned recipe ingredients
+                        </p>
+                        <button
+                          onClick={cleanOrphanedData}
+                          disabled={migrationLoading}
+                          style={{
+                            ...dangerBtn,
+                            width: "100%",
+                            opacity: migrationLoading ? 0.7 : 1,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: 8
+                          }}
+                        >
+                          {migrationLoading && <LoadingSpinner size="sm" />}
+                          {migrationLoading ? "Cleaning..." : "Clean Orphaned Data"}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Migration Results */}
+                    {migrationResults && (
+                      <div style={{ 
+                        marginTop: 20, 
+                        padding: 16, 
+                        background: colors.panel, 
+                        borderRadius: 8,
+                        border: `1px solid ${colors.border}`
+                      }}>
+                        <h4 style={{ margin: "0 0 12px 0", fontSize: 16, color: colors.text }}>
+                          📊 Migration Results
+                        </h4>
+                        
+                        {migrationResults.type === 'duplicate_ingredients' && (
+                          <div>
+                            <p style={{ color: colors.muted, fontSize: 14, marginBottom: 12 }}>
+                              Found {migrationResults.data.length} sets of duplicate ingredients:
+                            </p>
+                            {migrationResults.data.map((duplicate: any, index: number) => (
+                              <div key={index} style={{ 
+                                marginBottom: 8, 
+                                padding: 8, 
+                                background: colors.glass,
+                                borderRadius: 4,
+                                border: `1px solid ${colors.border}`
+                              }}>
+                                <strong style={{ color: colors.text }}>{duplicate.normalized}:</strong>
+                                <div style={{ marginTop: 4 }}>
+                                  {duplicate.duplicates.map((name: string, i: number) => (
+                                    <span key={i} style={{ 
+                                      display: "inline-block",
+                                      margin: "2px 4px 2px 0",
+                                      padding: "2px 6px",
+                                      background: colors.accent,
+                                      color: "white",
+                                      borderRadius: 4,
+                                      fontSize: 12
+                                    }}>
+                                      {name}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {migrationResults.type === 'inconsistent_units' && (
+                          <div>
+                            <p style={{ color: colors.muted, fontSize: 14, marginBottom: 12 }}>
+                              Found {migrationResults.data.length} inconsistent units:
+                            </p>
+                            {migrationResults.data.map((unit: any, index: number) => (
+                              <div key={index} style={{ 
+                                marginBottom: 8, 
+                                padding: 8, 
+                                background: colors.glass,
+                                borderRadius: 4,
+                                border: `1px solid ${colors.border}`
+                              }}>
+                                <span style={{ color: colors.text, fontWeight: 600 }}>{unit.unit}</span>
+                                <span style={{ color: colors.muted, marginLeft: 8 }}>
+                                  ({unit.count} recipes)
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {migrationResults.type === 'orphaned_data' && (
+                          <div>
+                            <p style={{ color: colors.muted, fontSize: 14, marginBottom: 12 }}>
+                              Data integrity check:
+                            </p>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12 }}>
+                              <div style={{ textAlign: "center", padding: 12, background: colors.glass, borderRadius: 4 }}>
+                                <div style={{ fontSize: 24, fontWeight: 600, color: colors.text }}>
+                                  {migrationResults.data.total_cocktails}
+                                </div>
+                                <div style={{ fontSize: 12, color: colors.muted }}>Cocktails</div>
+                              </div>
+                              <div style={{ textAlign: "center", padding: 12, background: colors.glass, borderRadius: 4 }}>
+                                <div style={{ fontSize: 24, fontWeight: 600, color: colors.text }}>
+                                  {migrationResults.data.total_ingredients}
+                                </div>
+                                <div style={{ fontSize: 12, color: colors.muted }}>Ingredients</div>
+                              </div>
+                              <div style={{ textAlign: "center", padding: 12, background: colors.glass, borderRadius: 4 }}>
+                                <div style={{ fontSize: 24, fontWeight: 600, color: colors.danger }}>
+                                  {migrationResults.data.orphaned_recipe_ingredients}
+                                </div>
+                                <div style={{ fontSize: 12, color: colors.muted }}>Orphaned</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )
         )}
@@ -2180,7 +3423,7 @@ export default function App() {
                 marginBottom: 8
               }}>
                 {/* Main Search Input */}
-                <div style={{ position: "relative", flex: 1 }}>
+                <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
                   <input 
                     value={nameSearch} 
                     onChange={e=>setNameSearch(e.target.value)} 
@@ -2321,6 +3564,25 @@ export default function App() {
                     {glasses.map(g => <option key={g} value={g}>{g}</option>)}
                   </select>
                   
+                  {/* Price Range Filter */}
+                  <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    <input
+                      type="number"
+                      placeholder="Min $"
+                      value={priceMin}
+                      onChange={e=>setPriceMin(e.target.value)}
+                      style={{...inp, fontSize: 12, width: 60, textAlign: "center"}}
+                    />
+                    <span style={{ fontSize: 12, color: colors.muted }}>-</span>
+                    <input
+                      type="number"
+                      placeholder="Max $"
+                      value={priceMax}
+                      onChange={e=>setPriceMax(e.target.value)}
+                      style={{...inp, fontSize: 12, width: 60, textAlign: "center"}}
+                    />
+                  </div>
+                  
                   {/* Tags Filter */}
                   <select 
                     value="" 
@@ -2393,6 +3655,8 @@ export default function App() {
                       setOlogyOnly(false)
                       setIngredientFilters([])
                       setSelectedTags([])
+                      setPriceMin("")
+                      setPriceMax("")
                     }}
                     style={{
                       ...btnSecondary,
@@ -2412,7 +3676,7 @@ export default function App() {
 
 
               {/* Active Filters Row */}
-              {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly || selectedTags.length > 0) && (
+              {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly || selectedTags.length > 0 || priceMin || priceMax) && (
                 <div style={{ 
                   display: "flex", 
                   gap: 8, 
@@ -2650,6 +3914,37 @@ export default function App() {
                     </span>
                   )}
 
+                  {(priceMin || priceMax) && (
+                    <span style={{
+                      background: colors.primarySolid,
+                      color: "white",
+                      padding: "4px 8px",
+                      borderRadius: 12,
+                      fontSize: 11,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4
+                    }}>
+                      💰 ${priceMin || "0"} - ${priceMax || "∞"}
+                      <button
+                        onClick={() => {
+                          setPriceMin("")
+                          setPriceMax("")
+                        }}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          color: "white",
+                          cursor: "pointer",
+                          fontSize: 10,
+                          padding: 0
+                        }}
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  )}
+
                   <button
                     onClick={() => {
                       setQ("")
@@ -2660,6 +3955,8 @@ export default function App() {
                       setOlogyOnly(false)
                       clearAllIngredientFilters()
                       clearAllTags()
+                      setPriceMin("")
+                      setPriceMax("")
                     }}
                   style={{
                     ...btnSecondary,
@@ -2725,7 +4022,14 @@ export default function App() {
 
             {/* RESULTS */}
             {loading ? (
-              <div>Loading…</div>
+              <div>
+                <LoadingSpinner text="Loading cocktails..." />
+                <div style={{ display: "grid", gap: 16 }}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <CocktailCardSkeleton key={i} />
+                  ))}
+                </div>
+              </div>
             ) : rows.length === 0 ? (
               <div style={{ color: colors.muted }}>No results.</div>
             ) : view==="cards" ? (
@@ -2735,31 +4039,56 @@ export default function App() {
                 style={{
                   display: "grid",
                   gap: 16,
+                  gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))"
                 }}
               >
                 {rows.map((c, index) => (
-                  <div
+                  <TouchGestures
                     key={c.id}
-                    className="card-hover animate-fade-in-up"
-                    onClick={() => startEdit(c)}
-                    style={{
-                      ...cocktailCard,
-                      position: "relative",
-                      overflow: "hidden",
-                      cursor: "pointer",
-                      background: c.last_special_on ? 
-                        colors.special : 
-                        colors.panel,
-                      border: c.last_special_on ? 
-                        `1px solid ${colors.specialSolid}` : 
-                        `1px solid ${colors.border}`,
-                      boxShadow: c.last_special_on ? 
-                        shadows.glow : 
-                        shadows.md,
-                      animationDelay: `${index * 0.1}s`
+                    onSwipeLeft={() => {
+                      if (role === 'editor' || role === 'admin') {
+                        if (confirm(`Delete "${c.name}"?`)) {
+                          remove(c.id)
+                        }
+                      }
                     }}
-                    title="Click to edit"
+                    onSwipeRight={() => startEdit(c)}
+                    onPinch={(scale) => {
+                      // Zoom functionality for mobile
+                      if (scale > 1.2) {
+                        startEdit(c)
+                      }
+                    }}
                   >
+                    <div
+                      className="card-hover animate-fade-in-up cocktail-card"
+                      tabIndex={0}
+                      onClick={() => startEdit(c)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          startEdit(c)
+                        }
+                      }}
+                      style={{
+                        ...cocktailCard,
+                        position: "relative",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        background: c.last_special_on ? 
+                          colors.special : 
+                          colors.panel,
+                        border: c.last_special_on ? 
+                          `1px solid ${colors.specialSolid}` : 
+                          `1px solid ${colors.border}`,
+                        boxShadow: c.last_special_on ? 
+                          shadows.glow : 
+                          shadows.md,
+                        animationDelay: `${index * 0.1}s`,
+                        outline: "none"
+                      }}
+                      title="Click to edit (or press Enter/Space) • Swipe right to edit, swipe left to delete"
+                    >
                     {/* Header with name, price, and special badge */}
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                       <div style={{ flex: 1, marginRight: 16 }}>
@@ -2838,6 +4167,106 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* Photo */}
+                    {(c.photo_url || cocktailPhotos[c.id]) && (
+                      <div style={{ marginBottom: 16 }}>
+                        <img
+                          src={c.photo_url || cocktailPhotos[c.id]}
+                          alt={`${c.name} photo`}
+                          style={{
+                            width: "100%",
+                            height: 200,
+                            objectFit: "cover",
+                            borderRadius: 8,
+                            border: `1px solid ${colors.border}`
+                          }}
+                          onError={(e) => {
+                            // Hide broken images
+                            (e.target as HTMLImageElement).style.display = 'none'
+                          }}
+                        />
+                        {(role === 'editor' || role === 'admin') && (
+                          <div style={{ 
+                            display: "flex", 
+                            gap: 8, 
+                            marginTop: 8,
+                            justifyContent: "center"
+                          }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                const input = document.createElement('input')
+                                input.type = 'file'
+                                input.accept = 'image/*'
+                                input.onchange = (event) => {
+                                  const file = (event.target as HTMLInputElement).files?.[0]
+                                  if (file) uploadPhoto(c.id, file)
+                                }
+                                input.click()
+                              }}
+                              style={{
+                                ...btnSecondary,
+                                fontSize: 12,
+                                padding: "4px 8px"
+                              }}
+                            >
+                              📸 Replace
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                deletePhoto(c.id)
+                              }}
+                              style={{
+                                ...dangerBtn,
+                                fontSize: 12,
+                                padding: "4px 8px"
+                              }}
+                            >
+                              🗑️ Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Add Photo Button (for cocktails without photos) */}
+                    {!c.photo_url && !cocktailPhotos[c.id] && (role === 'editor' || role === 'admin') && (
+                      <div style={{ 
+                        marginBottom: 16,
+                        textAlign: "center",
+                        padding: 20,
+                        border: `2px dashed ${colors.border}`,
+                        borderRadius: 8,
+                        background: colors.panel
+                      }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const input = document.createElement('input')
+                            input.type = 'file'
+                            input.accept = 'image/*'
+                            input.onchange = (event) => {
+                              const file = (event.target as HTMLInputElement).files?.[0]
+                              if (file) uploadPhoto(c.id, file)
+                            }
+                            input.click()
+                          }}
+                          style={{
+                            ...btnSecondary,
+                            fontSize: 14,
+                            padding: "8px 16px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            margin: "0 auto"
+                          }}
+                        >
+                          📸 Add Photo
+                        </button>
+                      </div>
+                    )}
+
                     {/* Ingredients */}
                     <div style={{ marginBottom: 16 }}>
                       <h4 style={{ 
@@ -2855,17 +4284,87 @@ export default function App() {
                         fontSize: 13,
                         color: colors.text
                       }}>
-                        {(specs[c.id] || []).map((l, i) => (
-                          <li key={i} style={{ 
-                            display: "flex", 
-                            alignItems: "center", 
-                            gap: 8,
-                            padding: "4px 0"
-                          }}>
-                            <span style={{ color: colors.primarySolid }}>•</span>
-                            {l}
-                          </li>
-                        ))}
+                        {(specs[c.id] || []).map((l, i) => {
+                          const ingredientName = l.split(' ').slice(1).join(' ').trim()
+                          const suggestions = getSubstitutionSuggestions(ingredientName)
+                          
+                          return (
+                            <li key={i} style={{ 
+                              display: "flex", 
+                              alignItems: "center", 
+                              gap: 8,
+                              padding: "4px 0"
+                            }}>
+                              <span style={{ color: colors.primarySolid }}>•</span>
+                              <span style={{ flex: 1 }}>{l}</span>
+                              {suggestions.length > 0 && (
+                                <div style={{ 
+                                  position: "relative",
+                                  display: "inline-block"
+                                }}>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      const tooltip = e.currentTarget.nextElementSibling as HTMLElement
+                                      if (tooltip) {
+                                        tooltip.style.display = tooltip.style.display === 'block' ? 'none' : 'block'
+                                      }
+                                    }}
+                                    style={{
+                                      background: "none",
+                                      border: "none",
+                                      color: colors.muted,
+                                      cursor: "pointer",
+                                      fontSize: 10,
+                                      padding: "2px 4px",
+                                      borderRadius: 4
+                                    }}
+                                    title="Substitution suggestions"
+                                  >
+                                    🔄
+                                  </button>
+                                  <div style={{
+                                    display: "none",
+                                    position: "absolute",
+                                    top: "100%",
+                                    right: 0,
+                                    background: colors.panel,
+                                    border: `1px solid ${colors.border}`,
+                                    borderRadius: 6,
+                                    padding: 8,
+                                    minWidth: 150,
+                                    zIndex: 1000,
+                                    boxShadow: shadows.md
+                                  }}>
+                                    <div style={{ 
+                                      fontSize: 11, 
+                                      color: colors.muted, 
+                                      marginBottom: 4,
+                                      fontWeight: 600
+                                    }}>
+                                      Substitutions:
+                                    </div>
+                                    {suggestions.map((suggestion, idx) => (
+                                      <div key={idx} style={{
+                                        fontSize: 10,
+                                        color: colors.text,
+                                        padding: "2px 0",
+                                        cursor: "pointer"
+                                      }}
+                                      onClick={() => {
+                                        // Could implement substitution logic here
+                                        console.log(`Substitute ${ingredientName} with ${suggestion}`)
+                                      }}
+                                      >
+                                        • {suggestion}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </li>
+                          )
+                        })}
                       </ul>
                     </div>
 
@@ -2931,6 +4430,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                  </TouchGestures>
                 ))}
               </div>
             ) : (

@@ -8,14 +8,20 @@ import {
   container as containerBase
 } from "./theme"
 
+// Use light theme colors by default
+const currentColors = colors.light
+
+// Export the current colors for components to use
+export { currentColors as colors }
+
 // Enhanced app wrapper with gradient background
 export const appWrap: CSSProperties = {
   ...appWrapBase,
   width: "100%",
   minWidth: 0,
   minHeight: "100vh",
-  background: colors.bg,
-  color: colors.text,
+  background: currentColors.bg,
+  color: currentColors.text,
   position: "relative",
 }
 
@@ -32,7 +38,7 @@ export const container: CSSProperties = {
 
 // Re-export the enhanced theme
 export {
-  colors, space, radii, fonts, layout, shadows, transitions,
+  space, radii, fonts, layout, shadows, transitions,
   card, cardHover, inp, btnPrimary, btnSecondary, dangerBtn,
   th, td, mutedText, textGradient, glow
 }
@@ -43,7 +49,7 @@ export const shadowLg: CSSProperties = { boxShadow: shadows.lg }
 export const shadowXl: CSSProperties = { boxShadow: shadows.xl }
 
 // Enhanced focus ring
-export const focusRing = (c: string = colors.primarySolid): CSSProperties => ({
+export const focusRing = (c: string = currentColors.primarySolid): CSSProperties => ({
   outline: "none",
   boxShadow: `0 0 0 3px ${c}40`,
   border: `1px solid ${c}`,
@@ -72,7 +78,7 @@ export const cocktailCard: CSSProperties = {
 
 // Special cocktail badge - modern blue
 export const specialBadge: CSSProperties = {
-  background: colors.specialSolid,
+  background: currentColors.specialSolid,
   color: "#ffffff",
   padding: `${space.xs}px ${space.sm}px`,
   borderRadius: radii.sm,
@@ -85,7 +91,7 @@ export const specialBadge: CSSProperties = {
 
 // Ology recipe badge - black
 export const ologyBadge: CSSProperties = {
-  background: colors.primary,
+  background: currentColors.primary,
   color: "#ffffff",
   padding: `${space.xs}px ${space.sm}px`,
   borderRadius: radii.sm,
@@ -98,7 +104,7 @@ export const ologyBadge: CSSProperties = {
 
 // Price display - black
 export const priceDisplay: CSSProperties = {
-  color: colors.primary,
+  color: currentColors.primary,
   fontWeight: 800,
   fontSize: fonts.large,
   letterSpacing: "0.5px",
