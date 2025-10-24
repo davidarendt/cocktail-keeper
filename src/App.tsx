@@ -7,7 +7,7 @@ import {
   appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card,
   cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, shadows
 } from "./styles"
-import { colors } from "./styles"
+import { colors as colorThemes } from "./theme"
 
 import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
@@ -39,6 +39,9 @@ export default function App() {
   })
   const [formOpen, setFormOpen] = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+
+  // Get current colors based on theme
+  const colors = isDarkMode ? colorThemes.dark : colorThemes.light
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
@@ -111,8 +114,8 @@ export default function App() {
         return
       }
 
-      // Ctrl/Cmd + N: New cocktail
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      // Ctrl/Cmd + Shift + N: New cocktail (avoiding browser Ctrl+N)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'N') {
         e.preventDefault()
         if (role === 'editor' || role === 'admin') {
           openAddForm()
@@ -2352,7 +2355,7 @@ export default function App() {
             {/* Keyboard Shortcuts Help */}
             <button 
               onClick={() => alert(`Keyboard Shortcuts:
-• Ctrl/Cmd + N: New cocktail
+• Ctrl/Cmd + Shift + N: New cocktail
 • Ctrl/Cmd + F: Focus search
 • Ctrl/Cmd + K: Focus name search
 • ↑/↓ Arrow keys: Navigate cocktails
@@ -4057,13 +4060,6 @@ export default function App() {
                 {rows.map((c, index) => (
                   <TouchGestures
                     key={c.id}
-                    onSwipeLeft={() => {
-                      if (role === 'editor' || role === 'admin') {
-                        if (confirm(`Delete "${c.name}"?`)) {
-                          remove(c.id)
-                        }
-                      }
-                    }}
                     onSwipeRight={() => startEdit(c)}
                     onPinch={(scale) => {
                       // Zoom functionality for mobile
