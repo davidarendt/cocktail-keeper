@@ -17,6 +17,7 @@ import { UsersAdmin, type UserRow } from "./components/UsersAdmin"
 import { LoadingSpinner } from "./components/LoadingSpinner"
 import { CocktailCardSkeleton } from "./components/SkeletonLoader"
 import { TouchGestures } from "./components/TouchGestures"
+import { ConfirmationDialog } from "./components/ConfirmationDialog"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
 
@@ -40,6 +41,8 @@ export default function App() {
   })
   const [formOpen, setFormOpen] = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [pendingCloseAction, setPendingCloseAction] = useState<(() => void) | null>(null)
 
   // Get current colors based on theme
   const colors = isDarkMode ? colorThemes.dark : colorThemes.light
@@ -148,7 +151,7 @@ export default function App() {
       // Escape: Close forms
       if (e.key === 'Escape') {
         if (formOpen) {
-          setFormOpen(false)
+          handleCloseForm(() => { resetForm(); setFormOpen(false) })
         }
         if (showAdvancedSearch) {
           setShowAdvancedSearch(false)
@@ -1037,6 +1040,63 @@ export default function App() {
     { ingredientName:"", amount:"", unit:"oz", position:1 }
   ])
 
+  // Track initial form values to detect unsaved changes
+  const [initialFormValues, setInitialFormValues] = useState({
+    name: "",
+    method: "",
+    glass: "",
+    ice: "",
+    notes: "",
+    price: "",
+    specialDate: "",
+    isOlogyRecipe: false,
+    lines: [{ ingredientName:"", amount:"", unit:"oz", position:1 }],
+    selectedTags: [] as string[]
+  })
+
+  // Function to check if form has unsaved changes
+  function hasUnsavedChanges(): boolean {
+    const currentValues = {
+      name,
+      method,
+      glass,
+      ice,
+      notes,
+      price,
+      specialDate,
+      isOlogyRecipe,
+      lines,
+      selectedTags
+    }
+    
+    return JSON.stringify(currentValues) !== JSON.stringify(initialFormValues)
+  }
+
+  // Handle closing form with unsaved changes check
+  function handleCloseForm(closeAction: () => void) {
+    if (formOpen && hasUnsavedChanges()) {
+      setPendingCloseAction(() => closeAction)
+      setShowConfirmDialog(true)
+    } else {
+      closeAction()
+    }
+  }
+
+  // Confirm close action
+  function confirmClose() {
+    if (pendingCloseAction) {
+      pendingCloseAction()
+    }
+    setShowConfirmDialog(false)
+    setPendingCloseAction(null)
+  }
+
+  // Cancel close action
+  function cancelClose() {
+    setShowConfirmDialog(false)
+    setPendingCloseAction(null)
+  }
+
   // Update ingredient lines when units change to ensure valid units
   useEffect(() => {
     if (formOpen && units.length > 0) {
@@ -1056,6 +1116,20 @@ export default function App() {
     setPrice(""); setSpecialDate(""); setOlogyRecipe(false)
     setLines([{ ingredientName:"", amount:"", unit:units[0] || "oz", position:1 }])
     setSelectedTags([])
+    
+    // Set initial values for change detection
+    setInitialFormValues({
+      name: "",
+      method: "",
+      glass: "",
+      ice: "",
+      notes: "",
+      price: "",
+      specialDate: "",
+      isOlogyRecipe: false,
+      lines: [{ ingredientName:"", amount:"", unit:units[0] || "oz", position:1 }],
+      selectedTags: []
+    })
   }
   function openAddForm() { resetForm(); setFormOpen(true) }
 
@@ -1098,6 +1172,21 @@ export default function App() {
       }
     })
     setLines(mapped.length ? mapped : [{ ingredientName:"", amount:"", unit:"oz", position:1 }])
+    
+    // Set initial values for change detection after all data is loaded
+    setInitialFormValues({
+      name: c.name,
+      method: c.method || "",
+      glass: c.glass || "",
+      ice: c.ice || "",
+      notes: c.notes || "",
+      price: c.price == null ? "" : String(c.price),
+      specialDate: c.last_special_on || "",
+      isOlogyRecipe: c.is_ology_recipe || false,
+      lines: mapped.length ? mapped : [{ ingredientName:"", amount:"", unit:"oz", position:1 }],
+      selectedTags: cocktailTags?.map(ct => ct.tag_id) || []
+    })
+    
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
@@ -2271,7 +2360,7 @@ export default function App() {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div 
-              onClick={() => setRoute("main")}
+              onClick={() => handleCloseForm(() => setRoute("main"))}
               style={{ 
                 cursor: "pointer",
                 transition: "all 0.2s ease",
@@ -4030,7 +4119,7 @@ export default function App() {
                 isOlogyRecipe={isOlogyRecipe} setOlogyRecipe={setOlogyRecipe}
                 lines={lines} setLines={(updater)=> setLines(prev => updater(prev))}
                 selectedTags={selectedTags} setSelectedTags={setSelectedTags}
-                onClose={()=>{ resetForm(); setFormOpen(false) }}
+                onClose={() => handleCloseForm(() => { resetForm(); setFormOpen(false) })}
                 onSubmit={save}
             onQueryIngredients={queryIngredients}
             onAddCatalogItem={addCatalogItem}
@@ -4589,6 +4678,17 @@ export default function App() {
           </>
         )}
       </div>
+      
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={showConfirmDialog}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to leave? Your changes will be lost."
+        confirmText="Leave"
+        cancelText="Stay"
+        onConfirm={confirmClose}
+        onCancel={cancelClose}
+      />
     </div>
   )
 }
