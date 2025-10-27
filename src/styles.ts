@@ -8,8 +8,13 @@ import {
   container as containerBase
 } from "./theme"
 
-// Use light theme colors by default
-const currentColors = colors.light
+// Dynamic theme colors - will be updated by theme toggle
+let currentColors = colors.light
+
+// Function to update current colors based on theme
+export const updateTheme = (isDark: boolean) => {
+  currentColors = isDark ? colors.dark : colors.light
+}
 
 // Export the current colors for components to use
 export { currentColors as colors }

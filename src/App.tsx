@@ -5,7 +5,8 @@ import { supabase } from "./supabaseClient"
 
 import {
   appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card,
-  cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, shadows
+  cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, shadows,
+  updateTheme
 } from "./styles"
 import { colors as colorThemes } from "./theme"
 
@@ -97,12 +98,14 @@ export default function App() {
   function toggleTheme() {
     const newTheme = !isDarkMode
     setIsDarkMode(newTheme)
+    updateTheme(newTheme)
     localStorage.setItem('cocktail-keeper-theme', newTheme ? 'dark' : 'light')
     document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light')
   }
 
   // Apply theme on mount
   useEffect(() => {
+    updateTheme(isDarkMode)
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
   }, [isDarkMode])
 

@@ -8,15 +8,25 @@
   line-height: 1.6;
   font-weight: 400;
   
-  color-scheme: dark;
-  color: #f8fafc;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-  
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+}
+
+/* Light theme */
+:root[data-theme="light"] {
+  color-scheme: light;
+  color: #000000;
+  background: #ffffff;
+}
+
+/* Dark theme */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  color: #f8fafc;
+  background: #2a2a2a;
 }
 
 html {

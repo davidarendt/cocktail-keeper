@@ -55,8 +55,8 @@ export const colors = {
   // Dark mode colors
   dark: {
     // Dark mode palette
-    bg: "#0a0a0a",
-    bgSolid: "#0a0a0a",
+    bg: "#2a2a2a",
+    bgSolid: "#2a2a2a",
     text: "#ffffff",
     muted: "#a0a0a0",
     panel: "#1a1a1a",
