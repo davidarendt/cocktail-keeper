@@ -338,6 +338,12 @@ export function CocktailForm(props: Props) {
                   await fetchSuggest(v, i)
                 }}
                 onFocus={() => fetchSuggest(ln.ingredientName, i)}
+                onBlur={() => {
+                  // Close dropdown when user tabs away
+                  setIngOpen(false)
+                  setIngIndex(-1)
+                  setSuggestFor(null)
+                }}
                 onKeyDown={(e)=>handleIngKeyDown(e, i)}
                   placeholder="e.g., Fresh Lemon Juice" 
                   style={inp}
