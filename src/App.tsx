@@ -2360,7 +2360,11 @@ export default function App() {
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
             <div 
-              onClick={() => handleCloseForm(() => setRoute("main"))}
+              onClick={() => handleCloseForm(() => { 
+                resetForm()
+                setFormOpen(false)
+                setRoute("main") 
+              })}
               style={{ 
                 cursor: "pointer",
                 transition: "all 0.2s ease",
@@ -2417,7 +2421,11 @@ export default function App() {
           
           <nav style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
             <button 
-              onClick={()=> setRoute("main")} 
+              onClick={() => handleCloseForm(() => { 
+                resetForm()
+                setFormOpen(false)
+                setRoute("main") 
+              })} 
               style={{
                 ...btnSecondary,
                 background: route === "main" ? colors.primarySolid : colors.glass,
