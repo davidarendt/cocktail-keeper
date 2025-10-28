@@ -1,5 +1,4 @@
 // src/components/ConfirmationDialog.tsx
-import React from "react"
 import { btnPrimary, btnSecondary, colors, card, shadows } from "../styles"
 
 type Props = {
