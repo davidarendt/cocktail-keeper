@@ -1,7 +1,5 @@
 // src/components/BatchedItemForm.tsx
-import { useState } from "react"
 import { inp, btnPrimary, btnSecondary, colors, card, textGradient, shadows } from "../styles"
-import type { Unit, BatchedItem } from "../types"
 
 type Props = {
   // mode

@@ -1,6 +1,5 @@
 // src/components/UsersAdmin.tsx
 import React from "react"
-import { supabase } from "../supabaseClient"
 import { inp, btnPrimary, btnSecondary, th, td, card, colors, textGradient, shadows } from "../styles"
 import type { Role } from "../types"
 
