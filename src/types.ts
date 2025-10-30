@@ -73,6 +73,23 @@ export type ProfileRow = {
   created_at?: TimestampISO
 }
 
+export type BatchedItemRow = {
+  id: ID
+  name: string
+  description: string | null
+  batch_size: number | null
+  batch_unit: Unit | null
+  yield_amount: number | null
+  yield_unit: Unit | null
+  cost_per_batch: number | null
+  shelf_life_days: number | null
+  storage_notes: string | null
+  recipe_notes: string | null
+  is_active: boolean
+  created_at?: TimestampISO
+  updated_at?: TimestampISO
+}
+
 /** ---------- UI / form types ---------- */
 export type IngredientLine = {
   ingredientName: string
@@ -84,6 +101,7 @@ export type IngredientLine = {
 export type Cocktail = CocktailRow
 export type Ingredient = { id: ID; name: string }
 export type Tag = TagRow
+export type BatchedItem = BatchedItemRow
 
 /** For printable spec sheets (used by utils/print) */
 export type PrintCocktail = {
@@ -107,3 +125,4 @@ export type IngredientInsert = Optional<IngredientRow, "id" | "created_at">
 export type RecipeIngredientInsert = Optional<RecipeIngredientRow, "id" | "created_at">
 export type TagInsert = Optional<TagRow, "id" | "created_at">
 export type CocktailTagInsert = Optional<CocktailTagRow, "id" | "created_at">
+export type BatchedItemInsert = Optional<BatchedItemRow, "id" | "created_at" | "updated_at">

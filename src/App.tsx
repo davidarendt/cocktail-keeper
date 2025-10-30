@@ -18,11 +18,13 @@ import { LoadingSpinner } from "./components/LoadingSpinner"
 import { CocktailCardSkeleton } from "./components/SkeletonLoader"
 import { TouchGestures } from "./components/TouchGestures"
 import { ConfirmationDialog } from "./components/ConfirmationDialog"
+import { BatchedItemForm } from "./components/BatchedItemForm"
+import { BatchedItemList } from "./components/BatchedItemList"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
 
 import type {
-  Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag
+  Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag, BatchedItem
 } from "./types"
 
 export default function App() {
@@ -43,6 +45,22 @@ export default function App() {
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingCloseAction, setPendingCloseAction] = useState<(() => void) | null>(null)
+  
+  // Batched items state
+  const [batchedItems, setBatchedItems] = useState<BatchedItem[]>([])
+  const [batchedFormOpen, setBatchedFormOpen] = useState(false)
+  const [editingBatchedId, setEditingBatchedId] = useState<string | null>(null)
+  const [batchedName, setBatchedName] = useState("")
+  const [batchedDescription, setBatchedDescription] = useState("")
+  const [batchedBatchSize, setBatchedBatchSize] = useState("")
+  const [batchedBatchUnit, setBatchedBatchUnit] = useState("")
+  const [batchedYieldAmount, setBatchedYieldAmount] = useState("")
+  const [batchedYieldUnit, setBatchedYieldUnit] = useState("")
+  const [batchedCostPerBatch, setBatchedCostPerBatch] = useState("")
+  const [batchedShelfLifeDays, setBatchedShelfLifeDays] = useState("")
+  const [batchedStorageNotes, setBatchedStorageNotes] = useState("")
+  const [batchedRecipeNotes, setBatchedRecipeNotes] = useState("")
+  const [batchedIsActive, setBatchedIsActive] = useState(true)
 
   // Get current colors based on theme
   const colors = isDarkMode ? colorThemes.dark : colorThemes.light
@@ -758,7 +776,7 @@ export default function App() {
 
 
   // ---------- ROUTING ----------
-  const [route, setRoute] = useState<"main"|"settings">("main")
+  const [route, setRoute] = useState<"main"|"settings"|"batched">("main")
   const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users"|"backup"|"migration">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
@@ -1420,26 +1438,37 @@ export default function App() {
     const t = term.trim()
     if (!t) return []
     
-    // Get all ingredients for fuzzy search
-    const { data } = await supabase
-      .from("ingredients")
-      .select("name")
-      .limit(200) // Get more ingredients for better fuzzy matching
+    // Get all ingredients and batched items for fuzzy search
+    const [ingredientsResult, batchedResult] = await Promise.all([
+      supabase
+        .from("ingredients")
+        .select("name")
+        .limit(200), // Get more ingredients for better fuzzy matching
+      supabase
+        .from("batched_items")
+        .select("name")
+        .eq("is_active", true)
+        .limit(100) // Get active batched items
+    ])
 
-    if (!data || data.length === 0) return []
-
-    const ingredientNames = data.map((d: any) => d.name as string)
+    const ingredientNames = (ingredientsResult.data || []).map((d: any) => d.name as string)
+    const batchedNames = (batchedResult.data || []).map((d: any) => d.name as string)
+    
+    // Combine all names
+    const allNames = [...ingredientNames, ...batchedNames]
+    
+    if (allNames.length === 0) return []
     
     // Use fuzzy search for better typo tolerance
     const { fuzzySearchStrings } = await import('./utils/fuzzySearch')
-    const fuzzyResults = fuzzySearchStrings(ingredientNames, t, {
+    const fuzzyResults = fuzzySearchStrings(allNames, t, {
       threshold: 0.3, // Lower threshold for more results
       caseSensitive: false,
       normalize: true
     })
 
     // Also include exact matches for immediate results
-    const exactMatches = ingredientNames.filter(name => 
+    const exactMatches = allNames.filter(name => 
       name.toLowerCase().includes(t.toLowerCase())
     )
 
@@ -2305,6 +2334,126 @@ export default function App() {
     }
   }
 
+  // ---------- BATCHED ITEMS ----------
+  useEffect(() => {
+    if (route === "batched") { loadBatchedItems() }
+  }, [route])
+
+  async function loadBatchedItems() {
+    try {
+      const { data, error } = await supabase
+        .from("batched_items")
+        .select("*")
+        .order("name")
+      
+      if (error) throw error
+      setBatchedItems(data || [])
+    } catch (error) {
+      console.error("Error loading batched items:", error)
+      setErr("Failed to load batched items")
+    }
+  }
+
+  function resetBatchedForm() {
+    setEditingBatchedId(null)
+    setBatchedName("")
+    setBatchedDescription("")
+    setBatchedBatchSize("")
+    setBatchedBatchUnit(units[0] || "oz")
+    setBatchedYieldAmount("")
+    setBatchedYieldUnit(units[0] || "oz")
+    setBatchedCostPerBatch("")
+    setBatchedShelfLifeDays("")
+    setBatchedStorageNotes("")
+    setBatchedRecipeNotes("")
+    setBatchedIsActive(true)
+  }
+
+  function openBatchedForm() {
+    resetBatchedForm()
+    setBatchedFormOpen(true)
+  }
+
+  async function startEditBatched(item: BatchedItem) {
+    resetBatchedForm()
+    setEditingBatchedId(item.id)
+    setBatchedName(item.name)
+    setBatchedDescription(item.description || "")
+    setBatchedBatchSize(item.batch_size ? String(item.batch_size) : "")
+    setBatchedBatchUnit(item.batch_unit || units[0] || "oz")
+    setBatchedYieldAmount(item.yield_amount ? String(item.yield_amount) : "")
+    setBatchedYieldUnit(item.yield_unit || units[0] || "oz")
+    setBatchedCostPerBatch(item.cost_per_batch ? String(item.cost_per_batch) : "")
+    setBatchedShelfLifeDays(item.shelf_life_days ? String(item.shelf_life_days) : "")
+    setBatchedStorageNotes(item.storage_notes || "")
+    setBatchedRecipeNotes(item.recipe_notes || "")
+    setBatchedIsActive(item.is_active)
+    setBatchedFormOpen(true)
+  }
+
+  async function saveBatched(e: React.FormEvent) {
+    e.preventDefault()
+    setErr("")
+    if (!batchedName.trim()) { setErr("Name required"); return }
+
+    try {
+      const data = {
+        name: batchedName.trim(),
+        description: batchedDescription.trim() || null,
+        batch_size: batchedBatchSize ? Number(batchedBatchSize) : null,
+        batch_unit: batchedBatchUnit || null,
+        yield_amount: batchedYieldAmount ? Number(batchedYieldAmount) : null,
+        yield_unit: batchedYieldUnit || null,
+        cost_per_batch: batchedCostPerBatch ? Number(batchedCostPerBatch) : null,
+        shelf_life_days: batchedShelfLifeDays ? Number(batchedShelfLifeDays) : null,
+        storage_notes: batchedStorageNotes.trim() || null,
+        recipe_notes: batchedRecipeNotes.trim() || null,
+        is_active: batchedIsActive
+      }
+
+      if (editingBatchedId) {
+        const { error } = await supabase
+          .from("batched_items")
+          .update({ ...data, updated_at: new Date().toISOString() })
+          .eq("id", editingBatchedId)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from("batched_items")
+          .insert(data)
+        if (error) throw error
+      }
+
+      await loadBatchedItems()
+      resetBatchedForm()
+      setBatchedFormOpen(false)
+    } catch (error) {
+      console.error("Error saving batched item:", error)
+      setErr("Failed to save batched item")
+    }
+  }
+
+  async function deleteBatched(id: string) {
+    if (!confirm("Delete this batched item?")) return
+    
+    try {
+      const { error } = await supabase
+        .from("batched_items")
+        .delete()
+        .eq("id", id)
+      if (error) throw error
+      
+      await loadBatchedItems()
+      if (editingBatchedId === id) {
+        resetBatchedForm()
+        setBatchedFormOpen(false)
+      }
+    } catch (error) {
+      console.error("Error deleting batched item:", error)
+      setErr("Failed to delete batched item")
+    }
+  }
+
   // ---------- CARDS GRID REF ----------
   const cardsRef = useRef<HTMLDivElement | null>(null)
 
@@ -2435,6 +2584,25 @@ export default function App() {
             >
               🏠 Home
             </button>
+
+            {(role === "editor" || role === "admin") && (
+              <button 
+                onClick={() => handleCloseForm(() => { 
+                  resetForm()
+                  setFormOpen(false)
+                  setRoute("batched") 
+                })} 
+                style={{
+                  ...btnSecondary,
+                  background: route === "batched" ? colors.primarySolid : colors.glass,
+                  color: route === "batched" ? "white" : colors.text,
+                  boxShadow: route === "batched" ? shadows.lg : "none"
+                }}
+                title="Manage house-made ingredients and batched items"
+              >
+                🏭 Batched Items
+              </button>
+            )}
 
             {role==="admin" && (
               <button 
@@ -3498,6 +3666,49 @@ export default function App() {
           )
         )}
 
+        {route === "batched" && (
+          <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+            <h2 style={{ 
+              marginBottom: 24, 
+              fontSize: 24, 
+              fontWeight: 700,
+              color: colors.text,
+              textAlign: "center"
+            }}>
+              🏭 Batched Items
+            </h2>
+            
+            {/* Batched Items List */}
+            <BatchedItemList
+              items={batchedItems}
+              role={role}
+              onEdit={startEditBatched}
+              onDelete={deleteBatched}
+              onAddNew={openBatchedForm}
+            />
+
+            {/* Batched Item Form */}
+            {(role === "editor" || role === "admin") && batchedFormOpen && (
+              <BatchedItemForm
+                editingId={editingBatchedId}
+                name={batchedName} setName={setBatchedName}
+                description={batchedDescription} setDescription={setBatchedDescription}
+                batchSize={batchedBatchSize} setBatchSize={setBatchedBatchSize}
+                batchUnit={batchedBatchUnit} setBatchUnit={setBatchedBatchUnit}
+                yieldAmount={batchedYieldAmount} setYieldAmount={setBatchedYieldAmount}
+                yieldUnit={batchedYieldUnit} setYieldUnit={setBatchedYieldUnit}
+                costPerBatch={batchedCostPerBatch} setCostPerBatch={setBatchedCostPerBatch}
+                shelfLifeDays={batchedShelfLifeDays} setShelfLifeDays={setBatchedShelfLifeDays}
+                storageNotes={batchedStorageNotes} setStorageNotes={setBatchedStorageNotes}
+                recipeNotes={batchedRecipeNotes} setRecipeNotes={setBatchedRecipeNotes}
+                isActive={batchedIsActive} setIsActive={setBatchedIsActive}
+                units={units}
+                onClose={() => { resetBatchedForm(); setBatchedFormOpen(false) }}
+                onSubmit={saveBatched}
+              />
+            )}
+          </div>
+        )}
 
         {route === "main" && (
           <>
