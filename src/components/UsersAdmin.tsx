@@ -44,39 +44,21 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
     setError("")
 
     try {
-      // Create user account directly with email/password
-      const { data, error } = await supabase.auth.admin.createUser({
-        email: inviteEmail,
-        password: 'temp_password_123', // They'll need to change this
-        email_confirm: true, // Auto-confirm the email
-        user_metadata: {
-          role: inviteRole,
-          invited_by: meEmail
-        }
+      // Call secure Netlify function (uses service role)
+      const res = await fetch('/.netlify/functions/admin-create-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail, role: inviteRole, invited_by: meEmail })
       })
-
-      if (error) {
-        setError(`Failed to create user: ${error.message}`)
-      } else if (data.user) {
-        // Create profile for the new user
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: data.user.id,
-            email: inviteEmail,
-            role: inviteRole
-          })
-
-        if (profileError) {
-          setError(`User created but profile failed: ${profileError.message}`)
-        } else {
-          setError("")
-          setInviteEmail("")
-          setInviteRole("viewer")
-          // Refresh the user list
-          await reload()
-          alert(`User account created for ${inviteEmail}! They can now sign in with their email and the temporary password: temp_password_123`)
-        }
+      const json = await res.json()
+      if (!res.ok || json.error) {
+        setError(`Failed to create user: ${json.error || res.statusText}`)
+      } else {
+        setError("")
+        setInviteEmail("")
+        setInviteRole("viewer")
+        await reload()
+        alert(`User account created for ${inviteEmail}! They can now sign in with their email and the temporary password: temp_password_123`)
       }
     } catch (err) {
       setError("Failed to create user account")
