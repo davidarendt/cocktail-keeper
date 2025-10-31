@@ -2,8 +2,8 @@
 import React from "react"
 import { inp, btnPrimary, btnSecondary, th, td, card, colors, textGradient, shadows } from "../styles"
 import type { Role } from "../types"
-import { hashPassword } from "../utils/localAuth"
-import { supabase } from "../supabaseClient"
+// local password helpers removed
+// supabase not used
 
 export type UserRow = {
   user_id: string
@@ -29,7 +29,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
   // Invite flow (no password field needed)
   const [inviteLoading, setInviteLoading] = React.useState(false)
   const [error, setError] = React.useState("")
-  const [busyId, setBusyId] = React.useState<string | null>(null)
+  
   
   const filtered = users.filter(u =>
     !filter.trim() ? true :
@@ -71,26 +71,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
     }
   }
 
-  async function resetLocalPassword(user_id: string) {
-    if (!user_id.startsWith('local-')) return
-    const id = user_id.replace('local-','')
-    const pwd = prompt('Enter a new password (min 6 characters)')?.trim() || ''
-    if (pwd.length < 6) { setError('Password must be at least 6 characters'); return }
-    try {
-      setBusyId(user_id)
-      const password_hash = await hashPassword(pwd)
-      const { error } = await supabase
-        .from('app_users')
-        .update({ password_hash })
-        .eq('id', id)
-      if (error) { setError(`Failed to update password: ${error.message}`); return }
-      alert('Password updated successfully')
-    } catch (e) {
-      setError('Failed to update password')
-    } finally {
-      setBusyId(null)
-    }
-  }
+  // local password reset removed
 
   return (
     <div style={{
@@ -282,21 +263,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
                   </select>
                 </td>
                 <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
-                  {u.user_id.startsWith('local-') && (
-                    <button
-                      onClick={()=> resetLocalPassword(u.user_id)}
-                      style={{
-                        ...btnSecondary,
-                        fontSize: 11,
-                        padding: "6px 12px",
-                        marginRight: 8,
-                        opacity: busyId===u.user_id ? 0.6 : 1
-                      }}
-                      disabled={busyId===u.user_id}
-                    >
-                      🔑 Reset Password
-                    </button>
-                  )}
+                  
                   <button 
                     onClick={()=>onRename(u.user_id)} 
                     style={{

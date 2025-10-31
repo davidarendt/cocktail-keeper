@@ -13,7 +13,7 @@ import { colors as colorThemes } from "./theme"
 import { SettingsBlock } from "./components/SettingsBlock"
 import { CocktailForm } from "./components/CocktailForm"
 import { IngredientsAdmin } from "./components/IngredientsAdmin"
-import { UsersAdmin, type UserRow } from "./components/UsersAdmin"
+// Users admin removed
 import { LoadingSpinner } from "./components/LoadingSpinner"
 import { CocktailCardSkeleton } from "./components/SkeletonLoader"
 import { TouchGestures } from "./components/TouchGestures"
@@ -22,7 +22,7 @@ import { BatchedItemForm } from "./components/BatchedItemForm"
 import { BatchedItemList } from "./components/BatchedItemList"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
-import { getLocalSession, clearLocalSession } from "./utils/localAuth"
+import { getLocalSession } from "./utils/localAuth"
 
 import type {
   Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag, BatchedItem
@@ -121,7 +121,7 @@ export default function App() {
     })()
   }, [session])
 
-  async function signOut() { if (NO_AUTH_MODE) return; clearLocalSession(); await supabase.auth.signOut() }
+  // signOut removed with auth UI
 
   // ---------- THEME ----------
   // theme toggle removed
@@ -779,7 +779,7 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings"|"batched">("main")
-  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"users"|"backup"|"migration">("ingredients")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"backup"|"migration">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -2227,162 +2227,7 @@ export default function App() {
     await load()
   }
 
-  // ---------- USERS (ADMIN) ----------
-  const [users, setUsers] = useState<UserRow[]>([])
-  const [usersLoading, setUsersLoading] = useState(false)
-
-  useEffect(() => {
-    if (route === "settings" && role === "admin") { loadUsers() }
-  }, [route, role])
-
-  async function loadUsers() {
-    setUsersLoading(true)
-    try {
-      // Try the RPC function first
-      const { data, error } = await supabase.rpc("admin_list_profiles")
-      if (error) {
-        console.warn("RPC function failed, trying direct query:", error.message)
-        // Fallback to direct query if RPC fails
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from("profiles")
-          .select(`
-            user_id,
-            role,
-            display_name,
-            created_at,
-            auth_users:user_id(email)
-          `)
-          .order("created_at", { ascending: false })
-        
-        if (fallbackError) {
-          console.error("Fallback query failed:", fallbackError)
-          setErr(`Failed to load users: ${fallbackError.message}`)
-          setUsersLoading(false)
-          return
-        }
-        
-        // Transform the fallback data to match UserRow format
-        const transformedData = (fallbackData || []).map((row: any) => ({
-          user_id: row.user_id,
-          email: row.auth_users?.email || null,
-          role: row.role,
-          display_name: row.display_name,
-          created_at: row.created_at
-        }))
-        
-        // Fetch local users from app_users
-        const { data: localUsers } = await supabase
-          .from('app_users')
-          .select('id, email, role, created_at')
-          .order('created_at', { ascending: false })
-        const locals: UserRow[] = (localUsers || []).map((u: any) => ({
-          user_id: `local-${u.id}`,
-          email: u.email,
-          role: u.role,
-          display_name: null as any,
-          created_at: u.created_at
-        }))
-        const merged = [...(transformedData as UserRow[]), ...locals]
-        // Deduplicate by email (prefer supabase profiles)
-        const byEmail = new Map<string, UserRow>()
-        for (const u of merged) {
-          const key = (u.email || '').toLowerCase()
-          if (!byEmail.has(key)) byEmail.set(key, u)
-        }
-        setUsers(Array.from(byEmail.values()))
-      } else {
-        const primary = (data || []) as UserRow[]
-        const { data: localUsers } = await supabase
-          .from('app_users')
-          .select('id, email, role, created_at')
-          .order('created_at', { ascending: false })
-        const locals: UserRow[] = (localUsers || []).map((u: any) => ({
-          user_id: `local-${u.id}`,
-          email: u.email,
-          role: u.role,
-          display_name: null as any,
-          created_at: u.created_at
-        }))
-        const merged = [...primary, ...locals]
-        const byEmail = new Map<string, UserRow>()
-        for (const u of merged) {
-          const key = (u.email || '').toLowerCase()
-          if (!byEmail.has(key)) byEmail.set(key, u)
-        }
-        setUsers(Array.from(byEmail.values()))
-      }
-    } catch (err) {
-      console.error("Unexpected error loading users:", err)
-      setErr("Failed to load users. Please check your database permissions.")
-    }
-    setUsersLoading(false)
-  }
-  async function changeUserRole(user_id: string, newRole: Role) {
-    try {
-      console.log(`Changing user ${user_id} role to ${newRole}`)
-      if (user_id.startsWith('local-')) {
-        const id = user_id.replace('local-','')
-        const { error } = await supabase
-          .from('app_users')
-          .update({ role: newRole })
-          .eq('id', id)
-        if (error) throw error
-        await loadUsers()
-        console.log(`Successfully changed local user role to ${newRole}`)
-        return
-      }
-      const { error } = await supabase
-        .from("profiles")
-        .update({ role: newRole })
-        .eq("user_id", user_id)
-      
-      if (error) {
-        console.error("Role change error:", error)
-        if (error.message.includes("row-level security")) {
-          setErr("Permission denied. You may not have admin privileges to change user roles.")
-        } else {
-          setErr(`Failed to change user role: ${error.message}`)
-        }
-        return
-      }
-      
-      // Reload users to show the change
-      await loadUsers()
-      console.log(`Successfully changed user role to ${newRole}`)
-    } catch (err) {
-      console.error("Unexpected error changing user role:", err)
-      setErr("Failed to change user role. Please try again.")
-    }
-  }
-  async function renameUser(user_id: string) {
-    try {
-      const current = users.find(u => u.user_id === user_id)
-      const n = prompt("Display name", current?.display_name || "")?.trim()
-      if (!n) return
-      
-      console.log(`Renaming user ${user_id} to ${n}`)
-      const { error } = await supabase
-        .from("profiles")
-        .update({ display_name: n })
-        .eq("user_id", user_id)
-      
-      if (error) {
-        console.error("Rename error:", error)
-        if (error.message.includes("row-level security")) {
-          setErr("Permission denied. You may not have admin privileges to rename users.")
-        } else {
-          setErr(`Failed to rename user: ${error.message}`)
-        }
-        return
-      }
-      
-      await loadUsers()
-      console.log(`Successfully renamed user to ${n}`)
-    } catch (err) {
-      console.error("Unexpected error renaming user:", err)
-      setErr("Failed to rename user. Please try again.")
-    }
-  }
+  // Users admin removed
 
   // ---------- BATCHED ITEMS ----------
   useEffect(() => {
@@ -2687,32 +2532,11 @@ export default function App() {
               }}
               title="Keyboard shortcuts help"
             >
-              ⌨️
             </button>
 
             {/* Theme Toggle removed */}
 
-            {session ? (
-              <button onClick={signOut} style={btnSecondary}>
-                🚪 Sign out
-              </button>
-            ) : showRegister ? (
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <button onClick={() => setShowRegister(false)} style={btnSecondary}>
-                  ← Back to Sign In
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <button onClick={() => setShowRegister(true)} style={btnPrimary}>
-                  🚀 Create Account
-                </button>
-                <span style={{ color: colors.muted }}>or</span>
-                <button onClick={() => setShowRegister(false)} style={btnSecondary}>
-                  🔐 Sign In
-                </button>
-              </div>
-            )}
+            {/* Auth controls removed */}
           </nav>
         </header>
 
@@ -3046,30 +2870,7 @@ export default function App() {
                     </span>
                   </button>
 
-                  <button
-                    onClick={() => setSettingsTab("users")}
-                    style={{
-                      ...btnSecondary,
-                      padding: "16px 20px",
-                      background: settingsTab === "users" ? colors.accent : colors.glass,
-                      color: settingsTab === "users" ? "white" : colors.text,
-                      border: `2px solid ${settingsTab === "users" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 8
-                    }}
-                  >
-                    <span style={{ fontSize: 24 }}>👥</span>
-                    <span>Users</span>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      Manage User Roles & Access
-                    </span>
-                  </button>
+                  
 
                   <button
                     onClick={() => setSettingsTab("backup")}
@@ -3319,16 +3120,7 @@ export default function App() {
                 />
               )}
 
-              {settingsTab === "users" && (
-              <UsersAdmin
-                meEmail={session?.user?.email ?? null}
-                users={users}
-                loading={usersLoading}
-                reload={loadUsers}
-                onChangeRole={changeUserRole}
-                onRename={renameUser}
-              />
-              )}
+              
 
               {settingsTab === "backup" && (
                 <div style={{ ...card(), background: colors.glass }}>
