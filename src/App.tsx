@@ -23,7 +23,6 @@ import { BatchedItemList } from "./components/BatchedItemList"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
 import { getLocalSession, clearLocalSession } from "./utils/localAuth"
-import { getLocalSession, clearLocalSession } from "./utils/localAuth"
 
 import type {
   Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag, BatchedItem
@@ -42,7 +41,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false)
   
   // Move these state declarations to the top to avoid hoisting issues
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const [isDarkMode] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -125,7 +124,7 @@ export default function App() {
   async function signOut() { if (NO_AUTH_MODE) return; clearLocalSession(); await supabase.auth.signOut() }
 
   // ---------- THEME ----------
-  function toggleTheme() {}
+  // theme toggle removed
 
   // Apply theme on mount
   useEffect(() => {

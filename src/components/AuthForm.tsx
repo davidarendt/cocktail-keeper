@@ -2,14 +2,11 @@
 import { useState } from "react"
 import { supabase } from "../supabaseClient"
 import { verifyPassword, saveLocalSession } from "../utils/localAuth"
-import { inp, btnPrimary, btnSecondary, colors, card } from "../styles"
+import { inp, btnPrimary, colors, card } from "../styles"
 
-type Props = {
-  onSuccess: () => void
-  onShowRegister: () => void
-}
+type Props = { onSuccess: () => void }
 
-export function AuthForm({ onSuccess, onShowRegister }: Props) {
+export function AuthForm({ onSuccess }: Props) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
