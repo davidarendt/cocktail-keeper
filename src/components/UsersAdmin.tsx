@@ -26,7 +26,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
   const [filter, setFilter] = React.useState("")
   const [inviteEmail, setInviteEmail] = React.useState("")
   const [inviteRole, setInviteRole] = React.useState<Role>("viewer")
-  const [invitePassword, setInvitePassword] = React.useState("")
+  // Invite flow (no password field needed)
   const [inviteLoading, setInviteLoading] = React.useState(false)
   const [error, setError] = React.useState("")
   const [busyId, setBusyId] = React.useState<string | null>(null)
@@ -47,22 +47,23 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
     setError("")
 
     try {
-      if (!invitePassword.trim()) {
-        setError("Please enter a password")
+      // Call Netlify function to send invite and set role
+      const res = await fetch('/.netlify/functions/admin-invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole, invited_by: meEmail })
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) {
+        setError(`Failed to invite user: ${json.error || res.statusText}`)
         return
       }
-      // Hash on client and store in local table app_users
-      const password_hash = await hashPassword(invitePassword)
-      const { error } = await supabase
-        .from('app_users')
-        .insert({ email: inviteEmail.trim(), password_hash, role: inviteRole })
-      if (error) { setError(`Failed to create user: ${error.message}`); return }
       setError("")
+      const invited = inviteEmail
       setInviteEmail("")
       setInviteRole("viewer")
-      setInvitePassword("")
       await reload()
-      alert(`User created: ${inviteEmail}`)
+      alert(`Invite sent to ${invited}. They will set their own password.`)
     } catch (err) {
       setError("Failed to create user account")
     } finally {
@@ -191,18 +192,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
               style={inp}
             />
           </div>
-          <div style={{ flex: 1 }}>
-            <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: colors.text }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={invitePassword}
-              onChange={(e) => setInvitePassword(e.target.value)}
-              placeholder="Set a password"
-              style={inp}
-            />
-          </div>
+          {/* No password field needed for invite-based flow */}
           <div style={{ minWidth: 120 }}>
             <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: colors.text }}>
               Role
@@ -219,17 +209,24 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
           </div>
           <button
             onClick={createUser}
-            disabled={inviteLoading || !inviteEmail.trim() || !invitePassword.trim()}
+            disabled={inviteLoading || !inviteEmail.trim()}
             style={{
               ...btnPrimary,
-              opacity: inviteLoading || !inviteEmail.trim() || !invitePassword.trim() ? 0.6 : 1,
+              opacity: inviteLoading || !inviteEmail.trim() ? 0.6 : 1,
               padding: "8px 16px"
             }}
           >
-            {inviteLoading ? "⏳ Creating..." : "👤 Create User"}
+            {inviteLoading ? "⏳ Inviting..." : "✉️ Invite User"}
           </button>
         </div>
-        
+        <div style={{ 
+          marginTop: 8, 
+          fontSize: 11, 
+          color: colors.muted,
+          fontStyle: "italic"
+        }}>
+          An email invitation will be sent. The user sets their own password.
+        </div>
       </div>
 
       {loading ? (
