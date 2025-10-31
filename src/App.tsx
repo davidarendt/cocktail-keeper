@@ -526,6 +526,18 @@ export default function App() {
           [cocktailId]: urlData.publicUrl
         }))
         
+        // Reload cocktail data to get updated photo_url
+        if (editingId === cocktailId) {
+          const { data: updatedCocktail } = await supabase
+            .from("cocktails")
+            .select("*")
+            .eq("id", cocktailId)
+            .single()
+          if (updatedCocktail) {
+            setRows(prev => prev.map(c => c.id === cocktailId ? { ...c, photo_url: urlData.publicUrl } : c))
+          }
+        }
+        
         setErr("✅ Photo uploaded successfully!")
         
         // Log audit
@@ -586,6 +598,9 @@ export default function App() {
         delete newState[cocktailId]
         return newState
       })
+      
+      // Update rows to remove photo_url
+      setRows(prev => prev.map(c => c.id === cocktailId ? { ...c, photo_url: null } : c))
       
       setErr("✅ Photo deleted successfully!")
       
@@ -3895,11 +3910,18 @@ export default function App() {
                 isOlogyRecipe={isOlogyRecipe} setOlogyRecipe={setOlogyRecipe}
                 lines={lines} setLines={(updater)=> setLines(prev => updater(prev))}
                 selectedTags={selectedTags} setSelectedTags={setSelectedTags}
+                photoUrl={editingId ? (rows.find(c => c.id === editingId)?.photo_url || cocktailPhotos[editingId] || null) : null}
                 onClose={() => handleCloseForm(() => { resetForm(); setFormOpen(false) })}
                 onSubmit={save}
-            onQueryIngredients={queryIngredients}
-            onAddCatalogItem={addCatalogItem}
-            onAddTag={addTag}
+                onUploadPhoto={(file) => {
+                  if (editingId) {
+                    uploadPhoto(editingId, file)
+                  }
+                }}
+                onDeletePhoto={editingId ? () => deletePhoto(editingId) : undefined}
+                onQueryIngredients={queryIngredients}
+                onAddCatalogItem={addCatalogItem}
+                onAddTag={addTag}
               />
             )}
 

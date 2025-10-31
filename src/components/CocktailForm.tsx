@@ -24,9 +24,13 @@ type Props = {
   isOlogyRecipe: boolean; setOlogyRecipe: (v: boolean) => void
   lines: IngredientLine[]; setLines: (updater: (prev: IngredientLine[]) => IngredientLine[]) => void
   selectedTags: string[]; setSelectedTags: (v: string[] | ((prev: string[]) => string[])) => void
+  // photo
+  photoUrl?: string | null
   // actions
   onClose: () => void
   onSubmit: (e: React.FormEvent) => void
+  onUploadPhoto: (file: File) => void
+  onDeletePhoto?: () => void
   // ingredient suggestions (App will supply the query function; this component manages UI + keyboard)
   onQueryIngredients: (term: string) => Promise<string[]>
   // catalog management
@@ -43,7 +47,10 @@ export function CocktailForm(props: Props) {
     name, setName, method, setMethod, glass, setGlass, ice, setIce,
     notes, setNotes, price, setPrice, specialDate, setSpecialDate, isOlogyRecipe, setOlogyRecipe,
     lines, setLines, selectedTags, setSelectedTags,
+    photoUrl,
     onClose, onSubmit,
+    onUploadPhoto,
+    onDeletePhoto,
     onQueryIngredients,
     onAddCatalogItem,
     onAddTag,
@@ -287,6 +294,121 @@ export function CocktailForm(props: Props) {
         </div>
         
       </div>
+
+      {/* Photo Section */}
+      {editingId && (
+        <div style={{ 
+          marginTop: 24,
+          marginBottom: 24,
+          padding: 20,
+          background: colors.panel,
+          borderRadius: 12,
+          border: `1px solid ${colors.border}`
+        }}>
+          <h3 style={{ 
+            margin: "0 0 16px 0", 
+            fontSize: 18,
+            fontWeight: 700,
+            ...textGradient(colors.textGradient)
+          }}>
+            📸 Photo
+          </h3>
+          
+          {photoUrl ? (
+            <div>
+              <img
+                src={photoUrl}
+                alt={`${name} photo`}
+                style={{
+                  width: "100%",
+                  maxHeight: 300,
+                  objectFit: "cover",
+                  borderRadius: 8,
+                  border: `1px solid ${colors.border}`,
+                  marginBottom: 12
+                }}
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none'
+                }}
+              />
+              <div style={{ display: "flex", gap: 8 }}>
+                <label style={{
+                  ...btnSecondary,
+                  cursor: "pointer",
+                  fontSize: 14,
+                  padding: "8px 16px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8
+                }}>
+                  📸 Replace Photo
+                  <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: "none" }}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) onUploadPhoto(file)
+                    }}
+                  />
+                </label>
+                {onDeletePhoto && (
+                  <button
+                    type="button"
+                    onClick={onDeletePhoto}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 14,
+                      padding: "8px 16px",
+                      background: "#DC2626",
+                      color: "white",
+                      border: "none"
+                    }}
+                  >
+                    🗑️ Delete Photo
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div style={{
+              padding: 40,
+              border: `2px dashed ${colors.border}`,
+              borderRadius: 8,
+              textAlign: "center",
+              background: colors.glass
+            }}>
+              <label style={{
+                ...btnSecondary,
+                cursor: "pointer",
+                fontSize: 14,
+                padding: "12px 24px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8
+              }}>
+                📸 Add Photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) onUploadPhoto(file)
+                  }}
+                />
+              </label>
+              <p style={{
+                margin: "16px 0 0 0",
+                fontSize: 12,
+                color: colors.muted
+              }}>
+                Upload an image for this cocktail
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ingredients Section - Moved to be first after basic fields */}
       <div style={{ 
