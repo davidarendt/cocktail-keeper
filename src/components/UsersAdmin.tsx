@@ -2,6 +2,7 @@
 import React from "react"
 import { inp, btnPrimary, btnSecondary, th, td, card, colors, textGradient, shadows } from "../styles"
 import type { Role } from "../types"
+import { hashPassword } from "../utils/localAuth"
 
 export type UserRow = {
   user_id: string
@@ -24,6 +25,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
   const [filter, setFilter] = React.useState("")
   const [inviteEmail, setInviteEmail] = React.useState("")
   const [inviteRole, setInviteRole] = React.useState<Role>("viewer")
+  const [invitePassword, setInvitePassword] = React.useState("")
   const [inviteLoading, setInviteLoading] = React.useState(false)
   const [error, setError] = React.useState("")
   
@@ -43,22 +45,32 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
     setError("")
 
     try {
-      // Call secure Netlify function (uses service role)
-      const res = await fetch('/.netlify/functions/admin-create-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: inviteEmail, role: inviteRole, invited_by: meEmail })
-      })
-      const json = await res.json()
-      if (!res.ok || json.error) {
-        setError(`Failed to create user: ${json.error || res.statusText}`)
-      } else {
-        setError("")
-        setInviteEmail("")
-        setInviteRole("viewer")
-        await reload()
-        alert(`User account created for ${inviteEmail}! They can now sign in with their email and the temporary password: temp_password_123`)
+      if (!invitePassword.trim()) {
+        setError("Please enter a password")
+        return
       }
+      // Hash on client and store in local table app_users
+      const password_hash = await hashPassword(invitePassword)
+      const res = await fetch('/rest/v1/app_users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ email: inviteEmail.trim(), password_hash, role: inviteRole })
+      })
+      if (!res.ok) {
+        const msg = await res.text()
+        setError(`Failed to create user: ${msg}`)
+        return
+      }
+      setError("")
+      setInviteEmail("")
+      setInviteRole("viewer")
+      setInvitePassword("")
+      await reload()
+      alert(`User created: ${inviteEmail}`)
     } catch (err) {
       setError("Failed to create user account")
     } finally {
@@ -155,6 +167,18 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
               style={inp}
             />
           </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: colors.text }}>
+              Password
+            </label>
+            <input
+              type="password"
+              value={invitePassword}
+              onChange={(e) => setInvitePassword(e.target.value)}
+              placeholder="Set a password"
+              style={inp}
+            />
+          </div>
           <div style={{ minWidth: 120 }}>
             <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: colors.text }}>
               Role
@@ -171,24 +195,17 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
           </div>
           <button
             onClick={createUser}
-            disabled={inviteLoading || !inviteEmail.trim()}
+            disabled={inviteLoading || !inviteEmail.trim() || !invitePassword.trim()}
             style={{
               ...btnPrimary,
-              opacity: inviteLoading || !inviteEmail.trim() ? 0.6 : 1,
+              opacity: inviteLoading || !inviteEmail.trim() || !invitePassword.trim() ? 0.6 : 1,
               padding: "8px 16px"
             }}
           >
             {inviteLoading ? "⏳ Creating..." : "👤 Create User"}
           </button>
         </div>
-        <div style={{ 
-          marginTop: 8, 
-          fontSize: 11, 
-          color: colors.muted,
-          fontStyle: "italic"
-        }}>
-          User will be created with temporary password: <strong>temp_password_123</strong>
-        </div>
+        
       </div>
 
       {loading ? (
