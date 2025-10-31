@@ -2739,9 +2739,19 @@ export default function App() {
             }),
             boxShadow: `0 0 20px rgba(239, 68, 68, 0.2)`
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <span style={{ fontSize: 20 }}>⚠️</span>
-              <span style={{ fontWeight: 500 }}>{err}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 20 }}>⚠️</span>
+                <span style={{ fontWeight: 500 }}>{err}</span>
+              </div>
+              <button onClick={()=>setErr("")} style={{
+                background: "transparent",
+                border: `1px solid ${colors.dangerSolid}`,
+                color: "#fecaca",
+                padding: "4px 8px",
+                borderRadius: 6,
+                cursor: "pointer"
+              }}>✖</button>
             </div>
           </div>
         )}

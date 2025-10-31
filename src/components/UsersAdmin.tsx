@@ -29,6 +29,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
   const [invitePassword, setInvitePassword] = React.useState("")
   const [inviteLoading, setInviteLoading] = React.useState(false)
   const [error, setError] = React.useState("")
+  const [busyId, setBusyId] = React.useState<string | null>(null)
   
   const filtered = users.filter(u =>
     !filter.trim() ? true :
@@ -66,6 +67,27 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
       setError("Failed to create user account")
     } finally {
       setInviteLoading(false)
+    }
+  }
+
+  async function resetLocalPassword(user_id: string) {
+    if (!user_id.startsWith('local-')) return
+    const id = user_id.replace('local-','')
+    const pwd = prompt('Enter a new password (min 6 characters)')?.trim() || ''
+    if (pwd.length < 6) { setError('Password must be at least 6 characters'); return }
+    try {
+      setBusyId(user_id)
+      const password_hash = await hashPassword(pwd)
+      const { error } = await supabase
+        .from('app_users')
+        .update({ password_hash })
+        .eq('id', id)
+      if (error) { setError(`Failed to update password: ${error.message}`); return }
+      alert('Password updated successfully')
+    } catch (e) {
+      setError('Failed to update password')
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -128,9 +150,20 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
           color: "#DC2626", 
           borderRadius: 6,
           marginBottom: 16,
-          fontSize: 14
+          fontSize: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
         }}>
-          {error}
+          <span>{error}</span>
+          <button onClick={()=>setError("")} style={{
+            background: "transparent",
+            border: "1px solid #DC2626",
+            color: "#DC2626",
+            borderRadius: 4,
+            padding: "2px 6px",
+            cursor: "pointer"
+          }}>✖</button>
         </div>
       )}
 
@@ -252,6 +285,21 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
                   </select>
                 </td>
                 <td style={{ ...td, textAlign:"right", whiteSpace:"nowrap" }}>
+                  {u.user_id.startsWith('local-') && (
+                    <button
+                      onClick={()=> resetLocalPassword(u.user_id)}
+                      style={{
+                        ...btnSecondary,
+                        fontSize: 11,
+                        padding: "6px 12px",
+                        marginRight: 8,
+                        opacity: busyId===u.user_id ? 0.6 : 1
+                      }}
+                      disabled={busyId===u.user_id}
+                    >
+                      🔑 Reset Password
+                    </button>
+                  )}
                   <button 
                     onClick={()=>onRename(u.user_id)} 
                     style={{
