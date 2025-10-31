@@ -44,6 +44,26 @@ export default function App() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingCloseAction, setPendingCloseAction] = useState<(() => void) | null>(null)
   
+  // Settings password protection
+  const [showSettingsPasswordPrompt, setShowSettingsPasswordPrompt] = useState(false)
+  const [settingsPassword, setSettingsPassword] = useState("")
+  const [isSettingsAuthenticated, setIsSettingsAuthenticated] = useState(() => {
+    return localStorage.getItem('settings-authenticated') === 'true'
+  })
+  
+  // Password management
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [passwordChangeError, setPasswordChangeError] = useState("")
+  
+  // Helper function to get current password (localStorage first, then env var, then default)
+  function getSettingsPassword(): string {
+    const stored = localStorage.getItem('settings-password')
+    if (stored) return stored
+    return import.meta.env.VITE_SETTINGS_PASSWORD || "admin"
+  }
+  
   // Batched items state
   const [batchedItems, setBatchedItems] = useState<BatchedItem[]>([])
   const [batchedFormOpen, setBatchedFormOpen] = useState(false)
@@ -79,6 +99,8 @@ export default function App() {
     (async () => {
       if (!session) {
         if (NO_AUTH_MODE) { setRole("admin"); return }
+        // If settings authenticated, grant admin access
+        if (isSettingsAuthenticated) { setRole("admin"); return }
         const local = getLocalSession()
         if (local) { setRole(local.role as Role); return }
         setRole("viewer");
@@ -116,9 +138,68 @@ export default function App() {
       console.log("Setting role to:", currentRole)
       setRole(String(currentRole).trim().toLowerCase() as Role)
     })()
-  }, [session])
+  }, [session, isSettingsAuthenticated])
 
   // signOut removed with auth UI
+
+  // Settings password verification
+  function handleSettingsClick() {
+    if (isSettingsAuthenticated) {
+      setRoute("settings")
+      return
+    }
+    setShowSettingsPasswordPrompt(true)
+  }
+
+  function verifySettingsPassword() {
+    const correctPassword = getSettingsPassword()
+    if (settingsPassword === correctPassword) {
+      setIsSettingsAuthenticated(true)
+      localStorage.setItem('settings-authenticated', 'true')
+      setShowSettingsPasswordPrompt(false)
+      setSettingsPassword("")
+      setRole("admin")
+      setRoute("settings")
+    } else {
+      setErr("Incorrect password")
+      setSettingsPassword("")
+    }
+  }
+
+  function handleChangePassword() {
+    setPasswordChangeError("")
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordChangeError("All fields are required")
+      return
+    }
+    
+    // Verify current password
+    if (currentPassword !== getSettingsPassword()) {
+      setPasswordChangeError("Current password is incorrect")
+      return
+    }
+    
+    // Check new password matches confirmation
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeError("New passwords do not match")
+      return
+    }
+    
+    // Check minimum length
+    if (newPassword.length < 4) {
+      setPasswordChangeError("Password must be at least 4 characters")
+      return
+    }
+    
+    // Save new password
+    localStorage.setItem('settings-password', newPassword)
+    setPasswordChangeError("")
+    setCurrentPassword("")
+    setNewPassword("")
+    setConfirmPassword("")
+    setErr("✅ Password updated successfully!")
+  }
 
   // ---------- THEME ----------
   // theme toggle removed
@@ -727,7 +808,7 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings"|"batched">("main")
-  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"backup"|"migration">("ingredients")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"backup"|"migration"|"password">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -2447,20 +2528,18 @@ export default function App() {
               </button>
             )}
 
-            {role==="admin" && (
-              <button 
-                onClick={()=> setRoute("settings")} 
-                style={{
-                  ...btnSecondary,
-                  background: route === "settings" ? colors.primarySolid : colors.glass,
-                  color: route === "settings" ? "white" : colors.text,
-                  boxShadow: route === "settings" ? shadows.lg : "none"
-                }}
-                title="Manage dropdown lists and user access"
-              >
-                ⚙️ Settings
-              </button>
-            )}
+            <button 
+              onClick={handleSettingsClick} 
+              style={{
+                ...btnSecondary,
+                background: route === "settings" ? colors.primarySolid : colors.glass,
+                color: route === "settings" ? "white" : colors.text,
+                boxShadow: route === "settings" ? shadows.lg : "none"
+              }}
+              title="Manage dropdown lists and settings"
+            >
+              ⚙️ Settings
+            </button>
 
 
             {/* Theme Toggle removed */}
@@ -2678,6 +2757,31 @@ export default function App() {
                   </button>
 
                   
+
+                  <button
+                    onClick={() => setSettingsTab("password")}
+                    style={{
+                      ...btnSecondary,
+                      padding: "16px 20px",
+                      background: settingsTab === "password" ? colors.accent : colors.glass,
+                      color: settingsTab === "password" ? "white" : colors.text,
+                      border: `2px solid ${settingsTab === "password" ? colors.accent : colors.glassBorder}`,
+                      borderRadius: 12,
+                      fontSize: 14,
+                      fontWeight: 600,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+                    <span style={{ fontSize: 24 }}>🔐</span>
+                    <span>Password</span>
+                    <span style={{ fontSize: 12, opacity: 0.8 }}>
+                      Change Settings Password
+                    </span>
+                  </button>
 
                   <button
                     onClick={() => setSettingsTab("backup")}
@@ -3059,6 +3163,127 @@ export default function App() {
                         </p>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {settingsTab === "password" && (
+                <div style={{ ...card(), background: colors.glass }}>
+                  <h3 style={{ 
+                    margin: "0 0 20px 0", 
+                    fontSize: 18, 
+                    fontWeight: 600, 
+                    color: colors.text,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8
+                  }}>
+                    🔐 Change Settings Password
+                  </h3>
+                  
+                  <div style={{ 
+                    padding: 20, 
+                    background: colors.panel, 
+                    borderRadius: 8,
+                    border: `1px solid ${colors.border}`
+                  }}>
+                    <p style={{ 
+                      margin: "0 0 20px 0", 
+                      fontSize: 14, 
+                      color: colors.muted,
+                      lineHeight: 1.5
+                    }}>
+                      Change the password required to access Settings and unlock editing capabilities.
+                    </p>
+
+                    {passwordChangeError && (
+                      <div style={{ 
+                        padding: 12, 
+                        background: "#FEE2E2", 
+                        color: "#DC2626", 
+                        borderRadius: 6,
+                        marginBottom: 16,
+                        fontSize: 14
+                      }}>
+                        {passwordChangeError}
+                      </div>
+                    )}
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div>
+                        <label style={{ 
+                          display: "block", 
+                          marginBottom: 8, 
+                          fontSize: 14, 
+                          fontWeight: 600,
+                          color: colors.text 
+                        }}>
+                          Current Password
+                        </label>
+                        <input
+                          type="password"
+                          value={currentPassword}
+                          onChange={(e) => setCurrentPassword(e.target.value)}
+                          placeholder="Enter current password"
+                          style={{ ...inp, width: "100%" }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ 
+                          display: "block", 
+                          marginBottom: 8, 
+                          fontSize: 14, 
+                          fontWeight: 600,
+                          color: colors.text 
+                        }}>
+                          New Password
+                        </label>
+                        <input
+                          type="password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Enter new password (min 4 characters)"
+                          style={{ ...inp, width: "100%" }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ 
+                          display: "block", 
+                          marginBottom: 8, 
+                          fontSize: 14, 
+                          fontWeight: 600,
+                          color: colors.text 
+                        }}>
+                          Confirm New Password
+                        </label>
+                        <input
+                          type="password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                          style={{ ...inp, width: "100%" }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              handleChangePassword()
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <button
+                        onClick={handleChangePassword}
+                        style={{
+                          ...btnPrimary,
+                          background: colors.accent,
+                          boxShadow: shadows.lg,
+                          width: "100%"
+                        }}
+                      >
+                        🔐 Change Password
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -4555,6 +4780,99 @@ export default function App() {
         onConfirm={confirmClose}
         onCancel={cancelClose}
       />
+
+      {/* Settings Password Prompt */}
+      {showSettingsPasswordPrompt && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 1000,
+          padding: 20
+        }}>
+          <div style={{
+            ...card({ marginBottom: 0 }),
+            background: colors.panel,
+            backdropFilter: "blur(10px)",
+            border: `1px solid ${colors.border}`,
+            boxShadow: shadows.xl,
+            maxWidth: 400,
+            width: "100%",
+            padding: 24
+          }}>
+            <h3 style={{
+              margin: "0 0 16px 0",
+              fontSize: 18,
+              fontWeight: 700,
+              color: colors.text
+            }}>
+              🔐 Settings Access
+            </h3>
+            
+            <p style={{
+              margin: "0 0 16px 0",
+              fontSize: 14,
+              color: colors.muted,
+              lineHeight: 1.5
+            }}>
+              Enter password to access settings and unlock editing capabilities.
+            </p>
+            
+            <input
+              type="password"
+              value={settingsPassword}
+              onChange={(e) => setSettingsPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  verifySettingsPassword()
+                } else if (e.key === "Escape") {
+                  setShowSettingsPasswordPrompt(false)
+                  setSettingsPassword("")
+                }
+              }}
+              placeholder="Enter password..."
+              style={{
+                ...inp,
+                width: "100%",
+                marginBottom: 16
+              }}
+              autoFocus
+            />
+            
+            <div style={{
+              display: "flex",
+              gap: 12,
+              justifyContent: "flex-end"
+            }}>
+              <button
+                onClick={() => {
+                  setShowSettingsPasswordPrompt(false)
+                  setSettingsPassword("")
+                }}
+                style={btnSecondary}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={verifySettingsPassword}
+                style={{
+                  ...btnPrimary,
+                  background: colors.accent,
+                  boxShadow: shadows.lg
+                }}
+              >
+                Unlock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
