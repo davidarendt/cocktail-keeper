@@ -2540,7 +2540,7 @@ export default function App() {
 
         {/* ROUTES */}
         {route === "settings" && (
-          role !== "admin" ? (
+          (role !== "admin" && !isSettingsAuthenticated) ? (
             <div style={{ color: colors.muted }}>Settings are admin-only.</div>
           ) : (
             <div style={{ maxWidth: 1200, margin: "0 auto" }}>
