@@ -6,7 +6,7 @@ import { supabase } from "./supabaseClient"
 import {
   appWrap, container, inp, btnPrimary, btnSecondary, dangerBtn, th, td, card,
   cocktailCard, specialBadge, ologyBadge, priceDisplay, ingredientList, shadows,
-  updateTheme
+  updateTheme, textGradient
 } from "./styles"
 import { colors as colorThemes } from "./theme"
 
@@ -40,6 +40,7 @@ export default function App() {
   // Move these state declarations to the top to avoid hoisting issues
   const [isDarkMode] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
+  const [viewingCocktailId, setViewingCocktailId] = useState<string | null>(null)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [pendingCloseAction, setPendingCloseAction] = useState<(() => void) | null>(null)
@@ -189,13 +190,13 @@ export default function App() {
         }
       }
 
-      // Ctrl/Cmd + K: Focus name search
+      // Ctrl/Cmd + K: Focus main search
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
-        const nameSearchInput = document.querySelector('input[placeholder*="Name"]') as HTMLInputElement
-        if (nameSearchInput) {
-          nameSearchInput.focus()
-          nameSearchInput.select()
+        const searchInput = document.querySelector('input[placeholder*="Search cocktails"]') as HTMLInputElement
+        if (searchInput) {
+          searchInput.focus()
+          searchInput.select()
         }
       }
 
@@ -840,9 +841,7 @@ export default function App() {
   const [err, setErr] = useState("")
 
   // search / filters / view / sort
-  const [q, setQ] = useState("")
-  const [nameSearch, setNameSearch] = useState("")
-  const [ingredientFilters, setIngredientFilters] = useState<string[]>([])
+  const [q, setQ] = useState("") // Main search - searches both cocktail names and ingredients
   const [fMethod, setFMethod] = useState("Any")
   const [fGlass, setFGlass] = useState("")
   const [specialOnly, setSpecialOnly] = useState(false)
@@ -854,7 +853,7 @@ export default function App() {
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
 
-  useEffect(() => { load() }, [q, nameSearch, fMethod, fGlass, specialOnly, ologyOnly, sortBy, ingredientFilters, selectedTags, priceMin, priceMax])
+  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, ologyOnly, sortBy, selectedTags, priceMin, priceMax])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
@@ -865,30 +864,6 @@ export default function App() {
     if (ologyOnly) query = query.eq("is_ology_recipe", true)
     if (priceMin.trim()) query = query.gte("price", parseFloat(priceMin))
     if (priceMax.trim()) query = query.lte("price", parseFloat(priceMax))
-    if (nameSearch.trim()) {
-      // Use fuzzy search for cocktail names
-      const { fuzzySearch } = await import('./utils/fuzzySearch')
-      const allCocktails = await supabase.from("cocktails").select("*").limit(1000)
-      
-      if (allCocktails.data && allCocktails.data.length > 0) {
-        const fuzzyResults = fuzzySearch(
-          allCocktails.data,
-          nameSearch.trim(),
-          (cocktail: any) => cocktail.name,
-          { threshold: 0.4, caseSensitive: false, normalize: true }
-        )
-        
-        const fuzzyIds = fuzzyResults.map(r => r.item.id)
-        if (fuzzyIds.length > 0) {
-          query = query.in("id", fuzzyIds)
-        } else {
-          // Fallback to exact match if no fuzzy results
-          query = query.ilike("name", `%${nameSearch.trim()}%`)
-        }
-      } else {
-        query = query.ilike("name", `%${nameSearch.trim()}%`)
-      }
-    }
     
     // Tag filtering - cocktails must have ALL selected tags
     if (selectedTags.length > 0) {
@@ -935,60 +910,53 @@ export default function App() {
 
     let finalRows = (base || []) as TCocktail[]
 
-    // Ingredient search (multiple filters or single fuzzy)
-    if (ingredientFilters.length > 0 && finalRows.length) {
+    // Combined search: search both cocktail names AND ingredients when q has a value
+    if (q.trim() && finalRows.length) {
+      const searchTerm = q.trim().toLowerCase()
+      const { fuzzySearch, isFuzzyMatch } = await import('./utils/fuzzySearch')
+      
+      // First, filter by cocktail names using fuzzy search
+      const nameMatchedCocktails = fuzzySearch(
+        finalRows,
+        searchTerm,
+        (cocktail: any) => cocktail.name,
+        { threshold: 0.4, caseSensitive: false, normalize: true }
+      ).map(r => r.item.id)
+      
+      // Then, find cocktails by ingredient name
       const ids = finalRows.map(c=>c.id)
       const { data: rec, error: rerr } = await supabase
         .from("recipe_ingredients")
         .select("cocktail_id, ingredient:ingredients(name)")
         .in("cocktail_id", ids)
+      
       if (rerr) { setErr(rerr.message); setLoading(false); return }
       
-      // Group by cocktail_id and count matching ingredients using fuzzy search
-      const { isFuzzyMatch } = await import('./utils/fuzzySearch')
-      const cocktailIngredientCounts = (rec || []).reduce((acc: Record<string, number>, r: any) => {
-        const ingredientName = (r.ingredient?.name || "").toLowerCase()
-        const matches = ingredientFilters.some(filter => {
-          // Use fuzzy search for better typo tolerance
-          return isFuzzyMatch(filter, ingredientName, 0.6) || 
-                 ingredientName.includes(filter.toLowerCase()) ||
-                 ingredientName.replace(/\s+/g,"").includes(normalizeSearchTerm(filter))
+      const ingredientMatchedCocktails = new Set<string>()
+      if (rec) {
+        rec.forEach((r: any) => {
+          const ingredientName = (r.ingredient?.name || "").toLowerCase()
+          if (
+            isFuzzyMatch(searchTerm, ingredientName, 0.6) || 
+            ingredientName.includes(searchTerm) ||
+            ingredientName.replace(/\s+/g,"").includes(normalizeSearchTerm(searchTerm))
+          ) {
+            ingredientMatchedCocktails.add(r.cocktail_id)
+          }
         })
-        
-        if (matches) {
-          acc[r.cocktail_id] = (acc[r.cocktail_id] || 0) + 1
-        }
-        return acc
-      }, {})
+      }
       
-      // Only include cocktails that have ALL the filtered ingredients
-      const matchIds = new Set(
-        Object.keys(cocktailIngredientCounts)
-          .filter(id => cocktailIngredientCounts[id] === ingredientFilters.length)
-      )
-      finalRows = finalRows.filter(c => matchIds.has(c.id))
-    } else if (q.trim() && finalRows.length) {
-      // Fallback to single ingredient search for backward compatibility
-      const ids = finalRows.map(c=>c.id)
-      const { data: rec, error: rerr } = await supabase
-        .from("recipe_ingredients")
-        .select("cocktail_id, ingredient:ingredients(name)")
-        .in("cocktail_id", ids)
-      if (rerr) { setErr(rerr.message); setLoading(false); return }
-      const typed = q.trim().toLowerCase()
-      const typedC = normalizeSearchTerm(q.trim())
-      const { isFuzzyMatch } = await import('./utils/fuzzySearch')
-      const matchIds = new Set(
-        (rec || []).filter((r:any) => {
-          const n = (r.ingredient?.name || "").toLowerCase()
-          const words = n.split(/\s+/)
-          const wordStart = words.some((w: string) => w.startsWith(typed))
-          const contains = n.includes(typed) || n.replace(/\s+/g,"").includes(typedC)
-          const fuzzyMatch = isFuzzyMatch(q.trim(), r.ingredient?.name || "", 0.6)
-          return wordStart || contains || fuzzyMatch
-        }).map((r:any)=> r.cocktail_id)
-      )
-      finalRows = finalRows.filter(c => matchIds.has(c.id))
+      // Combine both matches: cocktail name OR ingredient match
+      const allMatchedIds = new Set([...nameMatchedCocktails, ...Array.from(ingredientMatchedCocktails)])
+      
+      if (allMatchedIds.size > 0) {
+        finalRows = finalRows.filter(c => allMatchedIds.has(c.id))
+      } else {
+        // Fallback to name search if no fuzzy matches
+        finalRows = finalRows.filter(c => 
+          c.name.toLowerCase().includes(searchTerm)
+        )
+      }
     }
 
     setRows(finalRows)
@@ -1143,6 +1111,14 @@ export default function App() {
     })
   }
   function openAddForm() { resetForm(); setFormOpen(true) }
+  
+  function openView(c: TCocktail) {
+    setViewingCocktailId(c.id)
+  }
+  
+  function closeView() {
+    setViewingCocktailId(null)
+  }
 
   async function startEdit(c: TCocktail) {
     resetForm()
@@ -1569,21 +1545,6 @@ export default function App() {
     }
   }
 
-  // Ingredient filter management
-  function addIngredientFilter(ingredient: string) {
-    const trimmed = ingredient.trim()
-    if (trimmed && !ingredientFilters.includes(trimmed)) {
-      setIngredientFilters(prev => [...prev, trimmed])
-    }
-  }
-
-  function removeIngredientFilter(ingredient: string) {
-    setIngredientFilters(prev => prev.filter(f => f !== ingredient))
-  }
-
-  function clearAllIngredientFilters() {
-    setIngredientFilters([])
-  }
 
   // Tag management
   function toggleTag(tagId: string) {
@@ -1594,9 +1555,6 @@ export default function App() {
     )
   }
 
-  function clearAllTags() {
-    setSelectedTags([])
-  }
 
   // Tag management functions
   async function addTag(name: string, color: string = '#3B82F6') {
@@ -3426,23 +3384,23 @@ export default function App() {
                 alignItems: "center",
                 marginBottom: 8
               }}>
-                {/* Main Search Input */}
+                {/* Main Search Input - searches both names and ingredients */}
                 <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
                   <input 
-                    value={nameSearch} 
-                    onChange={e=>setNameSearch(e.target.value)} 
-                    placeholder="🔍 Search cocktails by name..." 
+                    value={q} 
+                    onChange={e=>setQ(e.target.value)} 
+                    placeholder="🔍 Search cocktails by name or ingredient..." 
                     style={{ 
                       ...inp, 
                       paddingLeft: 12,
-                      paddingRight: nameSearch ? 32 : 12,
+                      paddingRight: q ? 32 : 12,
                       fontSize: 14,
                       width: "100%"
                     }}
                   />
-                  {nameSearch && (
+                  {q && (
                     <button
-                      onClick={() => setNameSearch("")}
+                      onClick={() => setQ("")}
                       style={{
                         position: "absolute",
                         right: 8,
@@ -3508,54 +3466,6 @@ export default function App() {
                   borderRadius: 8,
                   border: `1px solid ${colors.glassBorder}`
                 }}>
-                  {/* Ingredients Search */}
-                  <div style={{ position: "relative" }}>
-                    <input 
-                      value={q} 
-                      onChange={e=>setQ(e.target.value)} 
-                      onKeyDown={e => {
-                        if (e.key === "Enter" && q.trim()) {
-                          addIngredientFilter(q.trim())
-                          setQ("")
-                        }
-                      }}
-                      placeholder="🔍 Ingredient..." 
-                      style={{ 
-                        ...inp, 
-                        paddingLeft: 8,
-                        paddingRight: q ? 24 : 8,
-                        fontSize: 12,
-                        minWidth: 100
-                      }}
-                    />
-                    {q && (
-                      <button
-                        onClick={() => {
-                          if (q.trim()) {
-                            addIngredientFilter(q.trim())
-                            setQ("")
-                          } else {
-                            setQ("")
-                          }
-                        }}
-                        style={{
-                          position: "absolute",
-                          right: 6,
-                          top: "50%",
-                          transform: "translateY(-50%)",
-                          background: "none",
-                          border: "none",
-                          color: colors.muted,
-                          cursor: "pointer",
-                          fontSize: 10,
-                          padding: 1
-                        }}
-                      >
-                        {q.trim() ? "➕" : "✕"}
-                      </button>
-                    )}
-                  </div>
-                  
                   {/* Method Filter */}
                   <select value={fMethod} onChange={e=>setFMethod(e.target.value)} style={{...inp, fontSize: 12, minWidth: 80}}>
                     <option value="">Method</option>
@@ -3652,12 +3562,10 @@ export default function App() {
                   <button
                     onClick={() => {
                       setQ("")
-                      setNameSearch("")
-                      setFMethod("")
+                      setFMethod("Any")
                       setFGlass("")
                       setSpecialOnly(false)
                       setOlogyOnly(false)
-                      setIngredientFilters([])
                       setSelectedTags([])
                       setPriceMin("")
                       setPriceMax("")
@@ -3680,7 +3588,7 @@ export default function App() {
 
 
               {/* Active Filters Row */}
-              {(ingredientFilters.length > 0 || nameSearch || fMethod || fGlass || specialOnly || ologyOnly || selectedTags.length > 0 || priceMin || priceMax) && (
+              {(q || (fMethod !== "Any" && fMethod) || fGlass || specialOnly || ologyOnly || selectedTags.length > 0 || priceMin || priceMax) && (
                 <div style={{ 
                   display: "flex", 
                   gap: 8, 
@@ -3691,8 +3599,8 @@ export default function App() {
                 }}>
                   <span style={{ fontSize: 12, color: colors.muted, marginRight: 8 }}>Active:</span>
                   
-                  {ingredientFilters.map((ingredient, index) => (
-                    <span key={index} style={{
+                  {q && (
+                    <span style={{
                       background: colors.primarySolid,
                       color: "white",
                       padding: "4px 8px",
@@ -3702,14 +3610,14 @@ export default function App() {
                       alignItems: "center",
                       gap: 4
                     }}>
-                      🔍 {ingredient}
+                      🔍 {q}
                       <button
-                        onClick={() => removeIngredientFilter(ingredient)}
+                        onClick={() => setQ("")}
                         style={{
                           background: "none",
                           border: "none",
                           color: "white",
-                  cursor: "pointer",
+                          cursor: "pointer",
                           fontSize: 10,
                           padding: 0
                         }}
@@ -3717,7 +3625,7 @@ export default function App() {
                         ✕
                       </button>
                     </span>
-                  ))}
+                  )}
                   
                   {selectedTags.map((tagId) => {
                     const tag = availableTags.find(t => t.id === tagId)
@@ -3750,33 +3658,6 @@ export default function App() {
                     ) : null
                   })}
                   
-                  {nameSearch && (
-                    <span style={{
-                      background: colors.accent,
-                      color: "white",
-                      padding: "4px 8px",
-                      borderRadius: 12,
-                      fontSize: 11,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4
-                    }}>
-                      🍸 {nameSearch}
-                      <button
-                        onClick={() => setNameSearch("")}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          color: "white",
-                          cursor: "pointer",
-                          fontSize: 10,
-                          padding: 0
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  )}
 
                   {q && (
                     <span style={{
@@ -3952,13 +3833,11 @@ export default function App() {
                   <button
                     onClick={() => {
                       setQ("")
-                      setNameSearch("")
-                      setFMethod("")
+                      setFMethod("Any")
                       setFGlass("")
                       setSpecialOnly(false)
                       setOlogyOnly(false)
-                      clearAllIngredientFilters()
-                      clearAllTags()
+                      setSelectedTags([])
                       setPriceMin("")
                       setPriceMax("")
                     }}
@@ -4049,22 +3928,22 @@ export default function App() {
                 {rows.map((c, index) => (
                   <TouchGestures
                     key={c.id}
-                    onSwipeRight={() => startEdit(c)}
+                    onSwipeRight={() => openView(c)}
                     onPinch={(scale) => {
                       // Zoom functionality for mobile
                       if (scale > 1.2) {
-                        startEdit(c)
+                        openView(c)
                       }
                     }}
                   >
                     <div
                       className="card-hover animate-fade-in-up cocktail-card"
                       tabIndex={0}
-                      onClick={() => startEdit(c)}
+                      onClick={() => openView(c)}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
                           e.preventDefault()
-                          startEdit(c)
+                          openView(c)
                         }
                       }}
                       style={{
@@ -4227,42 +4106,6 @@ export default function App() {
                       </div>
                     )}
 
-                    {/* Add Photo Button (for cocktails without photos) */}
-                    {!c.photo_url && !cocktailPhotos[c.id] && (role === 'editor' || role === 'admin') && (
-                      <div style={{ 
-                        marginBottom: 16,
-                        textAlign: "center",
-                        padding: 20,
-                        border: `2px dashed ${colors.border}`,
-                        borderRadius: 8,
-                        background: colors.panel
-                      }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            const input = document.createElement('input')
-                            input.type = 'file'
-                            input.accept = 'image/*'
-                            input.onchange = (event) => {
-                              const file = (event.target as HTMLInputElement).files?.[0]
-                              if (file) uploadPhoto(c.id, file)
-                            }
-                            input.click()
-                          }}
-                          style={{
-                            ...btnSecondary,
-                            fontSize: 14,
-                            padding: "8px 16px",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                            margin: "0 auto"
-                          }}
-                        >
-                          📸 Add Photo
-                        </button>
-                      </div>
-                    )}
 
                     {/* Ingredients */}
                     <div style={{ marginBottom: 16 }}>
@@ -4486,8 +4329,8 @@ export default function App() {
                             colors.special : 
                             "transparent"
                         }} 
-                        onClick={() => startEdit(c)} 
-                        title="Click to edit"
+                        onClick={() => openView(c)} 
+                        title="Click to view"
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = c.last_special_on ? 
                             colors.special : 
@@ -4700,6 +4543,348 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Cocktail View Display */}
+      {viewingCocktailId && (() => {
+        const c = rows.find(cocktail => cocktail.id === viewingCocktailId)
+        if (!c) return null
+        
+        return (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.7)",
+            backdropFilter: "blur(10px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 20,
+            overflowY: "auto"
+          }}>
+            <div style={{
+              ...card(),
+              background: colors.glass,
+              backdropFilter: "blur(20px)",
+              border: `1px solid ${colors.glassBorder}`,
+              boxShadow: shadows.xl,
+              maxWidth: 800,
+              width: "100%",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              position: "relative"
+            }}>
+              {/* Close Button */}
+              <button
+                onClick={closeView}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") closeView()
+                }}
+                style={{
+                  position: "absolute",
+                  top: 16,
+                  right: 16,
+                  background: colors.panel,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: colors.text,
+                  zIndex: 10,
+                  boxShadow: shadows.md
+                }}
+                title="Close (Esc)"
+              >
+                ✕ Close
+              </button>
+
+              {/* Edit Button */}
+              {(role === "editor" || role === "admin") && (
+                <button
+                  onClick={() => {
+                    startEdit(c)
+                    closeView()
+                  }}
+                  style={{
+                    position: "absolute",
+                    top: 16,
+                    right: 80,
+                    ...btnPrimary,
+                    background: colors.accent,
+                    padding: "8px 16px",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    zIndex: 10,
+                    boxShadow: shadows.lg
+                  }}
+                >
+                  ✏️ Edit
+                </button>
+              )}
+
+              {/* Cocktail Content */}
+              <div style={{ padding: 24 }}>
+                {/* Header */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 24
+                }}>
+                  {c.last_special_on && <span style={{ fontSize: 24 }}>⭐</span>}
+                  {c.is_ology_recipe && <span style={{ fontSize: 24 }}>🍸</span>}
+                  <h1 style={{
+                    margin: 0,
+                    fontSize: 32,
+                    fontWeight: 700,
+                    ...textGradient(colors.textGradient)
+                  }}>
+                    {c.name}
+                  </h1>
+                </div>
+
+                {/* Photo */}
+                {(c.photo_url || cocktailPhotos[c.id]) && (
+                  <div style={{ marginBottom: 24 }}>
+                    <img
+                      src={c.photo_url || cocktailPhotos[c.id]}
+                      alt={`${c.name} photo`}
+                      style={{
+                        width: "100%",
+                        maxHeight: 400,
+                        objectFit: "cover",
+                        borderRadius: 12,
+                        border: `1px solid ${colors.border}`,
+                        boxShadow: shadows.lg
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none'
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Method, Glass, Ice */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                  gap: 16,
+                  marginBottom: 24
+                }}>
+                  {c.method && (
+                    <div style={{
+                      padding: 16,
+                      background: colors.panel,
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`
+                    }}>
+                      <div style={{
+                        fontSize: 11,
+                        color: colors.muted,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        marginBottom: 4
+                      }}>
+                        Method
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>
+                        {c.method}
+                      </div>
+                    </div>
+                  )}
+                  {c.glass && (
+                    <div style={{
+                      padding: 16,
+                      background: colors.panel,
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`
+                    }}>
+                      <div style={{
+                        fontSize: 11,
+                        color: colors.muted,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        marginBottom: 4
+                      }}>
+                        Glass
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>
+                        {c.glass}
+                      </div>
+                    </div>
+                  )}
+                  {c.ice && (
+                    <div style={{
+                      padding: 16,
+                      background: colors.panel,
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`
+                    }}>
+                      <div style={{
+                        fontSize: 11,
+                        color: colors.muted,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        marginBottom: 4
+                      }}>
+                        Ice
+                      </div>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: colors.text }}>
+                        {c.ice}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Ingredients */}
+                {specs[c.id] && specs[c.id].length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <h4 style={{
+                      margin: "0 0 16px 0",
+                      fontSize: 20,
+                      fontWeight: 700,
+                      color: colors.text,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8
+                    }}>
+                      🧪 Ingredients
+                    </h4>
+                    <ul style={{
+                      ...ingredientList,
+                      fontSize: 16,
+                      color: colors.text,
+                      paddingLeft: 24
+                    }}>
+                      {(specs[c.id] || []).map((l, i) => {
+                        const ingredientName = l.split(' ').slice(1).join(' ').trim()
+                        const batchedItem = findBatchedItemForIngredient(ingredientName)
+                        
+                        return (
+                          <li key={i} style={{ 
+                            marginBottom: 8,
+                            lineHeight: 1.6
+                          }}>
+                            {batchedItem ? (
+                              <span 
+                                style={{ 
+                                  cursor: "pointer",
+                                  color: colors.accent,
+                                  textDecoration: "underline",
+                                  fontWeight: 600
+                                }}
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  closeView()
+                                  startEditBatched(batchedItem)
+                                  setRoute("batched")
+                                }}
+                                title={`Click to view/edit batched item: ${batchedItem.name}`}
+                              >
+                                {l}
+                              </span>
+                            ) : (
+                              <span>{l}</span>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Tags */}
+                {cocktailTags[c.id] && cocktailTags[c.id].length > 0 && (
+                  <div style={{ marginBottom: 24 }}>
+                    <div style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 8
+                    }}>
+                      {cocktailTags[c.id].map(tag => (
+                        <span
+                          key={tag.id}
+                          style={{
+                            background: tag.color || colors.accent,
+                            color: "white",
+                            padding: "6px 12px",
+                            borderRadius: 20,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            boxShadow: shadows.sm
+                          }}
+                        >
+                          🏷️ {tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Price */}
+                {c.price != null && (
+                  <div style={{
+                    marginBottom: 24,
+                    padding: 16,
+                    background: colors.panel,
+                    borderRadius: 8,
+                    border: `1px solid ${colors.border}`,
+                    display: "inline-block"
+                  }}>
+                    <div style={{
+                      fontSize: 11,
+                      color: colors.muted,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      marginBottom: 4
+                    }}>
+                      Price
+                    </div>
+                    <div style={priceDisplay}>
+                      ${Number(c.price).toFixed(2)}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {c.notes && (
+                  <div style={{ marginBottom: 24 }}>
+                    <h4 style={{
+                      margin: "0 0 12px 0",
+                      fontSize: 18,
+                      fontWeight: 700,
+                      color: colors.text,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8
+                    }}>
+                      📝 Notes
+                    </h4>
+                    <div style={{
+                      fontSize: 15,
+                      lineHeight: 1.6,
+                      color: colors.text,
+                      background: colors.panel,
+                      padding: 16,
+                      borderRadius: 8,
+                      border: `1px solid ${colors.border}`,
+                      fontStyle: "italic",
+                      whiteSpace: "pre-wrap"
+                    }}>
+                      {c.notes}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
