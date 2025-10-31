@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs'
+import * as bcrypt from 'bcryptjs'
 
 const STORAGE_KEY = 'ck_local_user'
 
