@@ -2463,25 +2463,6 @@ export default function App() {
             )}
 
 
-            {/* Keyboard Shortcuts Help */}
-            <button 
-              onClick={() => alert(`Keyboard Shortcuts:
-• Ctrl/Cmd + Shift + N: New cocktail
-• Ctrl/Cmd + F: Focus search
-• Ctrl/Cmd + K: Focus name search
-• ↑/↓ Arrow keys: Navigate cocktails
-• Enter/Space: Edit focused cocktail
-• Escape: Close forms`)}
-              style={{
-                ...btnSecondary,
-                marginRight: 12,
-                minWidth: 40,
-                padding: "8px 12px"
-              }}
-              title="Keyboard shortcuts help"
-            >
-            </button>
-
             {/* Theme Toggle removed */}
 
             {/* Auth controls removed */}
