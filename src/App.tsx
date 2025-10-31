@@ -51,17 +51,9 @@ export default function App() {
     return localStorage.getItem('settings-authenticated') === 'true'
   })
   
-  // Password management
-  const [newPassword, setNewPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [currentPassword, setCurrentPassword] = useState("")
-  const [passwordChangeError, setPasswordChangeError] = useState("")
-  
-  // Helper function to get current password (localStorage first, then env var, then default)
+  // Helper function to get password (env var or default)
   function getSettingsPassword(): string {
-    const stored = localStorage.getItem('settings-password')
-    if (stored) return stored
-    return import.meta.env.VITE_SETTINGS_PASSWORD || "admin"
+    return import.meta.env.VITE_SETTINGS_PASSWORD || "Variable#1"
   }
   
   // Batched items state
@@ -166,40 +158,6 @@ export default function App() {
     }
   }
 
-  function handleChangePassword() {
-    setPasswordChangeError("")
-    
-    if (!currentPassword || !newPassword || !confirmPassword) {
-      setPasswordChangeError("All fields are required")
-      return
-    }
-    
-    // Verify current password
-    if (currentPassword !== getSettingsPassword()) {
-      setPasswordChangeError("Current password is incorrect")
-      return
-    }
-    
-    // Check new password matches confirmation
-    if (newPassword !== confirmPassword) {
-      setPasswordChangeError("New passwords do not match")
-      return
-    }
-    
-    // Check minimum length
-    if (newPassword.length < 4) {
-      setPasswordChangeError("Password must be at least 4 characters")
-      return
-    }
-    
-    // Save new password
-    localStorage.setItem('settings-password', newPassword)
-    setPasswordChangeError("")
-    setCurrentPassword("")
-    setNewPassword("")
-    setConfirmPassword("")
-    setErr("✅ Password updated successfully!")
-  }
 
   // ---------- THEME ----------
   // theme toggle removed
@@ -808,7 +766,7 @@ export default function App() {
 
   // ---------- ROUTING ----------
   const [route, setRoute] = useState<"main"|"settings"|"batched">("main")
-  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"backup"|"migration"|"password">("ingredients")
+  const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"backup"|"migration">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
 
@@ -2759,31 +2717,6 @@ export default function App() {
                   
 
                   <button
-                    onClick={() => setSettingsTab("password")}
-                    style={{
-                      ...btnSecondary,
-                      padding: "16px 20px",
-                      background: settingsTab === "password" ? colors.accent : colors.glass,
-                      color: settingsTab === "password" ? "white" : colors.text,
-                      border: `2px solid ${settingsTab === "password" ? colors.accent : colors.glassBorder}`,
-                      borderRadius: 12,
-                      fontSize: 14,
-                      fontWeight: 600,
-                      textAlign: "center",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      gap: 8
-                    }}
-                  >
-                    <span style={{ fontSize: 24 }}>🔐</span>
-                    <span>Password</span>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      Change Settings Password
-                    </span>
-                  </button>
-
-                  <button
                     onClick={() => setSettingsTab("backup")}
                     style={{
                       ...btnSecondary,
@@ -3163,127 +3096,6 @@ export default function App() {
                         </p>
                       </div>
                     )}
-                  </div>
-                </div>
-              )}
-
-              {settingsTab === "password" && (
-                <div style={{ ...card(), background: colors.glass }}>
-                  <h3 style={{ 
-                    margin: "0 0 20px 0", 
-                    fontSize: 18, 
-                    fontWeight: 600, 
-                    color: colors.text,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8
-                  }}>
-                    🔐 Change Settings Password
-                  </h3>
-                  
-                  <div style={{ 
-                    padding: 20, 
-                    background: colors.panel, 
-                    borderRadius: 8,
-                    border: `1px solid ${colors.border}`
-                  }}>
-                    <p style={{ 
-                      margin: "0 0 20px 0", 
-                      fontSize: 14, 
-                      color: colors.muted,
-                      lineHeight: 1.5
-                    }}>
-                      Change the password required to access Settings and unlock editing capabilities.
-                    </p>
-
-                    {passwordChangeError && (
-                      <div style={{ 
-                        padding: 12, 
-                        background: "#FEE2E2", 
-                        color: "#DC2626", 
-                        borderRadius: 6,
-                        marginBottom: 16,
-                        fontSize: 14
-                      }}>
-                        {passwordChangeError}
-                      </div>
-                    )}
-
-                    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                      <div>
-                        <label style={{ 
-                          display: "block", 
-                          marginBottom: 8, 
-                          fontSize: 14, 
-                          fontWeight: 600,
-                          color: colors.text 
-                        }}>
-                          Current Password
-                        </label>
-                        <input
-                          type="password"
-                          value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          placeholder="Enter current password"
-                          style={{ ...inp, width: "100%" }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ 
-                          display: "block", 
-                          marginBottom: 8, 
-                          fontSize: 14, 
-                          fontWeight: 600,
-                          color: colors.text 
-                        }}>
-                          New Password
-                        </label>
-                        <input
-                          type="password"
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="Enter new password (min 4 characters)"
-                          style={{ ...inp, width: "100%" }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ 
-                          display: "block", 
-                          marginBottom: 8, 
-                          fontSize: 14, 
-                          fontWeight: 600,
-                          color: colors.text 
-                        }}>
-                          Confirm New Password
-                        </label>
-                        <input
-                          type="password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          placeholder="Confirm new password"
-                          style={{ ...inp, width: "100%" }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              handleChangePassword()
-                            }
-                          }}
-                        />
-                      </div>
-
-                      <button
-                        onClick={handleChangePassword}
-                        style={{
-                          ...btnPrimary,
-                          background: colors.accent,
-                          boxShadow: shadows.lg,
-                          width: "100%"
-                        }}
-                      >
-                        🔐 Change Password
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}
