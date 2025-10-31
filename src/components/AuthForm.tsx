@@ -1,6 +1,7 @@
 // src/components/AuthForm.tsx
 import { useState } from "react"
 import { supabase } from "../supabaseClient"
+import { verifyPassword, saveLocalSession } from "../utils/localAuth"
 import { inp, btnPrimary, btnSecondary, colors, card } from "../styles"
 
 type Props = {
@@ -25,11 +26,21 @@ export function AuthForm({ onSuccess, onShowRegister }: Props) {
         password: password,
       })
 
-      if (error) {
-        setError(error.message)
-      } else {
-        onSuccess()
-      }
+      if (!error) { onSuccess(); return }
+
+      // Fallback to local auth (app_users)
+      const { data, error: qErr } = await supabase
+        .from('app_users')
+        .select('password_hash, role')
+        .eq('email', email.trim())
+        .limit(1)
+        .maybeSingle()
+
+      if (qErr || !data) { setError("Invalid login credentials"); return }
+      const ok = await verifyPassword(password, data.password_hash)
+      if (!ok) { setError("Invalid login credentials"); return }
+      saveLocalSession({ email: email.trim(), role: data.role as any })
+      onSuccess()
     } catch (err) {
       setError("An unexpected error occurred")
     } finally {

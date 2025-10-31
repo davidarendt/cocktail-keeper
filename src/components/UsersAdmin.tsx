@@ -244,6 +244,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
                       padding: "6px 8px",
                       minWidth: 140
                     }}
+                    disabled={u.user_id.startsWith('local-') ? false : false}
                   >
                     <option value="viewer">👁️ Viewer (read/print)</option>
                     <option value="editor">✏️ Editor (add/edit)</option>
@@ -258,6 +259,7 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
                       fontSize: 11,
                       padding: "6px 12px"
                     }}
+                    disabled={u.user_id.startsWith('local-')}
                   >
                     ✏️ Rename
                   </button>

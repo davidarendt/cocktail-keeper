@@ -22,6 +22,7 @@ import { BatchedItemForm } from "./components/BatchedItemForm"
 import { BatchedItemList } from "./components/BatchedItemList"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
+import { getLocalSession, clearLocalSession } from "./utils/localAuth"
 
 import type {
   Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag, BatchedItem
@@ -74,10 +75,11 @@ export default function App() {
   // self-healing role loader
   useEffect(() => {
     (async () => {
-      if (!session) { 
-        console.log("No session, setting role to viewer")
-        setRole("viewer"); 
-        return 
+      if (!session) {
+        const local = getLocalSession()
+        if (local) { setRole(local.role as Role); return }
+        setRole("viewer");
+        return
       }
 
       console.log("Loading role for user:", session.user.id, session.user.email)
@@ -113,7 +115,7 @@ export default function App() {
     })()
   }, [session])
 
-  async function signOut() { await supabase.auth.signOut() }
+  async function signOut() { clearLocalSession(); await supabase.auth.signOut() }
 
   // ---------- THEME ----------
   function toggleTheme() {
@@ -2268,9 +2270,46 @@ export default function App() {
           created_at: row.created_at
         }))
         
-        setUsers(transformedData as UserRow[])
+        // Fetch local users from app_users
+        const { data: localUsers } = await supabase
+          .from('app_users')
+          .select('id, email, role, created_at')
+          .order('created_at', { ascending: false })
+        const locals: UserRow[] = (localUsers || []).map((u: any) => ({
+          user_id: `local-${u.id}`,
+          email: u.email,
+          role: u.role,
+          display_name: null as any,
+          created_at: u.created_at
+        }))
+        const merged = [...(transformedData as UserRow[]), ...locals]
+        // Deduplicate by email (prefer supabase profiles)
+        const byEmail = new Map<string, UserRow>()
+        for (const u of merged) {
+          const key = (u.email || '').toLowerCase()
+          if (!byEmail.has(key)) byEmail.set(key, u)
+        }
+        setUsers(Array.from(byEmail.values()))
       } else {
-        setUsers((data || []) as UserRow[])
+        const primary = (data || []) as UserRow[]
+        const { data: localUsers } = await supabase
+          .from('app_users')
+          .select('id, email, role, created_at')
+          .order('created_at', { ascending: false })
+        const locals: UserRow[] = (localUsers || []).map((u: any) => ({
+          user_id: `local-${u.id}`,
+          email: u.email,
+          role: u.role,
+          display_name: null as any,
+          created_at: u.created_at
+        }))
+        const merged = [...primary, ...locals]
+        const byEmail = new Map<string, UserRow>()
+        for (const u of merged) {
+          const key = (u.email || '').toLowerCase()
+          if (!byEmail.has(key)) byEmail.set(key, u)
+        }
+        setUsers(Array.from(byEmail.values()))
       }
     } catch (err) {
       console.error("Unexpected error loading users:", err)
@@ -2281,6 +2320,17 @@ export default function App() {
   async function changeUserRole(user_id: string, newRole: Role) {
     try {
       console.log(`Changing user ${user_id} role to ${newRole}`)
+      if (user_id.startsWith('local-')) {
+        const id = user_id.replace('local-','')
+        const { error } = await supabase
+          .from('app_users')
+          .update({ role: newRole })
+          .eq('id', id)
+        if (error) throw error
+        await loadUsers()
+        console.log(`Successfully changed local user role to ${newRole}`)
+        return
+      }
       const { error } = await supabase
         .from("profiles")
         .update({ role: newRole })
