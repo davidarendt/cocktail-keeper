@@ -35,10 +35,7 @@ export default function App() {
   // ---------- AUTH ----------
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<Role>("viewer")
-  const [showRegister, setShowRegister] = useState(false)
-  const [authEmail, setAuthEmail] = useState("")
-  const [authPassword, setAuthPassword] = useState("")
-  const [authLoading, setAuthLoading] = useState(false)
+  
   
   // Move these state declarations to the top to avoid hoisting issues
   const [isDarkMode] = useState(false)
@@ -723,58 +720,9 @@ export default function App() {
     }
   }
 
-  async function handleSignIn(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthLoading(true)
-    setErr("")
+  // handleSignIn removed
 
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: authEmail.trim(),
-        password: authPassword,
-      })
-
-      if (error) {
-        setErr(error.message)
-      }
-    } catch (err) {
-      setErr("An unexpected error occurred")
-    } finally {
-      setAuthLoading(false)
-    }
-  }
-
-  async function handleSignUp(e: React.FormEvent) {
-    e.preventDefault()
-    setAuthLoading(true)
-    setErr("")
-
-    if (authPassword.length < 6) {
-      setErr("Password must be at least 6 characters")
-      setAuthLoading(false)
-      return
-    }
-
-    try {
-      const { error } = await supabase.auth.signUp({
-        email: authEmail.trim(),
-        password: authPassword,
-      })
-
-      if (error) {
-        setErr(error.message)
-      } else {
-        setErr("✅ Account created! You can now sign in.")
-        setShowRegister(false)
-        setAuthEmail("")
-        setAuthPassword("")
-      }
-    } catch (err) {
-      setErr("An unexpected error occurred")
-    } finally {
-      setAuthLoading(false)
-    }
-  }
+  // handleSignUp removed
 
 
   // ---------- ROUTING ----------
@@ -2568,129 +2516,7 @@ export default function App() {
           </div>
         )}
 
-        {/* AUTHENTICATION FORMS (hidden in NO_AUTH_MODE) */}
-        {!NO_AUTH_MODE && !session && (
-          <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
-            {showRegister ? (
-              <div style={{ maxWidth: 400, width: "100%" }}>
-                <h2 style={{ textAlign: "center", marginBottom: 24, color: colors.text }}>
-                  🚀 Create Account
-                </h2>
-                <form onSubmit={handleSignUp} style={{ 
-                  ...card(), 
-                  padding: 24,
-                  background: colors.glass,
-                  border: `1px solid ${colors.glassBorder}`
-                }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", marginBottom: 8, color: colors.text, fontWeight: 500 }}>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="your-email@example.com"
-                      style={inp}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ display: "block", marginBottom: 8, color: colors.text, fontWeight: 500 }}>
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="Choose a secure password"
-                      style={inp}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowRegister(false)}
-                      style={btnSecondary}
-                      disabled={authLoading}
-                    >
-                      ← Back to Sign In
-                    </button>
-                    <button
-                      type="submit"
-                      style={btnPrimary}
-                      disabled={authLoading}
-                    >
-                      {authLoading ? "Creating..." : "Create Account"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              <div style={{ maxWidth: 400, width: "100%" }}>
-                <h2 style={{ textAlign: "center", marginBottom: 24, color: colors.text }}>
-                  🔐 Sign In
-                </h2>
-                <form onSubmit={handleSignIn} style={{ 
-                  ...card(), 
-                  padding: 24,
-                  background: colors.glass,
-                  border: `1px solid ${colors.glassBorder}`
-                }}>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: "block", marginBottom: 8, color: colors.text, fontWeight: 500 }}>
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      value={authEmail}
-                      onChange={(e) => setAuthEmail(e.target.value)}
-                      placeholder="your-email@example.com"
-                      style={inp}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ marginBottom: 20 }}>
-                    <label style={{ display: "block", marginBottom: 8, color: colors.text, fontWeight: 500 }}>
-                      Password
-                    </label>
-                    <input
-                      type="password"
-                      value={authPassword}
-                      onChange={(e) => setAuthPassword(e.target.value)}
-                      placeholder="Enter your password"
-                      style={inp}
-                      required
-                    />
-                  </div>
-
-                  <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowRegister(true)}
-                      style={btnSecondary}
-                      disabled={authLoading}
-                    >
-                      🚀 Create Account
-                    </button>
-                    <button
-                      type="submit"
-                      style={btnPrimary}
-                      disabled={authLoading}
-                    >
-                      {authLoading ? "Signing In..." : "Sign In"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            )}
-          </div>
-        )}
+        
 
         {/* ROUTES */}
         {route === "settings" && (
