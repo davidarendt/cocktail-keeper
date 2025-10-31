@@ -61,8 +61,6 @@ export default function App() {
   const [batchedFormOpen, setBatchedFormOpen] = useState(false)
   const [editingBatchedId, setEditingBatchedId] = useState<string | null>(null)
   const [batchedName, setBatchedName] = useState("")
-  const [batchedBatchSize, setBatchedBatchSize] = useState("")
-  const [batchedBatchUnit, setBatchedBatchUnit] = useState("")
   const [batchedYieldAmount, setBatchedYieldAmount] = useState("")
   const [batchedYieldUnit, setBatchedYieldUnit] = useState("")
   const [batchedStorageNotes, setBatchedStorageNotes] = useState("")
@@ -467,6 +465,15 @@ export default function App() {
     'sugar': ['honey', 'agave', 'maple syrup'],
     'honey': ['sugar', 'agave', 'maple syrup'],
     'agave': ['honey', 'sugar', 'maple syrup']
+  }
+
+  // Check if an ingredient name matches a batched item
+  function findBatchedItemForIngredient(ingredientName: string): BatchedItem | undefined {
+    if (!ingredientName) return undefined
+    const normalizedName = ingredientName.trim().toLowerCase()
+    return batchedItems.find(item => 
+      item.name.toLowerCase() === normalizedName && item.is_active
+    )
   }
 
   function getSubstitutionSuggestions(ingredientName: string): string[] {
@@ -2238,8 +2245,6 @@ export default function App() {
   function resetBatchedForm() {
     setEditingBatchedId(null)
     setBatchedName("")
-    setBatchedBatchSize("")
-    setBatchedBatchUnit(units[0] || "oz")
     setBatchedYieldAmount("")
     setBatchedYieldUnit(units[0] || "oz")
     setBatchedStorageNotes("")
@@ -2256,8 +2261,6 @@ export default function App() {
     resetBatchedForm()
     setEditingBatchedId(item.id)
     setBatchedName(item.name)
-    setBatchedBatchSize(item.batch_size ? String(item.batch_size) : "")
-    setBatchedBatchUnit(item.batch_unit || units[0] || "oz")
     setBatchedYieldAmount(item.yield_amount ? String(item.yield_amount) : "")
     setBatchedYieldUnit(item.yield_unit || units[0] || "oz")
     setBatchedStorageNotes(item.storage_notes || "")
@@ -2274,8 +2277,6 @@ export default function App() {
     try {
       const data = {
         name: batchedName.trim(),
-        batch_size: batchedBatchSize ? Number(batchedBatchSize) : null,
-        batch_unit: batchedBatchUnit || null,
         yield_amount: batchedYieldAmount ? Number(batchedYieldAmount) : null,
         yield_unit: batchedYieldUnit || null,
         storage_notes: batchedStorageNotes.trim() || null,
@@ -3374,8 +3375,6 @@ export default function App() {
               <BatchedItemForm
                 editingId={editingBatchedId}
                 name={batchedName} setName={setBatchedName}
-                batchSize={batchedBatchSize} setBatchSize={setBatchedBatchSize}
-                batchUnit={batchedBatchUnit} setBatchUnit={setBatchedBatchUnit}
                 yieldAmount={batchedYieldAmount} setYieldAmount={setBatchedYieldAmount}
                 yieldUnit={batchedYieldUnit} setYieldUnit={setBatchedYieldUnit}
                 storageNotes={batchedStorageNotes} setStorageNotes={setBatchedStorageNotes}
@@ -4285,6 +4284,7 @@ export default function App() {
                         {(specs[c.id] || []).map((l, i) => {
                           const ingredientName = l.split(' ').slice(1).join(' ').trim()
                           const suggestions = getSubstitutionSuggestions(ingredientName)
+                          const batchedItem = findBatchedItemForIngredient(ingredientName)
                           
                           return (
                             <li key={i} style={{ 
@@ -4294,7 +4294,27 @@ export default function App() {
                               padding: "4px 0"
                             }}>
                               <span style={{ color: colors.primarySolid }}>•</span>
-                              <span style={{ flex: 1 }}>{l}</span>
+                              {batchedItem ? (
+                                <span 
+                                  style={{ 
+                                    flex: 1,
+                                    cursor: "pointer",
+                                    color: colors.accent,
+                                    textDecoration: "underline",
+                                    fontWeight: 600
+                                  }}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    startEditBatched(batchedItem)
+                                    setRoute("batched")
+                                  }}
+                                  title={`Click to view/edit batched item: ${batchedItem.name}`}
+                                >
+                                  {l}
+                                </span>
+                              ) : (
+                                <span style={{ flex: 1 }}>{l}</span>
+                              )}
                               {suggestions.length > 0 && (
                                 <div style={{ 
                                   position: "relative",

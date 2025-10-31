@@ -182,40 +182,15 @@ export function BatchedItemList({ items, cocktails, role, onEdit, onDelete, onAd
             </div>
 
 
-            {/* Batch Info */}
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 12,
-              marginBottom: 12,
-              padding: 12,
-              background: colors.panel,
-              borderRadius: 8,
-              border: `1px solid ${colors.border}`
-            }}>
-              <div>
-                <div style={{
-                  fontSize: 10,
-                  color: colors.muted,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  marginBottom: 4
-                }}>
-                  Batch Size
-                </div>
-                <div style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: colors.text
-                }}>
-                  {item.batch_size && item.batch_unit 
-                    ? `${item.batch_size} ${item.batch_unit}`
-                    : "—"
-                  }
-                </div>
-              </div>
-              <div>
+            {/* Yield Info */}
+            {(item.yield_amount && item.yield_unit) && (
+              <div style={{
+                marginBottom: 12,
+                padding: 12,
+                background: colors.panel,
+                borderRadius: 8,
+                border: `1px solid ${colors.border}`
+              }}>
                 <div style={{
                   fontSize: 10,
                   color: colors.muted,
@@ -231,13 +206,10 @@ export function BatchedItemList({ items, cocktails, role, onEdit, onDelete, onAd
                   fontWeight: 600,
                   color: colors.text
                 }}>
-                  {item.yield_amount && item.yield_unit 
-                    ? `${item.yield_amount} ${item.yield_unit}`
-                    : "—"
-                  }
+                  {item.yield_amount} {item.yield_unit}
                 </div>
               </div>
-            </div>
+            )}
 
 
             {/* Recipe & Storage Notes */}

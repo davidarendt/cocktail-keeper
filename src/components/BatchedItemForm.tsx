@@ -6,8 +6,6 @@ type Props = {
   editingId: string | null
   // form values
   name: string; setName: (v: string) => void
-  batchSize: string; setBatchSize: (v: string) => void
-  batchUnit: string; setBatchUnit: (v: string) => void
   yieldAmount: string; setYieldAmount: (v: string) => void
   yieldUnit: string; setYieldUnit: (v: string) => void
   storageNotes: string; setStorageNotes: (v: string) => void
@@ -24,7 +22,6 @@ export function BatchedItemForm(props: Props) {
   const {
     editingId,
     name, setName,
-    batchSize, setBatchSize, batchUnit, setBatchUnit,
     yieldAmount, setYieldAmount, yieldUnit, setYieldUnit,
     storageNotes, setStorageNotes, recipe, setRecipe,
     isActive, setIsActive, units,
@@ -95,7 +92,7 @@ export function BatchedItemForm(props: Props) {
         </div>
       </div>
 
-      {/* Batch Information */}
+      {/* Yield Information */}
       <div style={{ 
         marginBottom: 24,
         padding: 20,
@@ -109,72 +106,38 @@ export function BatchedItemForm(props: Props) {
           fontWeight: 700,
           ...textGradient(colors.textGradient)
         }}>
-          📊 Batch Information
+          📊 Yield Information
         </h3>
         
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          <div>
-            <label style={{ 
-              display: "block", 
-              fontSize: 11, 
-              color: colors.muted, 
-              marginBottom: 6,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em"
-            }}>
-              Batch Size
-            </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                value={batchSize}
-                onChange={(e)=>setBatchSize(e.target.value)}
-                placeholder="1" 
-                type="number" 
-                step="0.01" 
-                min="0"
-                style={{ ...inp, flex: 1 }}
-              />
-              <select
-                value={batchUnit}
-                onChange={(e)=>setBatchUnit(e.target.value)}
-                style={{ ...inp, minWidth: 80 }}
-              >
-                {units.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <label style={{ 
-              display: "block", 
-              fontSize: 11, 
-              color: colors.muted, 
-              marginBottom: 6,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.05em"
-            }}>
-              Yield Amount
-            </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                value={yieldAmount}
-                onChange={(e)=>setYieldAmount(e.target.value)}
-                placeholder="1" 
-                type="number" 
-                step="0.01" 
-                min="0"
-                style={{ ...inp, flex: 1 }}
-              />
-              <select
-                value={yieldUnit}
-                onChange={(e)=>setYieldUnit(e.target.value)}
-                style={{ ...inp, minWidth: 80 }}
-              >
-                {units.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
+        <div>
+          <label style={{ 
+            display: "block", 
+            fontSize: 11, 
+            color: colors.muted, 
+            marginBottom: 6,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            Yield Amount
+          </label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              value={yieldAmount}
+              onChange={(e)=>setYieldAmount(e.target.value)}
+              placeholder="1" 
+              type="number" 
+              step="0.01" 
+              min="0"
+              style={{ ...inp, flex: 1 }}
+            />
+            <select
+              value={yieldUnit}
+              onChange={(e)=>setYieldUnit(e.target.value)}
+              style={{ ...inp, minWidth: 80 }}
+            >
+              {units.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
           </div>
         </div>
       </div>
