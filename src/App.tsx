@@ -2270,9 +2270,9 @@ export default function App() {
       await loadBatchedItems()
       resetBatchedForm()
       setBatchedFormOpen(false)
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving batched item:", error)
-      setErr("Failed to save batched item")
+      setErr(`Failed to save batched item: ${error?.message || String(error)}`)
     }
   }
 
