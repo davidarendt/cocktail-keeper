@@ -95,15 +95,7 @@ export function AuthForm({ onSuccess, onShowRegister }: Props) {
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "space-between" }}>
-          <button
-            type="button"
-            onClick={onShowRegister}
-            style={btnSecondary}
-            disabled={loading}
-          >
-            Create Account
-          </button>
+        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
           <button
             type="submit"
             style={btnPrimary}

@@ -23,12 +23,16 @@ import { BatchedItemList } from "./components/BatchedItemList"
 
 import { ng, normalizeSearchTerm } from "./utils/text"
 import { getLocalSession, clearLocalSession } from "./utils/localAuth"
+import { getLocalSession, clearLocalSession } from "./utils/localAuth"
 
 import type {
   Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag, BatchedItem
 } from "./types"
 
 export default function App() {
+  // ---------- NO-AUTH MODE (bypass sign-in entirely) ----------
+  // Controlled via env; defaults to false in production
+  const NO_AUTH_MODE = String(import.meta.env.VITE_NO_AUTH_MODE || 'false') === 'true'
   // ---------- AUTH ----------
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<Role>("viewer")
@@ -38,10 +42,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false)
   
   // Move these state declarations to the top to avoid hoisting issues
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    const saved = localStorage.getItem('cocktail-keeper-theme')
-    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  })
+  const [isDarkMode, setIsDarkMode] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
   const [showAdvancedSearch, setShowAdvancedSearch] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
@@ -67,6 +68,11 @@ export default function App() {
   const colors = isDarkMode ? colorThemes.dark : colorThemes.light
 
   useEffect(() => {
+    if (NO_AUTH_MODE) {
+      setSession(null)
+      setRole("admin")
+      return
+    }
     supabase.auth.getSession().then(({ data }) => setSession(data.session ?? null))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => subscription.unsubscribe()
@@ -76,6 +82,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       if (!session) {
+        if (NO_AUTH_MODE) { setRole("admin"); return }
         const local = getLocalSession()
         if (local) { setRole(local.role as Role); return }
         setRole("viewer");
@@ -115,21 +122,15 @@ export default function App() {
     })()
   }, [session])
 
-  async function signOut() { clearLocalSession(); await supabase.auth.signOut() }
+  async function signOut() { if (NO_AUTH_MODE) return; clearLocalSession(); await supabase.auth.signOut() }
 
   // ---------- THEME ----------
-  function toggleTheme() {
-    const newTheme = !isDarkMode
-    setIsDarkMode(newTheme)
-    updateTheme(newTheme)
-    localStorage.setItem('cocktail-keeper-theme', newTheme ? 'dark' : 'light')
-    document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light')
-  }
+  function toggleTheme() {}
 
   // Apply theme on mount
   useEffect(() => {
-    updateTheme(isDarkMode)
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light')
+    updateTheme(false)
+    document.documentElement.setAttribute('data-theme', 'light')
   }, [isDarkMode])
 
   // ---------- KEYBOARD SHORTCUTS ----------
@@ -2690,19 +2691,7 @@ export default function App() {
               ⌨️
             </button>
 
-            {/* Theme Toggle */}
-            <button 
-              onClick={toggleTheme} 
-              style={{
-                ...btnSecondary,
-                marginRight: 12,
-                minWidth: 40,
-                padding: "8px 12px"
-              }}
-              title={`Switch to ${isDarkMode ? 'light' : 'dark'} mode`}
-            >
-              {isDarkMode ? '☀️' : '🌙'}
-            </button>
+            {/* Theme Toggle removed */}
 
             {session ? (
               <button onClick={signOut} style={btnSecondary}>
@@ -2756,8 +2745,8 @@ export default function App() {
           </div>
         )}
 
-        {/* AUTHENTICATION FORMS */}
-        {!session && (
+        {/* AUTHENTICATION FORMS (hidden in NO_AUTH_MODE) */}
+        {!NO_AUTH_MODE && !session && (
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 32 }}>
             {showRegister ? (
               <div style={{ maxWidth: 400, width: "100%" }}>
