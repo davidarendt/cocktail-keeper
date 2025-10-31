@@ -3,6 +3,7 @@ import React from "react"
 import { inp, btnPrimary, btnSecondary, th, td, card, colors, textGradient, shadows } from "../styles"
 import type { Role } from "../types"
 import { hashPassword } from "../utils/localAuth"
+import { supabase } from "../supabaseClient"
 
 export type UserRow = {
   user_id: string
@@ -51,20 +52,10 @@ export function UsersAdmin({ meEmail, users, loading, reload, onChangeRole, onRe
       }
       // Hash on client and store in local table app_users
       const password_hash = await hashPassword(invitePassword)
-      const res = await fetch('/rest/v1/app_users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({ email: inviteEmail.trim(), password_hash, role: inviteRole })
-      })
-      if (!res.ok) {
-        const msg = await res.text()
-        setError(`Failed to create user: ${msg}`)
-        return
-      }
+      const { error } = await supabase
+        .from('app_users')
+        .insert({ email: inviteEmail.trim(), password_hash, role: inviteRole })
+      if (error) { setError(`Failed to create user: ${error.message}`); return }
       setError("")
       setInviteEmail("")
       setInviteRole("viewer")
