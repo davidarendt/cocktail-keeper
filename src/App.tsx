@@ -1251,18 +1251,20 @@ export default function App() {
       }
     }
 
-    // Check if user is authenticated
-    if (!session) {
+    // Check if user is authenticated (either Supabase session or password auth)
+    if (!session && !isSettingsAuthenticated) {
       setErr("You must be logged in to save cocktails");
       return;
     }
 
-    // Debug: Log user info
-    console.log("User session:", {
-      userId: session.user.id,
-      email: session.user.email,
-      role: role
-    });
+    // Debug: Log user info (only if Supabase session exists)
+    if (session) {
+      console.log("User session:", {
+        userId: session.user.id,
+        email: session.user.email,
+        role: role
+      });
+    }
 
     // Check if user has permission to create cocktails
     if (role !== "editor" && role !== "admin") {
