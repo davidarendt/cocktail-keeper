@@ -6,15 +6,12 @@ type Props = {
   editingId: string | null
   // form values
   name: string; setName: (v: string) => void
-  description: string; setDescription: (v: string) => void
   batchSize: string; setBatchSize: (v: string) => void
   batchUnit: string; setBatchUnit: (v: string) => void
   yieldAmount: string; setYieldAmount: (v: string) => void
   yieldUnit: string; setYieldUnit: (v: string) => void
-  costPerBatch: string; setCostPerBatch: (v: string) => void
-  shelfLifeDays: string; setShelfLifeDays: (v: string) => void
   storageNotes: string; setStorageNotes: (v: string) => void
-  recipeNotes: string; setRecipeNotes: (v: string) => void
+  recipe: string; setRecipe: (v: string) => void
   isActive: boolean; setIsActive: (v: boolean) => void
   // dropdown data
   units: string[]
@@ -26,11 +23,10 @@ type Props = {
 export function BatchedItemForm(props: Props) {
   const {
     editingId,
-    name, setName, description, setDescription,
+    name, setName,
     batchSize, setBatchSize, batchUnit, setBatchUnit,
     yieldAmount, setYieldAmount, yieldUnit, setYieldUnit,
-    costPerBatch, setCostPerBatch, shelfLifeDays, setShelfLifeDays,
-    storageNotes, setStorageNotes, recipeNotes, setRecipeNotes,
+    storageNotes, setStorageNotes, recipe, setRecipe,
     isActive, setIsActive, units,
     onClose, onSubmit
   } = props
@@ -75,9 +71,6 @@ export function BatchedItemForm(props: Props) {
 
       {/* Basic Information */}
       <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", 
-        gap: 16, 
         marginBottom: 24 
       }}>
         <div>
@@ -100,80 +93,6 @@ export function BatchedItemForm(props: Props) {
             required
           />
         </div>
-        
-        <div>
-          <label style={{ 
-            display: "block", 
-            fontSize: 12, 
-            color: colors.muted, 
-            marginBottom: 8,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em"
-          }}>
-            💰 Cost per Batch
-          </label>
-          <input 
-            value={costPerBatch} 
-            onChange={e=>setCostPerBatch(e.target.value)} 
-            placeholder="0.00" 
-            type="number" 
-            step="0.01" 
-            min="0"
-            style={inp} 
-          />
-        </div>
-        
-        <div>
-          <label style={{ 
-            display: "block", 
-            fontSize: 12, 
-            color: colors.muted, 
-            marginBottom: 8,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em"
-          }}>
-            📅 Shelf Life (Days)
-          </label>
-          <input 
-            value={shelfLifeDays} 
-            onChange={e=>setShelfLifeDays(e.target.value)} 
-            placeholder="30" 
-            type="number" 
-            min="1"
-            style={inp} 
-          />
-        </div>
-      </div>
-
-      {/* Description */}
-      <div style={{ marginBottom: 24 }}>
-        <label style={{ 
-          display: "block", 
-          fontSize: 12, 
-          color: colors.muted, 
-          marginBottom: 8,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em"
-        }}>
-          📝 Description
-        </label>
-        <textarea 
-          value={description} 
-          onChange={e=>setDescription(e.target.value)} 
-          placeholder="Brief description of this batched item..." 
-          style={{ 
-            ...inp, 
-            minHeight: 80, 
-            height: 80,
-            resize: "vertical",
-            fontFamily: "inherit",
-            lineHeight: 1.5,
-            width: "100%"
-          }} 
-        />
       </div>
 
       {/* Batch Information */}
@@ -277,12 +196,12 @@ export function BatchedItemForm(props: Props) {
             textTransform: "uppercase",
             letterSpacing: "0.05em"
           }}>
-            🧪 Recipe Notes
+            📝 Recipe
           </label>
           <textarea 
-            value={recipeNotes} 
-            onChange={e=>setRecipeNotes(e.target.value)} 
-            placeholder="Instructions, tips, variations..." 
+            value={recipe} 
+            onChange={e=>setRecipe(e.target.value)} 
+            placeholder="Recipe instructions, ingredients, steps..." 
             style={{ 
               ...inp, 
               minHeight: 100, 

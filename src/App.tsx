@@ -61,15 +61,12 @@ export default function App() {
   const [batchedFormOpen, setBatchedFormOpen] = useState(false)
   const [editingBatchedId, setEditingBatchedId] = useState<string | null>(null)
   const [batchedName, setBatchedName] = useState("")
-  const [batchedDescription, setBatchedDescription] = useState("")
   const [batchedBatchSize, setBatchedBatchSize] = useState("")
   const [batchedBatchUnit, setBatchedBatchUnit] = useState("")
   const [batchedYieldAmount, setBatchedYieldAmount] = useState("")
   const [batchedYieldUnit, setBatchedYieldUnit] = useState("")
-  const [batchedCostPerBatch, setBatchedCostPerBatch] = useState("")
-  const [batchedShelfLifeDays, setBatchedShelfLifeDays] = useState("")
   const [batchedStorageNotes, setBatchedStorageNotes] = useState("")
-  const [batchedRecipeNotes, setBatchedRecipeNotes] = useState("")
+  const [batchedRecipe, setBatchedRecipe] = useState("")
   const [batchedIsActive, setBatchedIsActive] = useState(true)
 
   // Get current colors based on theme
@@ -2241,15 +2238,12 @@ export default function App() {
   function resetBatchedForm() {
     setEditingBatchedId(null)
     setBatchedName("")
-    setBatchedDescription("")
     setBatchedBatchSize("")
     setBatchedBatchUnit(units[0] || "oz")
     setBatchedYieldAmount("")
     setBatchedYieldUnit(units[0] || "oz")
-    setBatchedCostPerBatch("")
-    setBatchedShelfLifeDays("")
     setBatchedStorageNotes("")
-    setBatchedRecipeNotes("")
+    setBatchedRecipe("")
     setBatchedIsActive(true)
   }
 
@@ -2262,15 +2256,12 @@ export default function App() {
     resetBatchedForm()
     setEditingBatchedId(item.id)
     setBatchedName(item.name)
-    setBatchedDescription(item.description || "")
     setBatchedBatchSize(item.batch_size ? String(item.batch_size) : "")
     setBatchedBatchUnit(item.batch_unit || units[0] || "oz")
     setBatchedYieldAmount(item.yield_amount ? String(item.yield_amount) : "")
     setBatchedYieldUnit(item.yield_unit || units[0] || "oz")
-    setBatchedCostPerBatch(item.cost_per_batch ? String(item.cost_per_batch) : "")
-    setBatchedShelfLifeDays(item.shelf_life_days ? String(item.shelf_life_days) : "")
     setBatchedStorageNotes(item.storage_notes || "")
-    setBatchedRecipeNotes(item.recipe_notes || "")
+    setBatchedRecipe(item.recipe_notes || "")
     setBatchedIsActive(item.is_active)
     setBatchedFormOpen(true)
   }
@@ -2283,15 +2274,12 @@ export default function App() {
     try {
       const data = {
         name: batchedName.trim(),
-        description: batchedDescription.trim() || null,
         batch_size: batchedBatchSize ? Number(batchedBatchSize) : null,
         batch_unit: batchedBatchUnit || null,
         yield_amount: batchedYieldAmount ? Number(batchedYieldAmount) : null,
         yield_unit: batchedYieldUnit || null,
-        cost_per_batch: batchedCostPerBatch ? Number(batchedCostPerBatch) : null,
-        shelf_life_days: batchedShelfLifeDays ? Number(batchedShelfLifeDays) : null,
         storage_notes: batchedStorageNotes.trim() || null,
-        recipe_notes: batchedRecipeNotes.trim() || null,
+        recipe_notes: batchedRecipe.trim() || null,
         is_active: batchedIsActive
       }
 
@@ -3367,10 +3355,18 @@ export default function App() {
             {/* Batched Items List */}
             <BatchedItemList
               items={batchedItems}
+              cocktails={rows}
               role={role}
               onEdit={startEditBatched}
               onDelete={deleteBatched}
               onAddNew={openBatchedForm}
+              onCocktailClick={(cocktailId) => {
+                const cocktail = rows.find(c => c.id === cocktailId)
+                if (cocktail) {
+                  startEdit(cocktail)
+                  setRoute("main")
+                }
+              }}
             />
 
             {/* Batched Item Form */}
@@ -3378,15 +3374,12 @@ export default function App() {
               <BatchedItemForm
                 editingId={editingBatchedId}
                 name={batchedName} setName={setBatchedName}
-                description={batchedDescription} setDescription={setBatchedDescription}
                 batchSize={batchedBatchSize} setBatchSize={setBatchedBatchSize}
                 batchUnit={batchedBatchUnit} setBatchUnit={setBatchedBatchUnit}
                 yieldAmount={batchedYieldAmount} setYieldAmount={setBatchedYieldAmount}
                 yieldUnit={batchedYieldUnit} setYieldUnit={setBatchedYieldUnit}
-                costPerBatch={batchedCostPerBatch} setCostPerBatch={setBatchedCostPerBatch}
-                shelfLifeDays={batchedShelfLifeDays} setShelfLifeDays={setBatchedShelfLifeDays}
                 storageNotes={batchedStorageNotes} setStorageNotes={setBatchedStorageNotes}
-                recipeNotes={batchedRecipeNotes} setRecipeNotes={setBatchedRecipeNotes}
+                recipe={batchedRecipe} setRecipe={setBatchedRecipe}
                 isActive={batchedIsActive} setIsActive={setBatchedIsActive}
                 units={units}
                 onClose={() => { resetBatchedForm(); setBatchedFormOpen(false) }}
