@@ -1234,15 +1234,25 @@ export default function App() {
     }
     
     // Check for duplicate cocktail names (case-insensitive)
-    if (!editingId) { // Only check for duplicates when creating new cocktails
-      const { data: existingCocktails } = await supabase
-        .from("cocktails")
-        .select("name")
-        .ilike("name", name.trim())
-      
-      if (existingCocktails && existingCocktails.length > 0) {
+    // When creating: check if name exists
+    // When editing: check if name exists AND it's not the current cocktail
+    const { data: existingCocktails } = await supabase
+      .from("cocktails")
+      .select("id, name")
+      .ilike("name", name.trim())
+    
+    if (existingCocktails && existingCocktails.length > 0) {
+      if (!editingId) {
+        // Creating new cocktail - any match is a duplicate
         setErr(`Cocktail "${name}" already exists. Please use a different name.`);
         return;
+      } else {
+        // Editing existing cocktail - check if match is a different cocktail
+        const isDuplicate = existingCocktails.some(c => c.id !== editingId);
+        if (isDuplicate) {
+          setErr(`Cocktail "${name}" already exists. Please use a different name.`);
+          return;
+        }
       }
     }
 
@@ -1279,11 +1289,26 @@ export default function App() {
       is_ology_recipe: isOlogyRecipe
     }
 
-    const { data: up, error } = await supabase
-      .from("cocktails")
-      .upsert(cocktail, { onConflict: "name" })
-      .select()
-      .single()
+    let up, error
+    if (editingId) {
+      // Updating existing cocktail - use update with id conflict resolution
+      const result = await supabase
+        .from("cocktails")
+        .upsert(cocktail, { onConflict: "id" })
+        .select()
+        .single()
+      up = result.data
+      error = result.error
+    } else {
+      // Creating new cocktail - use insert (no conflict possible since we checked duplicates)
+      const result = await supabase
+        .from("cocktails")
+        .insert(cocktail)
+        .select()
+        .single()
+      up = result.data
+      error = result.error
+    }
     
     if (error) {
       console.error("Save error:", error);
