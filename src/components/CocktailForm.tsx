@@ -558,11 +558,13 @@ export function CocktailForm(props: Props) {
                     onClick={()=>{
                       if (i > 0) {
                         setLines(prev => {
-                          const newLines = [...prev]
+                          const newLines: IngredientLine[] = [...prev]
                           // Swap with previous item
-                          [newLines[i-1], newLines[i]] = [newLines[i], newLines[i-1]]
+                          const temp = newLines[i-1]
+                          newLines[i-1] = newLines[i]
+                          newLines[i] = temp
                           // Update positions
-                          return newLines.map((x, idx) => ({ ...x, position: idx + 1 }))
+                          return newLines.map((x: IngredientLine, idx: number) => ({ ...x, position: idx + 1 }))
                         })
                       }
                     }}
@@ -583,11 +585,13 @@ export function CocktailForm(props: Props) {
                     onClick={()=>{
                       if (i < lines.length - 1) {
                         setLines(prev => {
-                          const newLines = [...prev]
+                          const newLines: IngredientLine[] = [...prev]
                           // Swap with next item
-                          [newLines[i], newLines[i+1]] = [newLines[i+1], newLines[i]]
+                          const temp = newLines[i]
+                          newLines[i] = newLines[i+1]
+                          newLines[i+1] = temp
                           // Update positions
-                          return newLines.map((x, idx) => ({ ...x, position: idx + 1 }))
+                          return newLines.map((x: IngredientLine, idx: number) => ({ ...x, position: idx + 1 }))
                         })
                       }
                     }}
