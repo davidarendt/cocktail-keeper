@@ -63,6 +63,7 @@ CREATE TABLE cocktails (
   price DECIMAL(10,2),
   last_special_on DATE,
   is_ology_recipe BOOLEAN NOT NULL DEFAULT false,
+  development_status TEXT NOT NULL DEFAULT 'ready' CHECK (development_status IN ('ready', 'in_progress', 'untested')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -89,6 +90,7 @@ CREATE TABLE cocktail_tags (
 -- 3. CREATE INDEXES
 -- ==============================================
 CREATE INDEX idx_cocktails_name ON cocktails(name);
+CREATE INDEX idx_cocktails_development_status ON cocktails(development_status);
 CREATE INDEX idx_ingredients_name ON ingredients(name);
 CREATE INDEX idx_catalog_items_kind ON catalog_items(kind);
 CREATE INDEX idx_recipe_ingredients_cocktail_id ON recipe_ingredients(cocktail_id);

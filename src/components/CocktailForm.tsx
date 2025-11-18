@@ -1,7 +1,7 @@
 // src/components/CocktailForm.tsx
 import React, { useState } from "react"
 import { inp, btnPrimary, btnSecondary, colors, card, textGradient, shadows } from "../styles"
-import type { Unit, IngredientLine, Tag } from "../types"
+import type { Unit, IngredientLine, Tag, DevelopmentStatus } from "../types"
 
 
 type Props = {
@@ -22,6 +22,7 @@ type Props = {
   price: string;         setPrice: (v: string) => void
   specialDate: string;   setSpecialDate: (v: string) => void
   isOlogyRecipe: boolean; setOlogyRecipe: (v: boolean) => void
+  developmentStatus: DevelopmentStatus; setDevelopmentStatus: React.Dispatch<React.SetStateAction<DevelopmentStatus>>
   lines: IngredientLine[]; setLines: (updater: (prev: IngredientLine[]) => IngredientLine[]) => void
   selectedTags: string[]; setSelectedTags: (v: string[] | ((prev: string[]) => string[])) => void
   // photo
@@ -46,6 +47,7 @@ export function CocktailForm(props: Props) {
     methods, glasses, ices, availableTags, units,
     name, setName, method, setMethod, glass, setGlass, ice, setIce,
     notes, setNotes, price, setPrice, specialDate, setSpecialDate, isOlogyRecipe, setOlogyRecipe,
+    developmentStatus, setDevelopmentStatus,
     lines, setLines, selectedTags, setSelectedTags,
     photoUrl,
     onClose, onSubmit,
@@ -549,7 +551,59 @@ export function CocktailForm(props: Props) {
             </select>
               </div>
 
-              <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
+              <div style={{ display: "flex", gap: 8, alignItems: "end", flexDirection: "column" }}>
+                <div style={{ display: "flex", gap: 4 }}>
+                  <button 
+                    type="button" 
+                    onClick={()=>{
+                      if (i > 0) {
+                        setLines(prev => {
+                          const newLines = [...prev]
+                          // Swap with previous item
+                          [newLines[i-1], newLines[i]] = [newLines[i], newLines[i-1]]
+                          // Update positions
+                          return newLines.map((x, idx) => ({ ...x, position: idx + 1 }))
+                        })
+                      }
+                    }}
+                    disabled={i === 0}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 11,
+                      padding: "6px 10px",
+                      opacity: i === 0 ? 0.5 : 1,
+                      cursor: i === 0 ? "not-allowed" : "pointer"
+                    }}
+                    title="Move up"
+                  >
+                    ⬆️
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={()=>{
+                      if (i < lines.length - 1) {
+                        setLines(prev => {
+                          const newLines = [...prev]
+                          // Swap with next item
+                          [newLines[i], newLines[i+1]] = [newLines[i+1], newLines[i]]
+                          // Update positions
+                          return newLines.map((x, idx) => ({ ...x, position: idx + 1 }))
+                        })
+                      }
+                    }}
+                    disabled={i === lines.length - 1}
+                    style={{
+                      ...btnSecondary,
+                      fontSize: 11,
+                      padding: "6px 10px",
+                      opacity: i === lines.length - 1 ? 0.5 : 1,
+                      cursor: i === lines.length - 1 ? "not-allowed" : "pointer"
+                    }}
+                    title="Move down"
+                  >
+                    ⬇️
+                  </button>
+                </div>
                 <button 
                   type="button" 
                   onClick={()=>{
@@ -560,6 +614,7 @@ export function CocktailForm(props: Props) {
                     fontSize: 11,
                     padding: "8px 12px"
                   }}
+                  title="Delete ingredient"
                 >
                   🗑️
                 </button>
@@ -575,6 +630,7 @@ export function CocktailForm(props: Props) {
                       fontSize: 11,
                       padding: "8px 12px"
                     }}
+                    title="Add ingredient"
                   >
                     ➕
                   </button>
@@ -754,6 +810,43 @@ export function CocktailForm(props: Props) {
             />
             🍸 Ology Menu Item
           </label>
+        </div>
+
+        {/* Development status selector */}
+        <div>
+          <label style={{
+            display: "block",
+            fontSize: 12,
+            color: colors.muted,
+            marginBottom: 8,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.05em"
+          }}>
+            🛠️ Development Status
+          </label>
+          <select
+            value={developmentStatus}
+            onChange={e => setDevelopmentStatus(e.target.value as DevelopmentStatus)}
+            style={{
+              ...inp,
+              appearance: "auto",
+              cursor: "pointer"
+            }}
+          >
+            <option value="ready">Ready for Menu</option>
+            <option value="in_progress">In Progress</option>
+            <option value="untested">Un-Tested</option>
+          </select>
+          <p style={{
+            marginTop: 6,
+            fontSize: 12,
+            color: colors.muted,
+            lineHeight: 1.4
+          }}>
+            Use this to track cocktails that still need testing or refinement.
+            They stay hidden from the main list by default but remain easy to find later.
+          </p>
         </div>
       </div>
 

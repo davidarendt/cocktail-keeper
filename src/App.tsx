@@ -25,8 +25,35 @@ import { ng, normalizeSearchTerm } from "./utils/text"
 import { getLocalSession } from "./utils/localAuth"
 
 import type {
-  Role, Cocktail as TCocktail, IngredientLine, CatalogItemRow as CatalogItem, Ingredient, Tag, BatchedItem
+  Role,
+  Cocktail as TCocktail,
+  IngredientLine,
+  CatalogItemRow as CatalogItem,
+  Ingredient,
+  Tag,
+  BatchedItem,
+  DevelopmentStatus
 } from "./types"
+
+const STATUS_ORDER: DevelopmentStatus[] = ["ready", "in_progress", "untested"]
+const DEFAULT_STATUS_MAIN: DevelopmentStatus[] = ["ready"]
+const DEFAULT_STATUS_WIP: DevelopmentStatus[] = ["in_progress", "untested"]
+
+const sortStatuses = (statuses: DevelopmentStatus[]): DevelopmentStatus[] =>
+  [...statuses].sort((a, b) => STATUS_ORDER.indexOf(a) - STATUS_ORDER.indexOf(b))
+
+const areStatusSelectionsEqual = (a: DevelopmentStatus[], b: DevelopmentStatus[]): boolean => {
+  if (a.length !== b.length) return false
+  const sortedA = sortStatuses(a)
+  const sortedB = sortStatuses(b)
+  return sortedA.every((status, idx) => sortedB[idx] === status)
+}
+
+const STATUS_OPTIONS: Array<{ value: DevelopmentStatus; label: string; icon: string }> = [
+  { value: "ready", label: "Ready", icon: "✅" },
+  { value: "in_progress", label: "In-Progress", icon: "🔧" },
+  { value: "untested", label: "Un-Tested", icon: "🧪" }
+]
 
 export default function App() {
   // ---------- NO-AUTH MODE (bypass sign-in entirely) ----------
@@ -785,7 +812,7 @@ export default function App() {
 
 
   // ---------- ROUTING ----------
-  const [route, setRoute] = useState<"main"|"settings"|"batched">("main")
+  const [route, setRoute] = useState<"main"|"settings"|"batched"|"wip">("main")
   const [settingsTab, setSettingsTab] = useState<"methods"|"glasses"|"ices"|"units"|"tags"|"ingredients"|"backup"|"migration">("ingredients")
   const [newTagName, setNewTagName] = useState("")
   const [newTagColor, setNewTagColor] = useState("#3B82F6")
@@ -864,14 +891,50 @@ export default function App() {
   const [priceMin, setPriceMin] = useState("")
   const [priceMax, setPriceMax] = useState("")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [statusFiltersMain, setStatusFiltersMain] = useState<DevelopmentStatus[]>([...DEFAULT_STATUS_MAIN])
+  const [statusFiltersWip, setStatusFiltersWip] = useState<DevelopmentStatus[]>([...DEFAULT_STATUS_WIP])
   const [availableTags, setAvailableTags] = useState<Tag[]>([])
   const [view, setView] = useState<"cards"|"list">("cards")
   const [sortBy, setSortBy] = useState<"special_desc" | "special_asc" | "name_asc" | "name_desc">("special_desc")
 
-  useEffect(() => { load() }, [q, fMethod, fGlass, specialOnly, ologyOnly, sortBy, selectedTags, priceMin, priceMax])
+  const statusFiltersForRoute = route === "wip" ? statusFiltersWip : statusFiltersMain
+  const defaultStatusSelection = route === "wip" ? DEFAULT_STATUS_WIP : DEFAULT_STATUS_MAIN
+  const statusFiltersAreDefault = areStatusSelectionsEqual(statusFiltersForRoute, defaultStatusSelection)
+
+  const toggleStatusFilter = (status: DevelopmentStatus) => {
+    const updater = route === "wip" ? setStatusFiltersWip : setStatusFiltersMain
+    updater(prev => {
+      const hasStatus = prev.includes(status)
+      const next = hasStatus ? prev.filter(s => s !== status) : [...prev, status]
+      if (next.length === 0) return prev
+      return sortStatuses(Array.from(new Set(next)))
+    })
+  }
+
+  const resetStatusFilters = () => {
+    if (route === "wip") {
+      setStatusFiltersWip([...DEFAULT_STATUS_WIP])
+    } else {
+      setStatusFiltersMain([...DEFAULT_STATUS_MAIN])
+    }
+  }
+
+  useEffect(() => {
+    if (route === "main" || route === "wip") {
+      load()
+    }
+  }, [q, fMethod, fGlass, specialOnly, ologyOnly, sortBy, selectedTags, priceMin, priceMax, route, statusFiltersMain, statusFiltersWip])
   async function load() {
     setLoading(true); setErr("")
     let query = supabase.from("cocktails").select("*")
+
+    // Filter by development status based on current route
+    const statusSelection = route === "wip" ? statusFiltersWip : statusFiltersMain
+    const defaultStatusesForRoute = route === "wip" ? DEFAULT_STATUS_WIP : DEFAULT_STATUS_MAIN
+    const effectiveStatuses =
+      statusSelection.length > 0 ? statusSelection : defaultStatusesForRoute
+
+    query = query.in("development_status", effectiveStatuses)
 
     if (fMethod !== "Any" && fMethod.trim()) query = query.eq("method", fMethod)
     if (fGlass.trim()) query = query.eq("glass", fGlass.trim())
@@ -1030,6 +1093,7 @@ export default function App() {
   const [price, setPrice] = useState("")
   const [specialDate, setSpecialDate] = useState("") // YYYY-MM-DD
   const [isOlogyRecipe, setOlogyRecipe] = useState(false)
+  const [developmentStatus, setDevelopmentStatus] = useState<DevelopmentStatus>("ready")
   const [lines, setLines] = useState<IngredientLine[]>([
     { ingredientName:"", amount:"", unit:"oz", position:1 }
   ])
@@ -1044,6 +1108,7 @@ export default function App() {
     price: "",
     specialDate: "",
     isOlogyRecipe: false,
+    developmentStatus: "ready" as DevelopmentStatus,
     lines: [{ ingredientName:"", amount:"", unit:"oz", position:1 }],
     selectedTags: [] as string[]
   })
@@ -1059,6 +1124,7 @@ export default function App() {
       price,
       specialDate,
       isOlogyRecipe,
+      developmentStatus,
       lines,
       selectedTags
     }
@@ -1107,7 +1173,7 @@ export default function App() {
     setEditingId(null)
     setName(""); setMethod("")
     setGlass(""); setIce(""); setNotes("")
-    setPrice(""); setSpecialDate(""); setOlogyRecipe(false)
+    setPrice(""); setSpecialDate(""); setOlogyRecipe(false); setDevelopmentStatus("ready")
     setLines([{ ingredientName:"", amount:"", unit:units[0] || "oz", position:1 }])
     setSelectedTags([])
     
@@ -1121,6 +1187,7 @@ export default function App() {
       price: "",
       specialDate: "",
       isOlogyRecipe: false,
+      developmentStatus: "ready" as DevelopmentStatus,
       lines: [{ ingredientName:"", amount:"", unit:units[0] || "oz", position:1 }],
       selectedTags: []
     })
@@ -1145,6 +1212,7 @@ export default function App() {
     setPrice(c.price == null ? "" : String(c.price))
     setSpecialDate(c.last_special_on || "")
     setOlogyRecipe(c.is_ology_recipe || false)
+    setDevelopmentStatus(c.development_status)
     
     // Load tags for this cocktail
     const { data: cocktailTags } = await supabase
@@ -1185,6 +1253,7 @@ export default function App() {
       price: c.price == null ? "" : String(c.price),
       specialDate: c.last_special_on || "",
       isOlogyRecipe: c.is_ology_recipe || false,
+      developmentStatus: c.development_status,
       lines: mapped.length ? mapped : [{ ingredientName:"", amount:"", unit:"oz", position:1 }],
       selectedTags: cocktailTags?.map(ct => ct.tag_id) || []
     })
@@ -1286,7 +1355,8 @@ export default function App() {
       notes: notes.trim() || null,
       price: price === "" ? null : Number(price),
       last_special_on: specialDate || null,
-      is_ology_recipe: isOlogyRecipe
+      is_ology_recipe: isOlogyRecipe,
+      development_status: developmentStatus
     }
 
     let up, error
@@ -2473,10 +2543,29 @@ export default function App() {
               >
                 🏭 Batched Items
               </button>
+                        )}
+
+            {(role === "editor" || role === "admin") && (
+              <button
+                onClick={() => handleCloseForm(() => {
+                  resetForm()
+                  setFormOpen(false)
+                  setRoute("wip")
+                })}
+                style={{
+                  ...btnSecondary,
+                  background: route === "wip" ? colors.primarySolid : colors.glass,
+                  color: route === "wip" ? "white" : colors.text,
+                  boxShadow: route === "wip" ? shadows.lg : "none"
+                }}
+                title="View cocktails marked In-Progress or Un-Tested"
+              >
+                🔧 Test Kitchen
+              </button>
             )}
 
-            <button 
-              onClick={handleSettingsClick} 
+            <button
+              onClick={handleSettingsClick}
               style={{
                 ...btnSecondary,
                 background: route === "settings" ? colors.primarySolid : colors.glass,
@@ -3598,6 +3687,54 @@ export default function App() {
                     🍸 Menu
                   </button>
 
+                  {/* Development Status Filter */}
+                  <div
+                    style={{
+                      gridColumn: "1 / -1",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
+                      marginTop: 4
+                    }}
+                  >
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.05em",
+                      color: colors.muted
+                    }}>
+                      Status
+                    </span>
+                    {STATUS_OPTIONS.map(option => {
+                      const active = statusFiltersForRoute.includes(option.value)
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => toggleStatusFilter(option.value)}
+                          style={{
+                            ...btnSecondary,
+                            fontSize: 11,
+                            padding: "4px 12px",
+                            borderRadius: 999,
+                            background: active ? colors.primarySolid : colors.glass,
+                            color: active ? "white" : colors.text,
+                            border: `1px solid ${active ? colors.primarySolid : colors.glassBorder}`,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6
+                          }}
+                          title={`Toggle ${option.label} cocktails`}
+                        >
+                          <span>{option.icon}</span>
+                          <span>{option.label}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+
                   {/* Clear All Filters */}
                   <button
                     onClick={() => {
@@ -3609,6 +3746,7 @@ export default function App() {
                       setSelectedTags([])
                       setPriceMin("")
                       setPriceMax("")
+                      resetStatusFilters()
                     }}
                     style={{
                       ...btnSecondary,
@@ -3628,7 +3766,7 @@ export default function App() {
 
 
               {/* Active Filters Row */}
-              {(q || (fMethod !== "Any" && fMethod) || fGlass || specialOnly || ologyOnly || selectedTags.length > 0 || priceMin || priceMax) && (
+              {(q || (fMethod !== "Any" && fMethod) || fGlass || specialOnly || ologyOnly || selectedTags.length > 0 || priceMin || priceMax || !statusFiltersAreDefault) && (
                 <div style={{ 
                   display: "flex", 
                   gap: 8, 
@@ -3698,6 +3836,41 @@ export default function App() {
                     ) : null
                   })}
                   
+                  {!statusFiltersAreDefault && statusFiltersForRoute.map(status => {
+                    const option = STATUS_OPTIONS.find(opt => opt.value === status)
+                    if (!option) return null
+                    return (
+                      <span
+                        key={`status-chip-${status}`}
+                        style={{
+                          background: colors.primarySolid,
+                          color: "white",
+                          padding: "4px 8px",
+                          borderRadius: 12,
+                          fontSize: 11,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 4
+                        }}
+                      >
+                        {option.icon} {option.label}
+                        <button
+                          onClick={() => toggleStatusFilter(status)}
+                          style={{
+                            background: "none",
+                            border: "none",
+                            color: "white",
+                            cursor: "pointer",
+                            fontSize: 10,
+                            padding: 0
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    )
+                  })}
+
 
                   {q && (
                     <span style={{
@@ -3880,6 +4053,7 @@ export default function App() {
                       setSelectedTags([])
                       setPriceMin("")
                       setPriceMax("")
+                      resetStatusFilters()
                     }}
                   style={{
                     ...btnSecondary,
@@ -3933,6 +4107,7 @@ export default function App() {
                 price={price} setPrice={setPrice}
                 specialDate={specialDate} setSpecialDate={setSpecialDate}
                 isOlogyRecipe={isOlogyRecipe} setOlogyRecipe={setOlogyRecipe}
+                developmentStatus={developmentStatus} setDevelopmentStatus={setDevelopmentStatus}
                 lines={lines} setLines={(updater)=> setLines(prev => updater(prev))}
                 selectedTags={selectedTags} setSelectedTags={setSelectedTags}
                 photoUrl={editingId ? (rows.find(c => c.id === editingId)?.photo_url || cocktailPhotos[editingId] || null) : null}
@@ -4050,6 +4225,46 @@ export default function App() {
                           {c.is_ology_recipe && (
                             <div style={ologyBadge}>
                               🍸 Menu
+                            </div>
+                          )}
+                          {c.development_status === "in_progress" && (
+                            <div
+                              style={{
+                                background: "#e0f2fe",
+                                color: colors.primary,
+                                padding: "4px 8px",
+                                borderRadius: 8,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                border: `1px solid ${colors.border}`
+                              }}
+                            >
+                              🔧 In Progress
+                            </div>
+                          )}
+                          {c.development_status === "untested" && (
+                            <div
+                              style={{
+                                background: "#fef3c7",
+                                color: colors.warningSolid,
+                                padding: "4px 8px",
+                                borderRadius: 8,
+                                fontSize: 11,
+                                fontWeight: 600,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                border: `1px solid ${colors.warningSolid}40`
+                              }}
+                            >
+                              🧪 Un-Tested
                             </div>
                           )}
                         </div>
@@ -4358,6 +4573,7 @@ export default function App() {
                       <th style={th}>🍸 Name</th>
                       <th style={th}>🔄 Method</th>
                       <th style={th}>🥃 Glass</th>
+                      <th style={th}>🛠️ Status</th>
                       <th style={th}>💰 Price</th>
                       <th style={th}>🧪 Specs</th>
                       <th style={th}>📝 Notes</th>
@@ -4403,6 +4619,49 @@ export default function App() {
                         </td>
                         <td style={td}>{c.method || "—"}</td>
                         <td style={td}>{c.glass || "—"}</td>
+                        <td style={td}>
+                          {(() => {
+                            const option = STATUS_OPTIONS.find(opt => opt.value === c.development_status)
+                            if (!option) return "—"
+                            const background =
+                              c.development_status === "in_progress"
+                                ? "#e0f2fe"
+                                : c.development_status === "untested"
+                                  ? "#fef3c7"
+                                  : "#dcfce7"
+                            const color =
+                              c.development_status === "in_progress"
+                                ? colors.primary
+                                : c.development_status === "untested"
+                                  ? colors.warningSolid
+                                  : colors.successSolid
+                            const border =
+                              c.development_status === "in_progress"
+                                ? `1px solid ${colors.border}`
+                                : c.development_status === "untested"
+                                  ? `1px solid ${colors.warningSolid}40`
+                                  : `1px solid ${colors.successSolid}40`
+
+                            return (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                  padding: "2px 10px",
+                                  borderRadius: 999,
+                                  background,
+                                  color,
+                                  border
+                                }}
+                              >
+                                {option.icon} {option.label}
+                              </span>
+                            )
+                          })()}
+                        </td>
                         <td style={td}>
                           {c.price != null ? (
                             <span style={priceDisplay}>
@@ -4693,6 +4952,25 @@ export default function App() {
                   }}>
                     {c.name}
                   </h1>
+                  {c.development_status !== "ready" && (
+                    <span
+                      style={{
+                        background: c.development_status === "in_progress" ? "#e0f2fe" : "#fef3c7",
+                        color: c.development_status === "in_progress" ? colors.primary : colors.warningSolid,
+                        padding: "6px 10px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.05em",
+                        border: c.development_status === "in_progress"
+                          ? `1px solid ${colors.border}`
+                          : `1px solid ${colors.warningSolid}40`
+                      }}
+                    >
+                      {c.development_status === "in_progress" ? "🔧 In Progress" : "🧪 Un-Tested"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Photo */}

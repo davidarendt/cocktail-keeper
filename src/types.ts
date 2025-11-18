@@ -10,6 +10,7 @@ export type Role = "viewer" | "editor" | "admin"
 export type Kind = "method" | "glass" | "ice" | "unit"
 // Allow admin-managed unit strings (configured in Settings → Units)
 export type Unit = string
+export type DevelopmentStatus = "ready" | "in_progress" | "untested"
 
 /** ---------- Database row shapes (match Supabase tables) ---------- */
 export type CocktailRow = {
@@ -22,6 +23,7 @@ export type CocktailRow = {
   price: number | null
   last_special_on: IsoDate | null
   is_ology_recipe: boolean | null
+  development_status: DevelopmentStatus
   created_at?: TimestampISO
   tags?: TagRow[]
   photo_url?: string | null
