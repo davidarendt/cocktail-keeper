@@ -1,0 +1,14 @@
+name: Keep Supabase Awake
+
+on:
+  schedule:
+    - cron: "0 14 * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Netlify keepalive function
+        run: |
+          curl -fsS "https://cocktailkeeper.netlify.app/.netlify/functions/keepalive" > /dev/null
