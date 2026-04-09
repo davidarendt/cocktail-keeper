@@ -24,6 +24,7 @@ jobs:
             }
           }, (res) => {
             console.log('Status:', res.statusCode);
+            process.exit(0);
           });
           req.on('error', (e) => { console.error(e); process.exit(1); });
           "
