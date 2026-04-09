@@ -1,0 +1,29 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    - cron: '0 9 * * 1,4'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase DB
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node -e "
+          const https = require('https');
+          const url = process.env.SUPABASE_URL + '/rest/v1/tags?select=id&limit=1';
+          const req = https.get(url, {
+            headers: {
+              'apikey': process.env.SUPABASE_SERVICE_ROLE_KEY,
+              'Authorization': 'Bearer ' + process.env.SUPABASE_SERVICE_ROLE_KEY
+            }
+          }, (res) => {
+            console.log('Status:', res.statusCode);
+          });
+          req.on('error', (e) => { console.error(e); process.exit(1); });
+          "
